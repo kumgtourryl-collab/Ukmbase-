@@ -10,6 +10,9 @@
         body { font-family: 'Inter', sans-serif; background-color: #0B1020; color: #F8FAFC; }
         .mono { font-family: 'JetBrains Mono', monospace; }
         .glow { box-shadow: 0 0 40px -10px rgba(79, 70, 229, 0.5); }
+        /* Smooth hover effect for feature cards */
+        .feature-card { transition: all 0.3s ease; }
+        .feature-card:hover { border-color: #4F46E5; transform: translateY(-2px); }
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center justify-center p-6 text-center">
@@ -22,8 +25,12 @@
 
     <!-- Hero -->
     <main class="max-w-3xl w-full">
-        <div class="inline-block bg-[#4F46E5]/10 border border-[#4F46E5]/30 text-[#06B6D4] px-4 py-1.5 rounded-full text-xs font-semibold mb-6">
-            🚀 Built entirely on a phone. $0 budget.
+        <!-- Badge with SVG -->
+        <div class="inline-flex items-center gap-2 bg-[#4F46E5]/10 border border-[#4F46E5]/30 text-[#06B6D4] px-4 py-1.5 rounded-full text-xs font-semibold mb-6">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+            </svg>
+            Built entirely on a phone. $0 budget.
         </div>
         
         <h1 class="text-4xl md:text-6xl font-extrabold tracking-tight mb-6 leading-tight">
@@ -38,36 +45,52 @@
         <!-- Waitlist Form -->
         <div class="flex flex-col sm:flex-row gap-3 max-w-md mx-auto mb-16">
             <input type="email" placeholder="founder@startup.com" class="flex-1 bg-[#1C2333] border border-[#2A3347] rounded-lg px-4 py-3 text-white placeholder-[#64748B] focus:outline-none focus:border-[#4F46E5]">
-            <button class="bg-[#4F46E5] hover:bg-[#4338CA] text-white font-bold py-3 px-6 rounded-lg transition-colors glow">
+            <button class="bg-[#4F46E5] hover:bg-[#4338CA] text-white font-bold py-3 px-6 rounded-lg transition-colors glow flex items-center justify-center gap-2">
                 Join Waitlist
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+                </svg>
             </button>
         </div>
 
-        <!-- Features -->
+        <!-- Features with Professional SVG Icons -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-left">
-            <!-- Feature 1 -->
-            <div class="bg-[#1C2333] border border-[#2A3347] p-5 rounded-xl">
-                <div class="text-[#06B6D4] text-2xl mb-2">⚡</div>
+            
+            <!-- Feature 1: ForgeSync -->
+            <div class="feature-card bg-[#1C2333] border border-[#2A3347] p-5 rounded-xl">
+                <!-- Sync Icon -->
+                <svg class="w-6 h-6 text-[#06B6D4] mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
                 <h3 class="font-bold text-white mb-1">ForgeSync</h3>
                 <p class="text-[#94A3B8] text-sm">Offline-first engine. Build apps that work on 2G or zero connection.</p>
             </div>
-            <!-- Feature 2 -->
-            <div class="bg-[#1C2333] border border-[#2A3347] p-5 rounded-xl">
-                <div class="text-[#F59E0B] text-2xl mb-2">🧠</div>
+
+            <!-- Feature 2: ForgeAI -->
+            <div class="feature-card bg-[#1C2333] border border-[#2A3347] p-5 rounded-xl">
+                <!-- AI/Chip Icon -->
+                <svg class="w-6 h-6 text-[#F59E0B] mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path>
+                </svg>
                 <h3 class="font-bold text-white mb-1">ForgeAI</h3>
                 <p class="text-[#94A3B8] text-sm">Describe your app. Get a full-stack schema, API, and UI in seconds.</p>
             </div>
-            <!-- Feature 3 -->
-            <div class="bg-[#1C2333] border border-[#2A3347] p-5 rounded-xl">
-                <div class="text-[#06B6D4] text-2xl mb-2">💰</div>
+
+            <!-- Feature 3: ForgePay -->
+            <div class="feature-card bg-[#1C2333] border border-[#2A3347] p-5 rounded-xl">
+                <!-- Credit Card Icon -->
+                <svg class="w-6 h-6 text-[#06B6D4] mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
+                </svg>
                 <h3 class="font-bold text-white mb-1">ForgePay</h3>
                 <p class="text-[#94A3B8] text-sm">Built-in Stripe, Paystack, and EcoCash integrations. Monetize from Day 1.</p>
             </div>
+
         </div>
     </main>
 
     <!-- Footer -->
-    <footer class="mt-20 text-[#64748B] text-xs">
+    <footer class="mt-20 text-[#64748B] text-xs flex flex-col items-center gap-2">
         <p>Built by Kerryl U Murwisi & The BaseForge Team. Soli Deo Gloria.</p>
     </footer>
 
