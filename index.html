@@ -36,12 +36,12 @@
                 </svg>
                 Built entirely on a phone. $0 budget.
             </div>
-            
+
             <h1 class="text-4xl md:text-6xl font-extrabold tracking-tight mb-6 leading-tight">
                 Forge your backend.<br>
                 <span class="text-transparent bg-clip-text bg-gradient-to-r from-[#4F46E5] to-[#06B6D4]">Ship your SaaS.</span>
             </h1>
-            
+
             <p class="text-[#94A3B8] text-lg md:text-xl mb-10 max-w-xl mx-auto">
                 The AI-native backend platform for mobile-first founders. Offline-first sync, full-stack AI generation, and built-in mobile money. No laptop required.
             </p>
@@ -168,27 +168,27 @@
                                 <span class="text-[#94A3B8] text-xs font-medium">AI Tokens Used</span>
                                 <svg class="w-4 h-4 text-[#F59E0B]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                             </div>
-                            <div class="text-2xl font-bold text-white mono">0 <span class="text-xs text-[#64748B] font-normal">/ 100k</span></div>
+                            <div id="stat-tokens" class="text-2xl font-bold text-white mono">0 <span class="text-xs text-[#64748B] font-normal">/ 100k</span></div>
                         </div>
                         <div class="bg-[#1C2333] border border-[#2A3347] p-5 rounded-xl">
                             <div class="flex items-center justify-between mb-2">
                                 <span class="text-[#94A3B8] text-xs font-medium">Sync Operations</span>
                                 <svg class="w-4 h-4 text-[#06B6D4]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
                             </div>
-                            <div class="text-2xl font-bold text-white mono">0</div>
+                            <div id="stat-syncs" class="text-2xl font-bold text-white mono">0</div>
                         </div>
                         <div class="bg-[#1C2333] border border-[#2A3347] p-5 rounded-xl">
                             <div class="flex items-center justify-between mb-2">
                                 <span class="text-[#94A3B8] text-xs font-medium">Storage</span>
                                 <svg class="w-4 h-4 text-[#06B6D4]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
                             </div>
-                            <div class="text-2xl font-bold text-white mono">0 <span class="text-xs text-[#64748B] font-normal">MB</span></div>
+                            <div id="stat-storage" class="text-2xl font-bold text-white mono">0 <span class="text-xs text-[#64748B] font-normal">MB</span></div>
                         </div>
                     </div>
 
                     <div class="flex items-center justify-between mb-4">
                         <h2 class="text-lg font-bold text-white">Your Projects</h2>
-                        <button class="bg-[#4F46E5] hover:bg-[#4338CA] text-white text-xs font-bold py-2 px-4 rounded-lg transition-colors flex items-center gap-2">
+                        <button onclick="openProjectModal()" class="bg-[#4F46E5] hover:bg-[#4338CA] text-white text-xs font-bold py-2 px-4 rounded-lg transition-colors flex items-center gap-2">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                             New Project
                         </button>
@@ -198,7 +198,7 @@
                         <svg class="w-12 h-12 text-[#2A3347] mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
                         <h3 class="text-white font-bold mb-1">No projects yet</h3>
                         <p class="text-[#94A3B8] text-sm mb-4">Forge your first backend and start shipping.</p>
-                        <button class="bg-[#4F46E5] hover:bg-[#4338CA] text-white text-xs font-bold py-2 px-4 rounded-lg transition-colors">
+                        <button onclick="openProjectModal()" class="bg-[#4F46E5] hover:bg-[#4338CA] text-white text-xs font-bold py-2 px-4 rounded-lg transition-colors">
                             Create your first project
                         </button>
                     </div>
@@ -207,9 +207,41 @@
         </div>
     </div>
 
+    <!-- ================= NEW PROJECT MODAL ================= -->
+    <div id="project-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+        <div class="w-full max-w-md bg-[#1C2333] border border-[#2A3347] rounded-2xl p-6 glow">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-lg font-bold text-white">Forge a new project</h2>
+                <button onclick="closeProjectModal()" class="text-[#94A3B8] hover:text-white p-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+
+            <div id="modal-error" class="hidden bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-3 rounded-lg mb-4"></div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-medium text-[#94A3B8] mb-1">Project Name</label>
+                    <input type="text" id="project-name" oninput="autoSlug()" placeholder="My Salon App" class="w-full bg-[#0B1020] border border-[#2A3347] rounded-lg px-4 py-3 text-white placeholder-[#64748B] focus:outline-none focus:border-[#4F46E5]">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-[#94A3B8] mb-1">Slug (auto-generated)</label>
+                    <input type="text" id="project-slug" placeholder="my-salon-app" class="w-full bg-[#0B1020] border border-[#2A3347] rounded-lg px-4 py-3 text-[#94A3B8] mono text-sm placeholder-[#64748B] focus:outline-none focus:border-[#4F46E5]">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-[#94A3B8] mb-1">Description (optional)</label>
+                    <textarea id="project-description" rows="3" placeholder="A booking system for salon owners in Harare." class="w-full bg-[#0B1020] border border-[#2A3347] rounded-lg px-4 py-3 text-white placeholder-[#64748B] focus:outline-none focus:border-[#4F46E5] resize-none"></textarea>
+                </div>
+                <button id="create-project-btn" onclick="createProject()" class="w-full bg-[#4F46E5] hover:bg-[#4338CA] text-white font-bold py-3 rounded-lg transition-colors glow">
+                    Forge Project
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Supabase Library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
+
     <!-- App Logic -->
     <script src="app.js"></script>
 </body>
