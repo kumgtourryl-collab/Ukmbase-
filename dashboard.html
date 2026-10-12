@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ukmbase | Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #0B1020; color: #F8FAFC; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        .sidebar-active { background-color: rgba(79, 70, 229, 0.1); border-left: 3px solid #4F46E5; }
+        .glow { box-shadow: 0 0 40px -10px rgba(79, 70, 229, 0.4); }
+        .feature-card { transition: all 0.3s ease; }
+        .feature-card:hover { border-color: #4F46E5; transform: translateY(-2px); }
+        /* Hide scrollbar for mobile nav */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <!-- ================= AUTH SCREEN ================= -->
+    <div id="auth-screen" class="min-h-screen flex items-center justify-center p-6">
+        <div class="w-full max-w-md bg-[#1C2333] border border-[#2A3347] rounded-2xl p-8 glow">
+            <div class="text-center mb-8">
+                <div class="text-3xl font-extrabold tracking-tighter text-white mb-2">
+                    Ukm<span class="text-[#4F46E5]">base</span>
+                </div>
+                <p class="text-[#94A3B8] text-sm">Forge your backend. Ship your SaaS.</p>
+            </div>
+
+            <div id="auth-error" class="hidden bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-3 rounded-lg mb-4"></div>
+            <div id="auth-success" class="hidden bg-green-500/10 border border-green-500/30 text-green-400 text-xs p-3 rounded-lg mb-4"></div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-medium text-[#94A3B8] mb-1">Email</label>
+                    <input type="email" id="auth-email" placeholder="founder@startup.com" class="w-full bg-[#0B1020] border border-[#2A3347] rounded-lg px-4 py-3 text-white placeholder-[#64748B] focus:outline-none focus:border-[#4F46E5]">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-[#94A3B8] mb-1">Password</label>
+                    <input type="password" id="auth-password" placeholder="••••••••" class="w-full bg-[#0B1020] border border-[#2A3347] rounded-lg px-4 py-3 text-white placeholder-[#64748B] focus:outline-none focus:border-[#4F46E5]">
+                </div>
+                <button id="login-btn" onclick="handleLogin()" class="w-full bg-[#4F46E5] hover:bg-[#4338CA] text-white font-bold py-3 rounded-lg transition-colors mt-2">
+                    Sign In
+                </button>
+                <button id="signup-btn" onclick="handleSignup()" class="w-full bg-transparent border border-[#2A3347] hover:border-[#4F46E5] text-white font-bold py-3 rounded-lg transition-colors">
+                    Create Account
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= APP SCREEN ================= -->
+    <div id="app-screen" class="hidden min-h-screen flex flex-col">
+        
+        <!-- Top Nav -->
+        <nav class="border-b border-[#2A3347] bg-[#0B1020] px-4 py-3 flex justify-between items-center sticky top-0 z-50">
+            <div class="flex items-center gap-3">
+                <button onclick="toggleSidebar()" class="text-[#94A3B8] hover:text-white p-1">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                </button>
+                <div class="text-xl font-extrabold tracking-tighter text-white">
+                    Ukm<span class="text-[#4F46E5]">base</span>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="text-xs text-[#94A3B8] mono hidden sm:block" id="user-email">user@example.com</div>
+                <button onclick="handleLogout()" class="text-[#94A3B8] hover:text-red-400 p-1" title="Logout">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                </button>
+            </div>
+        </nav>
+
+        <div class="flex flex-1 overflow-hidden">
+            <!-- Sidebar -->
+            <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-64 bg-[#1C2333] border-r border-[#2A3347] transform -translate-x-full transition-transform duration-200 ease-in-out md:relative md:translate-x-0 mt-14 md:mt-0">
+                <div class="p-4 space-y-1">
+                    <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg sidebar-active text-white text-sm font-medium">
+                        <svg class="w-5 h-5 text-[#4F46E5]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                        Overview
+                    </a>
+                    <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#94A3B8] hover:text-white hover:bg-white/5 text-sm font-medium transition-colors">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                        Projects
+                    </a>
+                    <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#94A3B8] hover:text-white hover:bg-white/5 text-sm font-medium transition-colors">
+                        <svg class="w-5 h-5 text-[#F59E0B]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path></svg>
+                        UkmAI Copilot
+                    </a>
+                    <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#94A3B8] hover:text-white hover:bg-white/5 text-sm font-medium transition-colors">
+                        <svg class="w-5 h-5 text-[#06B6D4]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                        UkmSync
+                    </a>
+                    <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#94A3B8] hover:text-white hover:bg-white/5 text-sm font-medium transition-colors">
+                        <svg class="w-5 h-5 text-[#06B6D4]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
+                        UkmPay
+                    </a>
+                    <div class="pt-4 mt-4 border-t border-[#2A3347]">
+                        <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#94A3B8] hover:text-white hover:bg-white/5 text-sm font-medium transition-colors">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                            Settings
+                        </a>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Main Content -->
+            <main class="flex-1 overflow-y-auto p-4 md:p-8">
+                <div class="max-w-6xl mx-auto">
+                    <!-- Welcome -->
+                    <div class="mb-8">
+                        <h1 class="text-2xl font-bold text-white mb-1">Welcome back, Founder</h1>
+                        <p class="text-[#94A3B8] text-sm">Here is what's happening with your projects today.</p>
+                    </div>
+
+                    <!-- Stats Grid -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+                        <div class="bg-[#1C2333] border border-[#2A3347] p-5 rounded-xl">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-[#94A3B8] text-xs font-medium">AI Tokens Used</span>
+                                <svg class="w-4 h-4 text-[#F59E0B]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                            </div>
+                            <div class="text-2xl font-bold text-white mono">0 <span class="text-xs text-[#64748B] font-normal">/ 100k</span></div>
+                        </div>
+                        <div class="bg-[#1C2333] border border-[#2A3347] p-5 rounded-xl">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-[#94A3B8] text-xs font-medium">Sync Operations</span>
+                                <svg class="w-4 h-4 text-[#06B6D4]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                            </div>
+                            <div class="text-2xl font-bold text-white mono">0</div>
+                        </div>
+                        <div class="bg-[#1C2333] border border-[#2A3347] p-5 rounded-xl">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-[#94A3B8] text-xs font-medium">Storage</span>
+                                <svg class="w-4 h-4 text-[#06B6D4]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
+                            </div>
+                            <div class="text-2xl font-bold text-white mono">0 <span class="text-xs text-[#64748B] font-normal">MB</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Projects Section -->
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-bold text-white">Your Projects</h2>
+                        <button class="bg-[#4F46E5] hover:bg-[#4338CA] text-white text-xs font-bold py-2 px-4 rounded-lg transition-colors flex items-center gap-2">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                            New Project
+                        </button>
+                    </div>
+
+                    <!-- Empty State -->
+                    <div id="empty-state" class="bg-[#1C2333] border border-dashed border-[#2A3347] rounded-xl p-12 text-center">
+                        <svg class="w-12 h-12 text-[#2A3347] mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                        <h3 class="text-white font-bold mb-1">No projects yet</h3>
+                        <p class="text-[#94A3B8] text-sm mb-4">Forge your first backend and start shipping.</p>
+                        <button class="bg-[#4F46E5] hover:bg-[#4338CA] text-white text-xs font-bold py-2 px-4 rounded-lg transition-colors">
+                            Create your first project
+                        </button>
+                    </div>
+
+                    <!-- Projects Grid (Hidden by default) -->
+                    <div id="projects-grid" class="hidden grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <!-- Project cards will go here -->
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Supabase Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        const SUPABASE_URL = 'https://dwjyzqsrzdgnpwibnyjn.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_4vcPyg62OqmfwNaHxx0CGA_a7O0_NJV';
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // UI Elements
+        const authScreen = document.getElementById('auth-screen');
+        const appScreen = document.getElementById('app-screen');
+        const authError = document.getElementById('auth-error');
+        const authSuccess = document.getElementById('auth-success');
+        const userEmailDisplay = document.getElementById('user-email');
+
+        // Check session on load
+        async function checkSession() {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                showApp(session.user);
+            } else {
+                showAuth();
+            }
+        }
+
+        function showApp(user) {
+            authScreen.classList.add('hidden');
+            appScreen.classList.remove('hidden');
+            userEmailDisplay.textContent = user.email;
+        }
+
+        function showAuth() {
+            authScreen.classList.remove('hidden');
+            appScreen.classList.add('hidden');
+        }
+
+        function showError(msg) {
+            authError.textContent = msg;
+            authError.classList.remove('hidden');
+            authSuccess.classList.add('hidden');
+        }
+
+        function showSuccess(msg) {
+            authSuccess.textContent = msg;
+            authSuccess.classList.remove('hidden');
+            authError.classList.add('hidden');
+        }
+
+        // Auth Handlers
+        async function handleLogin() {
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
+            if (!email || !password) return showError('Please fill in all fields.');
+
+            const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+            if (error) return showError(error.message);
+            showApp(data.user);
+        }
+
+        async function handleSignup() {
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
+            if (!email || !password) return showError('Please fill in all fields.');
+
+            const { data, error } = await supabase.auth.signUp({ email, password });
+            if (error) return showError(error.message);
+            showSuccess('Account created! Check your email for confirmation.');
+        }
+
+        async function handleLogout() {
+            await supabase.auth.signOut();
+            showAuth();
+        }
+
+        // Sidebar Toggle for Mobile
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('-translate-x-full');
+        }
+
+        // Listen for auth changes
+        supabase.auth.onAuthStateChange((event, session) => {
+            if (session) showApp(session.user);
+            else showAuth();
+        });
+
+        // Initialize
+        checkSession();
+    </script>
+</body>
+</html>
