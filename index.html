@@ -3,14 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BaseForge | Forge your backend. Ship your SaaS.</title>
+    <title>Ukmbase | Forge your backend. Ship your SaaS.</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #0B1020; color: #F8FAFC; }
         .mono { font-family: 'JetBrains Mono', monospace; }
         .glow { box-shadow: 0 0 40px -10px rgba(79, 70, 229, 0.5); }
-        /* Smooth hover effect for feature cards */
         .feature-card { transition: all 0.3s ease; }
         .feature-card:hover { border-color: #4F46E5; transform: translateY(-2px); }
     </style>
@@ -19,13 +18,15 @@
 
     <!-- Nav -->
     <nav class="w-full max-w-5xl flex justify-between items-center mb-16">
-        <div class="text-2xl font-extrabold tracking-tighter text-white">Base<span class="text-[#4F46E5]">Forge</span></div>
+        <div class="text-2xl font-extrabold tracking-tighter text-white">
+            Ukm<span class="text-[#4F46E5]">base</span>
+        </div>
         <div class="text-sm font-medium text-[#94A3B8] hover:text-white cursor-pointer">Login</div>
     </nav>
 
     <!-- Hero -->
     <main class="max-w-3xl w-full">
-        <!-- Badge with SVG -->
+        <!-- Badge -->
         <div class="inline-flex items-center gap-2 bg-[#4F46E5]/10 border border-[#4F46E5]/30 text-[#06B6D4] px-4 py-1.5 rounded-full text-xs font-semibold mb-6">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
@@ -43,56 +44,89 @@
         </p>
 
         <!-- Waitlist Form -->
-        <div class="flex flex-col sm:flex-row gap-3 max-w-md mx-auto mb-16">
-            <input type="email" placeholder="founder@startup.com" class="flex-1 bg-[#1C2333] border border-[#2A3347] rounded-lg px-4 py-3 text-white placeholder-[#64748B] focus:outline-none focus:border-[#4F46E5]">
-            <button class="bg-[#4F46E5] hover:bg-[#4338CA] text-white font-bold py-3 px-6 rounded-lg transition-colors glow flex items-center justify-center gap-2">
+        <div id="form-container" class="flex flex-col sm:flex-row gap-3 max-w-md mx-auto mb-16">
+            <input type="email" id="email-input" placeholder="founder@startup.com" class="flex-1 bg-[#1C2333] border border-[#2A3347] rounded-lg px-4 py-3 text-white placeholder-[#64748B] focus:outline-none focus:border-[#4F46E5]">
+            <button id="submit-btn" onclick="joinWaitlist()" class="bg-[#4F46E5] hover:bg-[#4338CA] text-white font-bold py-3 px-6 rounded-lg transition-colors glow flex items-center justify-center gap-2">
                 Join Waitlist
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
-                </svg>
             </button>
         </div>
+        <div id="success-message" class="hidden text-[#06B6D4] font-semibold mb-16">
+            You're on the list! We'll be in touch soon.
+        </div>
 
-        <!-- Features with Professional SVG Icons -->
+        <!-- Features -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-left">
-            
-            <!-- Feature 1: ForgeSync -->
+            <!-- Feature 1: UkmSync -->
             <div class="feature-card bg-[#1C2333] border border-[#2A3347] p-5 rounded-xl">
-                <!-- Sync Icon -->
                 <svg class="w-6 h-6 text-[#06B6D4] mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
                 </svg>
-                <h3 class="font-bold text-white mb-1">ForgeSync</h3>
+                <h3 class="font-bold text-white mb-1">UkmSync</h3>
                 <p class="text-[#94A3B8] text-sm">Offline-first engine. Build apps that work on 2G or zero connection.</p>
             </div>
 
-            <!-- Feature 2: ForgeAI -->
+            <!-- Feature 2: UkmAI -->
             <div class="feature-card bg-[#1C2333] border border-[#2A3347] p-5 rounded-xl">
-                <!-- AI/Chip Icon -->
                 <svg class="w-6 h-6 text-[#F59E0B] mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path>
                 </svg>
-                <h3 class="font-bold text-white mb-1">ForgeAI</h3>
+                <h3 class="font-bold text-white mb-1">UkmAI</h3>
                 <p class="text-[#94A3B8] text-sm">Describe your app. Get a full-stack schema, API, and UI in seconds.</p>
             </div>
 
-            <!-- Feature 3: ForgePay -->
+            <!-- Feature 3: UkmPay -->
             <div class="feature-card bg-[#1C2333] border border-[#2A3347] p-5 rounded-xl">
-                <!-- Credit Card Icon -->
                 <svg class="w-6 h-6 text-[#06B6D4] mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
                 </svg>
-                <h3 class="font-bold text-white mb-1">ForgePay</h3>
+                <h3 class="font-bold text-white mb-1">UkmPay</h3>
                 <p class="text-[#94A3B8] text-sm">Built-in Stripe, Paystack, and EcoCash integrations. Monetize from Day 1.</p>
             </div>
-
         </div>
     </main>
 
     <!-- Footer -->
     <footer class="mt-20 text-[#64748B] text-xs flex flex-col items-center gap-2">
-        <p>Built by Kerryl U Murwisi & The BaseForge Team. Soli Deo Gloria.</p>
+        <p>Built by Kerryl U Murwisi & The Ukmbase Team. Soli Deo Gloria.</p>
     </footer>
+
+    <!-- Supabase Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- Supabase Logic -->
+    <script>
+        // PASTE YOUR SUPABASE URL AND ANON KEY HERE
+        const SUPABASE_URL = 'YOUR_SUPABASE_PROJECT_URL';
+        const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        async function joinWaitlist() {
+            const emailInput = document.getElementById('email-input');
+            const submitBtn = document.getElementById('submit-btn');
+            const formContainer = document.getElementById('form-container');
+            const successMessage = document.getElementById('success-message');
+            const email = emailInput.value;
+
+            if (!email) return alert('Please enter your email.');
+
+            submitBtn.innerText = 'Joining...';
+            submitBtn.disabled = true;
+
+            const { data, error } = await supabase
+                .from('waitlist')
+                .insert([{ email: email }]);
+
+            if (error) {
+                alert('Error: ' + error.message);
+                submitBtn.innerText = 'Join Waitlist';
+                submitBtn.disabled = false;
+            } else {
+                formContainer.classList.add('hidden');
+                successMessage.classList.remove('hidden');
+            }
+        }
+    </script>
 
 </body>
 </html>
