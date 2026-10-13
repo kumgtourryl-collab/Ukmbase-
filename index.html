@@ -6,6 +6,7 @@
     <title>Ukmbase | Forge your backend. Ship your SaaS.</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #0B1020; color: #F8FAFC; }
         .mono { font-family: 'JetBrains Mono', monospace; }
@@ -16,6 +17,20 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .hidden { display: none !important; }
+        pre { background: #0B1020 !important; border: 1px solid #2A3347; border-radius: 8px; padding: 12px; overflow-x: auto; margin: 12px 0; font-size: 12px; }
+        code { font-family: 'JetBrains Mono', monospace; }
+        .chat-message pre { position: relative; }
+        .chat-message h2 { font-size: 16px; font-weight: 700; margin: 16px 0 8px; color: #F8FAFC; }
+        .chat-message h3 { font-size: 14px; font-weight: 700; margin: 12px 0 6px; color: #06B6D4; }
+        .chat-message p { margin: 8px 0; line-height: 1.6; }
+        .chat-message ul { list-style: disc; margin: 8px 0 8px 20px; }
+        .chat-message strong { color: #F8FAFC; }
+        .copy-btn { position: absolute; top: 8px; right: 8px; background: #4F46E5; color: white; font-size: 10px; padding: 4px 8px; border-radius: 4px; cursor: pointer; opacity: 0.8; }
+        .copy-btn:hover { opacity: 1; }
+        .typing-dot { animation: bounce 1.4s infinite ease-in-out both; }
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
     </style>
 </head>
 <body class="min-h-screen">
@@ -31,9 +46,7 @@
 
         <main class="max-w-3xl w-full">
             <div class="inline-flex items-center gap-2 bg-[#4F46E5]/10 border border-[#4F46E5]/30 text-[#06B6D4] px-4 py-1.5 rounded-full text-xs font-semibold mb-6">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                </svg>
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                 Built entirely on a phone. $0 budget.
             </div>
 
@@ -112,7 +125,7 @@
         </div>
     </div>
 
-    <!-- ================= VIEW 3: DASHBOARD (THE COCKPIT) ================= -->
+    <!-- ================= VIEW 3: DASHBOARD ================= -->
     <div id="dashboard-view" class="hidden min-h-screen flex flex-col">
         <nav class="border-b border-[#2A3347] bg-[#0B1020] px-4 py-3 flex justify-between items-center sticky top-0 z-50">
             <div class="flex items-center gap-3">
@@ -132,15 +145,11 @@
         <div class="flex flex-1 overflow-hidden">
             <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-64 bg-[#1C2333] border-r border-[#2A3347] transform -translate-x-full transition-transform duration-200 ease-in-out md:relative md:translate-x-0 mt-14 md:mt-0">
                 <div class="p-4 space-y-1">
-                    <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg sidebar-active text-white text-sm font-medium">
+                    <a href="#" onclick="switchView('overview')" id="nav-overview" class="flex items-center gap-3 px-3 py-2.5 rounded-lg sidebar-active text-white text-sm font-medium">
                         <svg class="w-5 h-5 text-[#4F46E5]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
                         Overview
                     </a>
-                    <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#94A3B8] hover:text-white hover:bg-white/5 text-sm font-medium transition-colors">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
-                        Projects
-                    </a>
-                    <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#94A3B8] hover:text-white hover:bg-white/5 text-sm font-medium transition-colors">
+                    <a href="#" onclick="switchView('ukmai')" id="nav-ukmai" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#94A3B8] hover:text-white hover:bg-white/5 text-sm font-medium transition-colors">
                         <svg class="w-5 h-5 text-[#F59E0B]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path></svg>
                         UkmAI Copilot
                     </a>
@@ -155,54 +164,103 @@
                 </div>
             </aside>
 
-            <main class="flex-1 overflow-y-auto p-4 md:p-8">
-                <div class="max-w-6xl mx-auto">
-                    <div class="mb-8">
-                        <h1 class="text-2xl font-bold text-white mb-1">Welcome back, Founder</h1>
-                        <p class="text-[#94A3B8] text-sm">Here is what's happening with your projects today.</p>
-                    </div>
+            <main class="flex-1 overflow-hidden flex flex-col">
 
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-                        <div class="bg-[#1C2333] border border-[#2A3347] p-5 rounded-xl">
-                            <div class="flex items-center justify-between mb-2">
-                                <span class="text-[#94A3B8] text-xs font-medium">AI Tokens Used</span>
-                                <svg class="w-4 h-4 text-[#F59E0B]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                            </div>
-                            <div id="stat-tokens" class="text-2xl font-bold text-white mono">0 <span class="text-xs text-[#64748B] font-normal">/ 100k</span></div>
+                <!-- ============ SUB-VIEW: OVERVIEW ============ -->
+                <div id="view-overview" class="flex-1 overflow-y-auto p-4 md:p-8">
+                    <div class="max-w-6xl mx-auto">
+                        <div class="mb-8">
+                            <h1 class="text-2xl font-bold text-white mb-1">Welcome back, Founder</h1>
+                            <p class="text-[#94A3B8] text-sm">Here is what's happening with your projects today.</p>
                         </div>
-                        <div class="bg-[#1C2333] border border-[#2A3347] p-5 rounded-xl">
-                            <div class="flex items-center justify-between mb-2">
-                                <span class="text-[#94A3B8] text-xs font-medium">Sync Operations</span>
-                                <svg class="w-4 h-4 text-[#06B6D4]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-                            </div>
-                            <div id="stat-syncs" class="text-2xl font-bold text-white mono">0</div>
-                        </div>
-                        <div class="bg-[#1C2333] border border-[#2A3347] p-5 rounded-xl">
-                            <div class="flex items-center justify-between mb-2">
-                                <span class="text-[#94A3B8] text-xs font-medium">Storage</span>
-                                <svg class="w-4 h-4 text-[#06B6D4]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
-                            </div>
-                            <div id="stat-storage" class="text-2xl font-bold text-white mono">0 <span class="text-xs text-[#64748B] font-normal">MB</span></div>
-                        </div>
-                    </div>
 
-                    <div class="flex items-center justify-between mb-4">
-                        <h2 class="text-lg font-bold text-white">Your Projects</h2>
-                        <button onclick="openProjectModal()" class="bg-[#4F46E5] hover:bg-[#4338CA] text-white text-xs font-bold py-2 px-4 rounded-lg transition-colors flex items-center gap-2">
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                            New Project
-                        </button>
-                    </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+                            <div class="bg-[#1C2333] border border-[#2A3347] p-5 rounded-xl">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-[#94A3B8] text-xs font-medium">AI Tokens Used</span>
+                                    <svg class="w-4 h-4 text-[#F59E0B]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                                </div>
+                                <div id="stat-tokens" class="text-2xl font-bold text-white mono">0 <span class="text-xs text-[#64748B] font-normal">/ 100k</span></div>
+                            </div>
+                            <div class="bg-[#1C2333] border border-[#2A3347] p-5 rounded-xl">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-[#94A3B8] text-xs font-medium">Sync Operations</span>
+                                    <svg class="w-4 h-4 text-[#06B6D4]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                                </div>
+                                <div id="stat-syncs" class="text-2xl font-bold text-white mono">0</div>
+                            </div>
+                            <div class="bg-[#1C2333] border border-[#2A3347] p-5 rounded-xl">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-[#94A3B8] text-xs font-medium">Storage</span>
+                                    <svg class="w-4 h-4 text-[#06B6D4]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
+                                </div>
+                                <div id="stat-storage" class="text-2xl font-bold text-white mono">0 <span class="text-xs text-[#64748B] font-normal">MB</span></div>
+                            </div>
+                        </div>
 
-                    <div id="empty-state" class="bg-[#1C2333] border border-dashed border-[#2A3347] rounded-xl p-12 text-center">
-                        <svg class="w-12 h-12 text-[#2A3347] mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
-                        <h3 class="text-white font-bold mb-1">No projects yet</h3>
-                        <p class="text-[#94A3B8] text-sm mb-4">Forge your first backend and start shipping.</p>
-                        <button onclick="openProjectModal()" class="bg-[#4F46E5] hover:bg-[#4338CA] text-white text-xs font-bold py-2 px-4 rounded-lg transition-colors">
-                            Create your first project
-                        </button>
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-lg font-bold text-white">Your Projects</h2>
+                            <button onclick="openProjectModal()" class="bg-[#4F46E5] hover:bg-[#4338CA] text-white text-xs font-bold py-2 px-4 rounded-lg transition-colors flex items-center gap-2">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                                New Project
+                            </button>
+                        </div>
+
+                        <div id="empty-state" class="bg-[#1C2333] border border-dashed border-[#2A3347] rounded-xl p-12 text-center">
+                            <svg class="w-12 h-12 text-[#2A3347] mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                            <h3 class="text-white font-bold mb-1">No projects yet</h3>
+                            <p class="text-[#94A3B8] text-sm mb-4">Forge your first backend and start shipping.</p>
+                            <button onclick="openProjectModal()" class="bg-[#4F46E5] hover:bg-[#4338CA] text-white text-xs font-bold py-2 px-4 rounded-lg transition-colors">
+                                Create your first project
+                            </button>
+                        </div>
                     </div>
                 </div>
+
+                <!-- ============ SUB-VIEW: UKMAI CHAT ============ -->
+                <div id="view-ukmai" class="hidden flex-1 flex flex-col overflow-hidden">
+                    
+                    <!-- Chat Header -->
+                    <div class="border-b border-[#2A3347] px-4 py-3 flex items-center justify-between bg-[#0B1020]">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-lg bg-[#F59E0B]/10 border border-[#F59E0B]/30 flex items-center justify-center">
+                                <svg class="w-4 h-4 text-[#F59E0B]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path></svg>
+                            </div>
+                            <div>
+                                <h2 class="text-white font-bold text-sm">UkmAI Copilot</h2>
+                                <p class="text-[#64748B] text-[10px] mono">Powered by Groq · Llama 3.3 70B</p>
+                            </div>
+                        </div>
+                        <button onclick="clearChat()" class="text-[#94A3B8] hover:text-white text-xs">Clear</button>
+                    </div>
+
+                    <!-- Messages -->
+                    <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4">
+                        <div class="text-center py-8">
+                            <div class="w-12 h-12 mx-auto mb-3 rounded-xl bg-[#F59E0B]/10 border border-[#F59E0B]/30 flex items-center justify-center">
+                                <svg class="w-6 h-6 text-[#F59E0B]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path></svg>
+                            </div>
+                            <h3 class="text-white font-bold mb-1">Describe your app. Get a full backend.</h3>
+                            <p class="text-[#94A3B8] text-xs mb-6">UkmAI generates schemas, RLS policies, endpoints, and sample queries.</p>
+                            <div class="flex flex-wrap gap-2 justify-center max-w-lg mx-auto">
+                                <button onclick="sendPrompt('Build a booking system for a hair salon with customers, services, and appointments')" class="bg-[#1C2333] border border-[#2A3347] hover:border-[#4F46E5] text-[#94A3B8] hover:text-white text-xs px-3 py-2 rounded-lg transition-colors">Hair salon booking</button>
+                                <button onclick="sendPrompt('Build a school management system with students, teachers, classes, and grades')" class="bg-[#1C2333] border border-[#2A3347] hover:border-[#4F46E5] text-[#94A3B8] hover:text-white text-xs px-3 py-2 rounded-lg transition-colors">School management</button>
+                                <button onclick="sendPrompt('Build a mobile money wallet with users, transactions, and balances')" class="bg-[#1C2333] border border-[#2A3347] hover:border-[#4F46E5] text-[#94A3B8] hover:text-white text-xs px-3 py-2 rounded-lg transition-colors">Mobile money wallet</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Input -->
+                    <div class="border-t border-[#2A3347] p-3 bg-[#0B1020]">
+                        <div class="flex gap-2 items-end max-w-4xl mx-auto">
+                            <textarea id="chat-input" rows="1" placeholder="Describe your app..." onkeydown="handleChatKeydown(event)" class="flex-1 bg-[#1C2333] border border-[#2A3347] rounded-lg px-4 py-3 text-white placeholder-[#64748B] focus:outline-none focus:border-[#4F46E5] resize-none text-sm" style="max-height: 120px;"></textarea>
+                            <button id="chat-send" onclick="sendChat()" class="bg-[#4F46E5] hover:bg-[#4338CA] text-white p-3 rounded-lg transition-colors glow disabled:opacity-50">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
             </main>
         </div>
     </div>
@@ -239,10 +297,10 @@
         </div>
     </div>
 
-    <!-- Supabase Library -->
+    <!-- Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-    <!-- App Logic -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <script src="app.js"></script>
 </body>
 </html>
