@@ -19,7 +19,6 @@
         .hidden { display: none !important; }
         pre { background: #0B1020 !important; border: 1px solid #2A3347; border-radius: 8px; padding: 12px; overflow-x: auto; margin: 12px 0; font-size: 12px; }
         code { font-family: 'JetBrains Mono', monospace; }
-        .chat-message pre { position: relative; }
         .chat-message h2 { font-size: 16px; font-weight: 700; margin: 16px 0 8px; color: #F8FAFC; }
         .chat-message h3 { font-size: 14px; font-weight: 700; margin: 12px 0 6px; color: #06B6D4; }
         .chat-message p { margin: 8px 0; line-height: 1.6; }
@@ -35,40 +34,27 @@
 </head>
 <body class="min-h-screen">
 
-    <!-- ================= VIEW 1: LANDING PAGE ================= -->
+    <!-- ================= VIEW 1: LANDING ================= -->
     <div id="landing-view" class="min-h-screen flex flex-col items-center justify-center p-6 text-center">
         <nav class="w-full max-w-5xl flex justify-between items-center mb-16">
-            <div class="text-2xl font-extrabold tracking-tighter text-white">
-                Ukm<span class="text-[#4F46E5]">base</span>
-            </div>
+            <div class="text-2xl font-extrabold tracking-tighter text-white">Ukm<span class="text-[#4F46E5]">base</span></div>
             <button onclick="showAuthView()" class="text-sm font-medium text-[#94A3B8] hover:text-white cursor-pointer bg-transparent border-none">Login</button>
         </nav>
-
         <main class="max-w-3xl w-full">
             <div class="inline-flex items-center gap-2 bg-[#4F46E5]/10 border border-[#4F46E5]/30 text-[#06B6D4] px-4 py-1.5 rounded-full text-xs font-semibold mb-6">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                 Built entirely on a phone. $0 budget.
             </div>
-
             <h1 class="text-4xl md:text-6xl font-extrabold tracking-tight mb-6 leading-tight">
                 Forge your backend.<br>
                 <span class="text-transparent bg-clip-text bg-gradient-to-r from-[#4F46E5] to-[#06B6D4]">Ship your SaaS.</span>
             </h1>
-
-            <p class="text-[#94A3B8] text-lg md:text-xl mb-10 max-w-xl mx-auto">
-                The AI-native backend platform for mobile-first founders. Offline-first sync, full-stack AI generation, and built-in mobile money. No laptop required.
-            </p>
-
+            <p class="text-[#94A3B8] text-lg md:text-xl mb-10 max-w-xl mx-auto">The AI-native backend platform for mobile-first founders. Offline-first sync, full-stack AI generation, and built-in mobile money.</p>
             <div id="waitlist-form" class="flex flex-col sm:flex-row gap-3 max-w-md mx-auto mb-16">
                 <input type="email" id="email-input" placeholder="founder@startup.com" class="flex-1 bg-[#1C2333] border border-[#2A3347] rounded-lg px-4 py-3 text-white placeholder-[#64748B] focus:outline-none focus:border-[#4F46E5]">
-                <button id="submit-btn" onclick="joinWaitlist()" class="bg-[#4F46E5] hover:bg-[#4338CA] text-white font-bold py-3 px-6 rounded-lg transition-colors glow flex items-center justify-center gap-2">
-                    Join Waitlist
-                </button>
+                <button id="submit-btn" onclick="joinWaitlist()" class="bg-[#4F46E5] hover:bg-[#4338CA] text-white font-bold py-3 px-6 rounded-lg transition-colors glow">Join Waitlist</button>
             </div>
-            <div id="waitlist-success" class="hidden text-[#06B6D4] font-semibold mb-16">
-                You're on the list! We'll be in touch soon.
-            </div>
-
+            <div id="waitlist-success" class="hidden text-[#06B6D4] font-semibold mb-16">You're on the list!</div>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-left">
                 <div class="feature-card bg-[#1C2333] border border-[#2A3347] p-5 rounded-xl">
                     <svg class="w-6 h-6 text-[#06B6D4] mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
@@ -87,24 +73,18 @@
                 </div>
             </div>
         </main>
-        <footer class="mt-20 text-[#64748B] text-xs">
-            <p>© 2026 Ukmbase. All rights reserved.</p>
-        </footer>
+        <footer class="mt-20 text-[#64748B] text-xs"><p>© 2026 Ukmbase. All rights reserved.</p></footer>
     </div>
 
-    <!-- ================= VIEW 2: AUTH SCREEN ================= -->
+    <!-- ================= VIEW 2: AUTH ================= -->
     <div id="auth-view" class="hidden min-h-screen flex items-center justify-center p-6">
         <div class="w-full max-w-md bg-[#1C2333] border border-[#2A3347] rounded-2xl p-8 glow">
             <div class="text-center mb-8">
-                <div class="text-3xl font-extrabold tracking-tighter text-white mb-2">
-                    Ukm<span class="text-[#4F46E5]">base</span>
-                </div>
+                <div class="text-3xl font-extrabold tracking-tighter text-white mb-2">Ukm<span class="text-[#4F46E5]">base</span></div>
                 <p class="text-[#94A3B8] text-sm">Forge your backend. Ship your SaaS.</p>
             </div>
-
             <div id="auth-error" class="hidden bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-3 rounded-lg mb-4"></div>
             <div id="auth-success" class="hidden bg-green-500/10 border border-green-500/30 text-green-400 text-xs p-3 rounded-lg mb-4"></div>
-
             <div class="space-y-4">
                 <div>
                     <label class="block text-xs font-medium text-[#94A3B8] mb-1">Email</label>
@@ -114,12 +94,8 @@
                     <label class="block text-xs font-medium text-[#94A3B8] mb-1">Password</label>
                     <input type="password" id="auth-password" placeholder="••••••••" class="w-full bg-[#0B1020] border border-[#2A3347] rounded-lg px-4 py-3 text-white placeholder-[#64748B] focus:outline-none focus:border-[#4F46E5]">
                 </div>
-                <button id="login-btn" onclick="handleLogin()" class="w-full bg-[#4F46E5] hover:bg-[#4338CA] text-white font-bold py-3 rounded-lg transition-colors mt-2">
-                    Sign In
-                </button>
-                <button id="signup-btn" onclick="handleSignup()" class="w-full bg-transparent border border-[#2A3347] hover:border-[#4F46E5] text-white font-bold py-3 rounded-lg transition-colors">
-                    Create Account
-                </button>
+                <button onclick="handleLogin()" class="w-full bg-[#4F46E5] hover:bg-[#4338CA] text-white font-bold py-3 rounded-lg transition-colors mt-2">Sign In</button>
+                <button onclick="handleSignup()" class="w-full bg-transparent border border-[#2A3347] hover:border-[#4F46E5] text-white font-bold py-3 rounded-lg transition-colors">Create Account</button>
                 <button onclick="showLandingView()" class="w-full text-center text-xs text-[#64748B] hover:text-white mt-2">← Back to home</button>
             </div>
         </div>
@@ -136,7 +112,7 @@
             </div>
             <div class="flex items-center gap-4">
                 <div class="text-xs text-[#94A3B8] mono hidden sm:block" id="user-email">user@example.com</div>
-                <button onclick="handleLogout()" class="text-[#94A3B8] hover:text-red-400 p-1" title="Logout">
+                <button onclick="handleLogout()" class="text-[#94A3B8] hover:text-red-400 p-1">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
                 </button>
             </div>
@@ -153,27 +129,26 @@
                         <svg class="w-5 h-5 text-[#F59E0B]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path></svg>
                         UkmAI Copilot
                     </a>
-                    <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#94A3B8] hover:text-white hover:bg-white/5 text-sm font-medium transition-colors">
-                        <svg class="w-5 h-5 text-[#06B6D4]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-                        UkmSync
-                    </a>
-                    <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#94A3B8] hover:text-white hover:bg-white/5 text-sm font-medium transition-colors">
+                    <a href="#" onclick="switchView('ukmpay')" id="nav-ukmpay" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#94A3B8] hover:text-white hover:bg-white/5 text-sm font-medium transition-colors">
                         <svg class="w-5 h-5 text-[#06B6D4]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
                         UkmPay
+                    </a>
+                    <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#94A3B8] hover:text-white hover:bg-white/5 text-sm font-medium transition-colors opacity-50 cursor-not-allowed">
+                        <svg class="w-5 h-5 text-[#06B6D4]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                        UkmSync <span class="text-[9px] ml-auto">soon</span>
                     </a>
                 </div>
             </aside>
 
             <main class="flex-1 overflow-hidden flex flex-col">
 
-                <!-- ============ SUB-VIEW: OVERVIEW ============ -->
+                <!-- ============ OVERVIEW ============ -->
                 <div id="view-overview" class="flex-1 overflow-y-auto p-4 md:p-8">
                     <div class="max-w-6xl mx-auto">
                         <div class="mb-8">
                             <h1 class="text-2xl font-bold text-white mb-1">Welcome back, Founder</h1>
                             <p class="text-[#94A3B8] text-sm">Here is what's happening with your projects today.</p>
                         </div>
-
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
                             <div class="bg-[#1C2333] border border-[#2A3347] p-5 rounded-xl">
                                 <div class="flex items-center justify-between mb-2">
@@ -191,13 +166,12 @@
                             </div>
                             <div class="bg-[#1C2333] border border-[#2A3347] p-5 rounded-xl">
                                 <div class="flex items-center justify-between mb-2">
-                                    <span class="text-[#94A3B8] text-xs font-medium">Storage</span>
-                                    <svg class="w-4 h-4 text-[#06B6D4]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
+                                    <span class="text-[#94A3B8] text-xs font-medium">Revenue Logged</span>
+                                    <svg class="w-4 h-4 text-[#06B6D4]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                                 </div>
-                                <div id="stat-storage" class="text-2xl font-bold text-white mono">0 <span class="text-xs text-[#64748B] font-normal">MB</span></div>
+                                <div id="stat-revenue" class="text-2xl font-bold text-white mono">$0</div>
                             </div>
                         </div>
-
                         <div class="flex items-center justify-between mb-4">
                             <h2 class="text-lg font-bold text-white">Your Projects</h2>
                             <button onclick="openProjectModal()" class="bg-[#4F46E5] hover:bg-[#4338CA] text-white text-xs font-bold py-2 px-4 rounded-lg transition-colors flex items-center gap-2">
@@ -205,22 +179,17 @@
                                 New Project
                             </button>
                         </div>
-
                         <div id="empty-state" class="bg-[#1C2333] border border-dashed border-[#2A3347] rounded-xl p-12 text-center">
                             <svg class="w-12 h-12 text-[#2A3347] mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
                             <h3 class="text-white font-bold mb-1">No projects yet</h3>
                             <p class="text-[#94A3B8] text-sm mb-4">Forge your first backend and start shipping.</p>
-                            <button onclick="openProjectModal()" class="bg-[#4F46E5] hover:bg-[#4338CA] text-white text-xs font-bold py-2 px-4 rounded-lg transition-colors">
-                                Create your first project
-                            </button>
+                            <button onclick="openProjectModal()" class="bg-[#4F46E5] hover:bg-[#4338CA] text-white text-xs font-bold py-2 px-4 rounded-lg transition-colors">Create your first project</button>
                         </div>
                     </div>
                 </div>
 
-                <!-- ============ SUB-VIEW: UKMAI CHAT ============ -->
+                <!-- ============ UKMAI ============ -->
                 <div id="view-ukmai" class="hidden flex-1 flex flex-col overflow-hidden">
-                    
-                    <!-- Chat Header -->
                     <div class="border-b border-[#2A3347] px-4 py-3 flex items-center justify-between bg-[#0B1020]">
                         <div class="flex items-center gap-3">
                             <div class="w-8 h-8 rounded-lg bg-[#F59E0B]/10 border border-[#F59E0B]/30 flex items-center justify-center">
@@ -228,13 +197,11 @@
                             </div>
                             <div>
                                 <h2 class="text-white font-bold text-sm">UkmAI Copilot</h2>
-                                <p class="text-[#64748B] text-[10px] mono">Powered by Groq · Llama 3.3 70B</p>
+                                <p class="text-[#64748B] text-[10px] mono">Powered by Groq</p>
                             </div>
                         </div>
                         <button onclick="clearChat()" class="text-[#94A3B8] hover:text-white text-xs">Clear</button>
                     </div>
-
-                    <!-- Messages -->
                     <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4">
                         <div class="text-center py-8">
                             <div class="w-12 h-12 mx-auto mb-3 rounded-xl bg-[#F59E0B]/10 border border-[#F59E0B]/30 flex items-center justify-center">
@@ -243,14 +210,12 @@
                             <h3 class="text-white font-bold mb-1">Describe your app. Get a full backend.</h3>
                             <p class="text-[#94A3B8] text-xs mb-6">UkmAI generates schemas, RLS policies, endpoints, and sample queries.</p>
                             <div class="flex flex-wrap gap-2 justify-center max-w-lg mx-auto">
-                                <button onclick="sendPrompt('Build a booking system for a hair salon with customers, services, and appointments')" class="bg-[#1C2333] border border-[#2A3347] hover:border-[#4F46E5] text-[#94A3B8] hover:text-white text-xs px-3 py-2 rounded-lg transition-colors">Hair salon booking</button>
-                                <button onclick="sendPrompt('Build a school management system with students, teachers, classes, and grades')" class="bg-[#1C2333] border border-[#2A3347] hover:border-[#4F46E5] text-[#94A3B8] hover:text-white text-xs px-3 py-2 rounded-lg transition-colors">School management</button>
-                                <button onclick="sendPrompt('Build a mobile money wallet with users, transactions, and balances')" class="bg-[#1C2333] border border-[#2A3347] hover:border-[#4F46E5] text-[#94A3B8] hover:text-white text-xs px-3 py-2 rounded-lg transition-colors">Mobile money wallet</button>
+                                <button onclick="sendPrompt('Build a booking system for a hair salon')" class="bg-[#1C2333] border border-[#2A3347] hover:border-[#4F46E5] text-[#94A3B8] hover:text-white text-xs px-3 py-2 rounded-lg transition-colors">Hair salon booking</button>
+                                <button onclick="sendPrompt('Build a school management system')" class="bg-[#1C2333] border border-[#2A3347] hover:border-[#4F46E5] text-[#94A3B8] hover:text-white text-xs px-3 py-2 rounded-lg transition-colors">School management</button>
+                                <button onclick="sendPrompt('Build a mobile money wallet')" class="bg-[#1C2333] border border-[#2A3347] hover:border-[#4F46E5] text-[#94A3B8] hover:text-white text-xs px-3 py-2 rounded-lg transition-colors">Mobile money wallet</button>
                             </div>
                         </div>
                     </div>
-
-                    <!-- Input -->
                     <div class="border-t border-[#2A3347] p-3 bg-[#0B1020]">
                         <div class="flex gap-2 items-end max-w-4xl mx-auto">
                             <textarea id="chat-input" rows="1" placeholder="Describe your app..." onkeydown="handleChatKeydown(event)" class="flex-1 bg-[#1C2333] border border-[#2A3347] rounded-lg px-4 py-3 text-white placeholder-[#64748B] focus:outline-none focus:border-[#4F46E5] resize-none text-sm" style="max-height: 120px;"></textarea>
@@ -261,11 +226,73 @@
                     </div>
                 </div>
 
+                <!-- ============ UKMPAY ============ -->
+                <div id="view-ukmpay" class="hidden flex-1 overflow-y-auto p-4 md:p-8">
+                    <div class="max-w-6xl mx-auto">
+
+                        <div class="flex items-center justify-between mb-6">
+                            <div>
+                                <h1 class="text-2xl font-bold text-white mb-1">UkmPay</h1>
+                                <p class="text-[#94A3B8] text-sm">Monetize your projects. Track revenue in one place.</p>
+                            </div>
+                            <button onclick="openPlanModal()" class="bg-[#4F46E5] hover:bg-[#4338CA] text-white text-xs font-bold py-2 px-4 rounded-lg transition-colors flex items-center gap-2">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                                New Plan
+                            </button>
+                        </div>
+
+                        <!-- Stats -->
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+                            <div class="bg-[#1C2333] border border-[#2A3347] p-5 rounded-xl">
+                                <span class="text-[#94A3B8] text-xs font-medium">Total Revenue</span>
+                                <div id="pay-total" class="text-2xl font-bold text-white mono mt-2">$0.00</div>
+                            </div>
+                            <div class="bg-[#1C2333] border border-[#2A3347] p-5 rounded-xl">
+                                <span class="text-[#94A3B8] text-xs font-medium">This Month</span>
+                                <div id="pay-month" class="text-2xl font-bold text-white mono mt-2">$0.00</div>
+                            </div>
+                            <div class="bg-[#1C2333] border border-[#2A3347] p-5 rounded-xl">
+                                <span class="text-[#94A3B8] text-xs font-medium">Active Plans</span>
+                                <div id="pay-plans-count" class="text-2xl font-bold text-white mono mt-2">0</div>
+                            </div>
+                        </div>
+
+                        <!-- Tabs -->
+                        <div class="flex gap-2 mb-4 border-b border-[#2A3347]">
+                            <button onclick="switchPayTab('plans')" id="pay-tab-plans" class="px-4 py-2 text-sm font-medium text-white border-b-2 border-[#4F46E5] -mb-px">Plans</button>
+                            <button onclick="switchPayTab('payments')" id="pay-tab-payments" class="px-4 py-2 text-sm font-medium text-[#94A3B8] hover:text-white -mb-px">Payments</button>
+                        </div>
+
+                        <!-- Plans list -->
+                        <div id="pay-plans-panel">
+                            <div id="pay-empty-plans" class="bg-[#1C2333] border border-dashed border-[#2A3347] rounded-xl p-12 text-center">
+                                <svg class="w-12 h-12 text-[#2A3347] mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
+                                <h3 class="text-white font-bold mb-1">No plans yet</h3>
+                                <p class="text-[#94A3B8] text-sm mb-4">Create your first plan — attach a Stripe or Paystack link and start selling.</p>
+                                <button onclick="openPlanModal()" class="bg-[#4F46E5] hover:bg-[#4338CA] text-white text-xs font-bold py-2 px-4 rounded-lg transition-colors">Create your first plan</button>
+                            </div>
+                            <div id="pay-plans-grid" class="hidden grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+                        </div>
+
+                        <!-- Payments list -->
+                        <div id="pay-payments-panel" class="hidden">
+                            <div id="pay-empty-payments" class="bg-[#1C2333] border border-dashed border-[#2A3347] rounded-xl p-12 text-center">
+                                <svg class="w-12 h-12 text-[#2A3347] mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                <h3 class="text-white font-bold mb-1">No payments logged</h3>
+                                <p class="text-[#94A3B8] text-sm mb-4">Log a payment manually or wait for one to come in.</p>
+                                <button onclick="openPaymentModal()" class="bg-[#4F46E5] hover:bg-[#4338CA] text-white text-xs font-bold py-2 px-4 rounded-lg transition-colors">Log a payment</button>
+                            </div>
+                            <div id="pay-payments-list" class="hidden space-y-3"></div>
+                        </div>
+
+                    </div>
+                </div>
+
             </main>
         </div>
     </div>
 
-    <!-- ================= NEW PROJECT MODAL ================= -->
+    <!-- ================= PROJECT MODAL ================= -->
     <div id="project-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
         <div class="w-full max-w-md bg-[#1C2333] border border-[#2A3347] rounded-2xl p-6 glow">
             <div class="flex items-center justify-between mb-6">
@@ -274,30 +301,136 @@
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
             </div>
-
             <div id="modal-error" class="hidden bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-3 rounded-lg mb-4"></div>
-
             <div class="space-y-4">
                 <div>
                     <label class="block text-xs font-medium text-[#94A3B8] mb-1">Project Name</label>
                     <input type="text" id="project-name" oninput="autoSlug()" placeholder="My Salon App" class="w-full bg-[#0B1020] border border-[#2A3347] rounded-lg px-4 py-3 text-white placeholder-[#64748B] focus:outline-none focus:border-[#4F46E5]">
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-[#94A3B8] mb-1">Slug (auto-generated)</label>
+                    <label class="block text-xs font-medium text-[#94A3B8] mb-1">Slug</label>
                     <input type="text" id="project-slug" placeholder="my-salon-app" class="w-full bg-[#0B1020] border border-[#2A3347] rounded-lg px-4 py-3 text-[#94A3B8] mono text-sm placeholder-[#64748B] focus:outline-none focus:border-[#4F46E5]">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-[#94A3B8] mb-1">Description (optional)</label>
-                    <textarea id="project-description" rows="3" placeholder="A booking system for salon owners in Harare." class="w-full bg-[#0B1020] border border-[#2A3347] rounded-lg px-4 py-3 text-white placeholder-[#64748B] focus:outline-none focus:border-[#4F46E5] resize-none"></textarea>
+                    <textarea id="project-description" rows="3" class="w-full bg-[#0B1020] border border-[#2A3347] rounded-lg px-4 py-3 text-white placeholder-[#64748B] focus:outline-none focus:border-[#4F46E5] resize-none"></textarea>
                 </div>
-                <button id="create-project-btn" onclick="createProject()" class="w-full bg-[#4F46E5] hover:bg-[#4338CA] text-white font-bold py-3 rounded-lg transition-colors glow">
-                    Forge Project
-                </button>
+                <button id="create-project-btn" onclick="createProject()" class="w-full bg-[#4F46E5] hover:bg-[#4338CA] text-white font-bold py-3 rounded-lg transition-colors glow">Forge Project</button>
             </div>
         </div>
     </div>
 
-    <!-- Libraries -->
+    <!-- ================= PLAN MODAL ================= -->
+    <div id="plan-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+        <div class="w-full max-w-md bg-[#1C2333] border border-[#2A3347] rounded-2xl p-6 glow max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-lg font-bold text-white">Create a plan</h2>
+                <button onclick="closePlanModal()" class="text-[#94A3B8] hover:text-white p-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div id="plan-error" class="hidden bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-3 rounded-lg mb-4"></div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-medium text-[#94A3B8] mb-1">Project</label>
+                    <select id="plan-project" class="w-full bg-[#0B1020] border border-[#2A3347] rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#4F46E5]"></select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-[#94A3B8] mb-1">Plan Name</label>
+                    <input type="text" id="plan-name" placeholder="Pro" class="w-full bg-[#0B1020] border border-[#2A3347] rounded-lg px-4 py-3 text-white placeholder-[#64748B] focus:outline-none focus:border-[#4F46E5]">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-[#94A3B8] mb-1">Price</label>
+                        <input type="number" id="plan-price" placeholder="29" step="0.01" class="w-full bg-[#0B1020] border border-[#2A3347] rounded-lg px-4 py-3 text-white placeholder-[#64748B] focus:outline-none focus:border-[#4F46E5]">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-[#94A3B8] mb-1">Currency</label>
+                        <select id="plan-currency" class="w-full bg-[#0B1020] border border-[#2A3347] rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#4F46E5]">
+                            <option>USD</option><option>ZAR</option><option>KES</option><option>NGN</option><option>GBP</option><option>EUR</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-[#94A3B8] mb-1">Interval</label>
+                    <select id="plan-interval" class="w-full bg-[#0B1020] border border-[#2A3347] rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#4F46E5]">
+                        <option value="monthly">Monthly</option>
+                        <option value="yearly">Yearly</option>
+                        <option value="one_time">One-time</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-[#94A3B8] mb-1">Provider</label>
+                    <select id="plan-provider" class="w-full bg-[#0B1020] border border-[#2A3347] rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#4F46E5]">
+                        <option value="stripe">Stripe</option>
+                        <option value="paystack">Paystack</option>
+                        <option value="flutterwave">Flutterwave</option>
+                        <option value="paynow">Paynow</option>
+                        <option value="ecocash">EcoCash</option>
+                        <option value="manual">Manual / Cash</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-[#94A3B8] mb-1">Checkout URL (your Stripe/Paystack link)</label>
+                    <input type="url" id="plan-url" placeholder="https://buy.stripe.com/..." class="w-full bg-[#0B1020] border border-[#2A3347] rounded-lg px-4 py-3 text-white placeholder-[#64748B] focus:outline-none focus:border-[#4F46E5] text-xs mono">
+                </div>
+                <button id="create-plan-btn" onclick="createPlan()" class="w-full bg-[#4F46E5] hover:bg-[#4338CA] text-white font-bold py-3 rounded-lg transition-colors glow">Create Plan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= PAYMENT MODAL ================= -->
+    <div id="payment-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+        <div class="w-full max-w-md bg-[#1C2333] border border-[#2A3347] rounded-2xl p-6 glow max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-lg font-bold text-white">Log a payment</h2>
+                <button onclick="closePaymentModal()" class="text-[#94A3B8] hover:text-white p-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div id="payment-error" class="hidden bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-3 rounded-lg mb-4"></div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-medium text-[#94A3B8] mb-1">Project</label>
+                    <select id="pay-project" class="w-full bg-[#0B1020] border border-[#2A3347] rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#4F46E5]"></select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-[#94A3B8] mb-1">Plan (optional)</label>
+                    <select id="pay-plan" class="w-full bg-[#0B1020] border border-[#2A3347] rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#4F46E5]">
+                        <option value="">— none —</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-[#94A3B8] mb-1">Customer Email</label>
+                    <input type="email" id="pay-email" placeholder="customer@example.com" class="w-full bg-[#0B1020] border border-[#2A3347] rounded-lg px-4 py-3 text-white placeholder-[#64748B] focus:outline-none focus:border-[#4F46E5]">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-[#94A3B8] mb-1">Amount</label>
+                        <input type="number" id="pay-amount" placeholder="29" step="0.01" class="w-full bg-[#0B1020] border border-[#2A3347] rounded-lg px-4 py-3 text-white placeholder-[#64748B] focus:outline-none focus:border-[#4F46E5]">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-[#94A3B8] mb-1">Currency</label>
+                        <select id="pay-currency" class="w-full bg-[#0B1020] border border-[#2A3347] rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#4F46E5]">
+                            <option>USD</option><option>ZAR</option><option>KES</option><option>NGN</option><option>GBP</option><option>EUR</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-[#94A3B8] mb-1">Provider</label>
+                    <select id="pay-provider" class="w-full bg-[#0B1020] border border-[#2A3347] rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#4F46E5]">
+                        <option value="manual">Manual / Cash</option>
+                        <option value="stripe">Stripe</option>
+                        <option value="paystack">Paystack</option>
+                        <option value="flutterwave">Flutterwave</option>
+                        <option value="ecocash">EcoCash</option>
+                    </select>
+                </div>
+                <button id="create-payment-btn" onclick="createPayment()" class="w-full bg-[#4F46E5] hover:bg-[#4338CA] text-white font-bold py-3 rounded-lg transition-colors glow">Log Payment</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
