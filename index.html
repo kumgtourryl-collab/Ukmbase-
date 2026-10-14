@@ -30,7 +30,6 @@
         .typing-dot:nth-child(1) { animation-delay: -0.32s; }
         .typing-dot:nth-child(2) { animation-delay: -0.16s; }
         @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
-        /* Table viewer styles */
         .row-card { transition: all 0.2s ease; cursor: pointer; }
         .row-card:hover { border-color: #4F46E5; }
         .field-key { color: #06B6D4; }
@@ -38,11 +37,15 @@
         .table-pill { transition: all 0.2s ease; }
         .table-pill:hover { border-color: #4F46E5; }
         .table-pill.active { background-color: rgba(79, 70, 229, 0.15); border-color: #4F46E5; color: white; }
+        .auth-tab { transition: all 0.2s ease; }
+        .auth-tab.active { color: #F8FAFC; border-color: #4F46E5; }
+        .strength-bar { transition: all 0.3s ease; }
+        .owner-badge { background: linear-gradient(135deg, #F59E0B, #EF4444); }
     </style>
 </head>
 <body class="min-h-screen">
 
-    <!-- ================= VIEW 1: LANDING ================= -->
+    <!-- ================= LANDING ================= -->
     <div id="landing-view" class="min-h-screen flex flex-col items-center justify-center p-6 text-center">
         <nav class="w-full max-w-5xl flex justify-between items-center mb-16">
             <div class="text-2xl font-extrabold tracking-tighter text-white">Ukm<span class="text-[#4F46E5]">base</span></div>
@@ -84,32 +87,74 @@
         <footer class="mt-20 text-[#64748B] text-xs"><p>© 2026 Ukmbase. All rights reserved.</p></footer>
     </div>
 
-    <!-- ================= VIEW 2: AUTH ================= -->
+    <!-- ================= AUTH ================= -->
     <div id="auth-view" class="hidden min-h-screen flex items-center justify-center p-6">
         <div class="w-full max-w-md bg-[#1C2333] border border-[#2A3347] rounded-2xl p-8 glow">
-            <div class="text-center mb-8">
+            <div class="text-center mb-6">
                 <div class="text-3xl font-extrabold tracking-tighter text-white mb-2">Ukm<span class="text-[#4F46E5]">base</span></div>
                 <p class="text-[#94A3B8] text-sm">Forge your backend. Ship your SaaS.</p>
             </div>
+
+            <!-- Tabs -->
+            <div class="flex border-b border-[#2A3347] mb-6">
+                <button id="tab-login" onclick="setAuthMode('login')" class="auth-tab active flex-1 py-3 text-sm font-semibold text-[#94A3B8] border-b-2 border-transparent -mb-px">Sign In</button>
+                <button id="tab-signup" onclick="setAuthMode('signup')" class="auth-tab flex-1 py-3 text-sm font-semibold text-[#94A3B8] border-b-2 border-transparent -mb-px">Create Account</button>
+            </div>
+
             <div id="auth-error" class="hidden bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-3 rounded-lg mb-4"></div>
             <div id="auth-success" class="hidden bg-green-500/10 border border-green-500/30 text-green-400 text-xs p-3 rounded-lg mb-4"></div>
+
             <div class="space-y-4">
+                <!-- Full name (signup only) -->
+                <div id="field-fullname" class="hidden">
+                    <label class="block text-xs font-medium text-[#94A3B8] mb-1">Full Name</label>
+                    <input type="text" id="auth-fullname" placeholder="Kerryl Murwisi" class="w-full bg-[#0B1020] border border-[#2A3347] rounded-lg px-4 py-3 text-white placeholder-[#64748B] focus:outline-none focus:border-[#4F46E5]">
+                </div>
+
                 <div>
                     <label class="block text-xs font-medium text-[#94A3B8] mb-1">Email</label>
                     <input type="email" id="auth-email" placeholder="founder@startup.com" class="w-full bg-[#0B1020] border border-[#2A3347] rounded-lg px-4 py-3 text-white placeholder-[#64748B] focus:outline-none focus:border-[#4F46E5]">
                 </div>
+
                 <div>
                     <label class="block text-xs font-medium text-[#94A3B8] mb-1">Password</label>
-                    <input type="password" id="auth-password" placeholder="••••••••" class="w-full bg-[#0B1020] border border-[#2A3347] rounded-lg px-4 py-3 text-white placeholder-[#64748B] focus:outline-none focus:border-[#4F46E5]">
+                    <div class="relative">
+                        <input type="password" id="auth-password" oninput="updateStrength()" placeholder="••••••••" class="w-full bg-[#0B1020] border border-[#2A3347] rounded-lg px-4 py-3 pr-12 text-white placeholder-[#64748B] focus:outline-none focus:border-[#4F46E5]">
+                        <button type="button" onclick="togglePassword('auth-password', this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-[#64748B] hover:text-white p-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                        </button>
+                    </div>
+                    <!-- Strength meter (signup only) -->
+                    <div id="strength-meter" class="hidden mt-2">
+                        <div class="flex gap-1 mb-1">
+                            <div id="sb-1" class="strength-bar h-1 flex-1 bg-[#2A3347] rounded"></div>
+                            <div id="sb-2" class="strength-bar h-1 flex-1 bg-[#2A3347] rounded"></div>
+                            <div id="sb-3" class="strength-bar h-1 flex-1 bg-[#2A3347] rounded"></div>
+                            <div id="sb-4" class="strength-bar h-1 flex-1 bg-[#2A3347] rounded"></div>
+                            <div id="sb-5" class="strength-bar h-1 flex-1 bg-[#2A3347] rounded"></div>
+                        </div>
+                        <p id="strength-label" class="text-[10px] text-[#64748B]">Password strength</p>
+                    </div>
                 </div>
-                <button onclick="handleLogin()" class="w-full bg-[#4F46E5] hover:bg-[#4338CA] text-white font-bold py-3 rounded-lg transition-colors mt-2">Sign In</button>
-                <button onclick="handleSignup()" class="w-full bg-transparent border border-[#2A3347] hover:border-[#4F46E5] text-white font-bold py-3 rounded-lg transition-colors">Create Account</button>
+
+                <!-- Confirm password (signup only) -->
+                <div id="field-confirm" class="hidden">
+                    <label class="block text-xs font-medium text-[#94A3B8] mb-1">Confirm Password</label>
+                    <div class="relative">
+                        <input type="password" id="auth-confirm" placeholder="••••••••" class="w-full bg-[#0B1020] border border-[#2A3347] rounded-lg px-4 py-3 pr-12 text-white placeholder-[#64748B] focus:outline-none focus:border-[#4F46E5]">
+                        <button type="button" onclick="togglePassword('auth-confirm', this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-[#64748B] hover:text-white p-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <button id="auth-submit" onclick="handleAuthSubmit()" class="w-full bg-[#4F46E5] hover:bg-[#4338CA] text-white font-bold py-3 rounded-lg transition-colors mt-2 glow">Sign In</button>
                 <button onclick="showLandingView()" class="w-full text-center text-xs text-[#64748B] hover:text-white mt-2">← Back to home</button>
             </div>
         </div>
     </div>
 
-    <!-- ================= VIEW 3: DASHBOARD ================= -->
+    <!-- ================= DASHBOARD ================= -->
     <div id="dashboard-view" class="hidden min-h-screen flex flex-col">
         <nav class="border-b border-[#2A3347] bg-[#0B1020] px-4 py-3 flex justify-between items-center sticky top-0 z-50">
             <div class="flex items-center gap-3">
@@ -117,6 +162,7 @@
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
                 </button>
                 <div class="text-xl font-extrabold tracking-tighter text-white">Ukm<span class="text-[#4F46E5]">base</span></div>
+                <span id="owner-badge" class="hidden owner-badge text-white text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded">Owner</span>
             </div>
             <div class="flex items-center gap-4">
                 <div class="text-xs text-[#94A3B8] mono hidden sm:block" id="user-email">user@example.com</div>
@@ -145,16 +191,18 @@
                         <svg class="w-5 h-5 text-[#06B6D4]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
                         UkmPay
                     </a>
-                    <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#94A3B8] hover:text-white hover:bg-white/5 text-sm font-medium transition-colors opacity-50 cursor-not-allowed">
-                        <svg class="w-5 h-5 text-[#06B6D4]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-                        UkmSync <span class="text-[9px] ml-auto">soon</span>
-                    </a>
+                    <div class="pt-3 mt-3 border-t border-[#2A3347]">
+                        <a href="#" onclick="switchView('settings')" id="nav-settings" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#94A3B8] hover:text-white hover:bg-white/5 text-sm font-medium transition-colors">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                            Settings
+                        </a>
+                    </div>
                 </div>
             </aside>
 
             <main class="flex-1 overflow-hidden flex flex-col">
 
-                <!-- ============ OVERVIEW ============ -->
+                <!-- OVERVIEW -->
                 <div id="view-overview" class="flex-1 overflow-y-auto p-4 md:p-8">
                     <div class="max-w-6xl mx-auto">
                         <div class="mb-8">
@@ -200,7 +248,7 @@
                     </div>
                 </div>
 
-                <!-- ============ UKMAI ============ -->
+                <!-- UKMAI -->
                 <div id="view-ukmai" class="hidden flex-1 flex flex-col overflow-hidden">
                     <div class="border-b border-[#2A3347] px-4 py-3 flex items-center justify-between bg-[#0B1020]">
                         <div class="flex items-center gap-3">
@@ -238,10 +286,8 @@
                     </div>
                 </div>
 
-                <!-- ============ UKMTABLES ============ -->
+                <!-- UKMTABLES -->
                 <div id="view-ukmtables" class="hidden flex-1 overflow-hidden flex flex-col">
-
-                    <!-- Header -->
                     <div class="border-b border-[#2A3347] px-4 py-3 flex items-center justify-between bg-[#0B1020]">
                         <div class="flex items-center gap-3 min-w-0">
                             <button id="ukmtables-back" onclick="exitTableBrowser()" class="hidden text-[#94A3B8] hover:text-white p-1 flex-shrink-0">
@@ -260,10 +306,7 @@
                             Connect
                         </button>
                     </div>
-
                     <div class="flex-1 overflow-y-auto p-4">
-
-                        <!-- CONNECTIONS LIST VIEW -->
                         <div id="ukmtables-connections-view">
                             <div id="ukmtables-empty" class="max-w-lg mx-auto bg-[#1C2333] border border-dashed border-[#2A3347] rounded-xl p-10 text-center mt-8">
                                 <svg class="w-12 h-12 text-[#2A3347] mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
@@ -273,17 +316,11 @@
                             </div>
                             <div id="ukmtables-list" class="hidden space-y-3 max-w-3xl mx-auto"></div>
                         </div>
-
-                        <!-- TABLE BROWSER VIEW -->
                         <div id="ukmtables-browser" class="hidden">
-
-                            <!-- Table pills -->
                             <div class="mb-4">
                                 <p class="text-[#64748B] text-[10px] uppercase font-bold tracking-wider mb-2">Tables</p>
                                 <div id="ukmtables-pills" class="flex flex-wrap gap-2"></div>
                             </div>
-
-                            <!-- Rows -->
                             <div id="ukmtables-rows-empty" class="hidden bg-[#1C2333] border border-dashed border-[#2A3347] rounded-xl p-10 text-center">
                                 <p class="text-[#94A3B8] text-sm">No rows in this table.</p>
                             </div>
@@ -292,13 +329,11 @@
                                 <p class="text-[#94A3B8] text-xs mt-3">Loading rows...</p>
                             </div>
                             <div id="ukmtables-rows" class="hidden space-y-2"></div>
-
                         </div>
-
                     </div>
                 </div>
 
-                <!-- ============ UKMPAY ============ -->
+                <!-- UKMPAY -->
                 <div id="view-ukmpay" class="hidden flex-1 overflow-y-auto p-4 md:p-8">
                     <div class="max-w-6xl mx-auto">
                         <div class="flex items-center justify-between mb-6">
@@ -333,7 +368,7 @@
                             <div id="pay-empty-plans" class="bg-[#1C2333] border border-dashed border-[#2A3347] rounded-xl p-12 text-center">
                                 <svg class="w-12 h-12 text-[#2A3347] mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
                                 <h3 class="text-white font-bold mb-1">No plans yet</h3>
-                                <p class="text-[#94A3B8] text-sm mb-4">Create your first plan — attach a Stripe or Paystack link and start selling.</p>
+                                <p class="text-[#94A3B8] text-sm mb-4">Create your first plan — attach a Stripe or Paystack link.</p>
                                 <button onclick="openPlanModal()" class="bg-[#4F46E5] hover:bg-[#4338CA] text-white text-xs font-bold py-2 px-4 rounded-lg transition-colors">Create your first plan</button>
                             </div>
                             <div id="pay-plans-grid" class="hidden grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
@@ -350,11 +385,92 @@
                     </div>
                 </div>
 
+                <!-- SETTINGS -->
+                <div id="view-settings" class="hidden flex-1 overflow-y-auto p-4 md:p-8">
+                    <div class="max-w-2xl mx-auto">
+                        <div class="mb-8">
+                            <h1 class="text-2xl font-bold text-white mb-1">Settings</h1>
+                            <p class="text-[#94A3B8] text-sm">Manage your account and preferences.</p>
+                        </div>
+
+                        <!-- Account card -->
+                        <div class="bg-[#1C2333] border border-[#2A3347] rounded-xl p-6 mb-6">
+                            <div class="flex items-center gap-4 mb-6">
+                                <div class="w-16 h-16 rounded-full bg-[#4F46E5]/20 border border-[#4F46E5]/40 flex items-center justify-center text-2xl font-extrabold text-[#4F46E5]">
+                                    <span id="settings-initial">K</span>
+                                </div>
+                                <div class="min-w-0">
+                                    <h2 id="settings-display-name" class="text-white font-bold truncate">Loading...</h2>
+                                    <p id="settings-display-email" class="text-[#94A3B8] text-xs mono truncate">...</p>
+                                    <div class="flex items-center gap-2 mt-1">
+                                        <span id="settings-plan" class="text-[10px] font-bold uppercase tracking-wider text-[#06B6D4] bg-[#06B6D4]/10 px-2 py-0.5 rounded">free</span>
+                                        <span id="settings-owner-tag" class="hidden owner-badge text-white text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded">Owner</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="settings-error" class="hidden bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-3 rounded-lg mb-4"></div>
+                            <div id="settings-success" class="hidden bg-green-500/10 border border-green-500/30 text-green-400 text-xs p-3 rounded-lg mb-4"></div>
+
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-xs font-medium text-[#94A3B8] mb-1">Full Name</label>
+                                    <input type="text" id="settings-fullname" class="w-full bg-[#0B1020] border border-[#2A3347] rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#4F46E5]">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-[#94A3B8] mb-1">Username</label>
+                                    <input type="text" id="settings-username" class="w-full bg-[#0B1020] border border-[#2A3347] rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#4F46E5] mono text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-[#94A3B8] mb-1">Phone (optional)</label>
+                                    <input type="tel" id="settings-phone" placeholder="+263 7X XXX XXXX" class="w-full bg-[#0B1020] border border-[#2A3347] rounded-lg px-4 py-3 text-white placeholder-[#64748B] focus:outline-none focus:border-[#4F46E5]">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-[#94A3B8] mb-1">Country</label>
+                                    <select id="settings-country" class="w-full bg-[#0B1020] border border-[#2A3347] rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#4F46E5]">
+                                        <option value="">— select —</option>
+                                        <option value="ZW">Zimbabwe</option>
+                                        <option value="ZA">South Africa</option>
+                                        <option value="KE">Kenya</option>
+                                        <option value="NG">Nigeria</option>
+                                        <option value="US">United States</option>
+                                        <option value="GB">United Kingdom</option>
+                                        <option value="IN">India</option>
+                                        <option value="OTHER">Other</option>
+                                    </select>
+                                </div>
+                                <button id="settings-save-btn" onclick="saveProfile()" class="w-full bg-[#4F46E5] hover:bg-[#4338CA] text-white font-bold py-3 rounded-lg transition-colors glow">Save Changes</button>
+                            </div>
+                        </div>
+
+                        <!-- Plan card -->
+                        <div class="bg-[#1C2333] border border-[#2A3347] rounded-xl p-6">
+                            <h3 class="text-white font-bold mb-4">Your Plan</h3>
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="text-[#94A3B8] text-sm">Current plan</span>
+                                <span id="settings-plan-2" class="text-white font-bold uppercase text-sm">free</span>
+                            </div>
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="text-[#94A3B8] text-sm">Projects</span>
+                                <span id="settings-limit-projects" class="text-white mono text-sm">0 / 2</span>
+                            </div>
+                            <div class="flex items-center justify-between mb-4">
+                                <span class="text-[#94A3B8] text-sm">DB Connections</span>
+                                <span id="settings-limit-connections" class="text-white mono text-sm">0 / 3</span>
+                            </div>
+                            <div class="bg-[#0B1020] border border-[#2A3347] rounded-lg p-3 text-center">
+                                <p class="text-[#94A3B8] text-xs mb-2">Upgrade to Pro for unlimited projects</p>
+                                <p class="text-[10px] text-[#64748B]">Billing launches soon.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </main>
         </div>
     </div>
 
-    <!-- ================= PROJECT MODAL ================= -->
+    <!-- PROJECT MODAL -->
     <div id="project-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
         <div class="w-full max-w-md bg-[#1C2333] border border-[#2A3347] rounded-2xl p-6 glow">
             <div class="flex items-center justify-between mb-6">
@@ -382,7 +498,7 @@
         </div>
     </div>
 
-    <!-- ================= PLAN MODAL ================= -->
+    <!-- PLAN MODAL -->
     <div id="plan-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
         <div class="w-full max-w-md bg-[#1C2333] border border-[#2A3347] rounded-2xl p-6 glow max-h-[90vh] overflow-y-auto">
             <div class="flex items-center justify-between mb-6">
@@ -441,7 +557,7 @@
         </div>
     </div>
 
-    <!-- ================= PAYMENT MODAL ================= -->
+    <!-- PAYMENT MODAL -->
     <div id="payment-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
         <div class="w-full max-w-md bg-[#1C2333] border border-[#2A3347] rounded-2xl p-6 glow max-h-[90vh] overflow-y-auto">
             <div class="flex items-center justify-between mb-6">
@@ -493,7 +609,7 @@
         </div>
     </div>
 
-    <!-- ================= CONNECT DB MODAL ================= -->
+    <!-- CONNECT MODAL -->
     <div id="connect-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
         <div class="w-full max-w-md bg-[#1C2333] border border-[#2A3347] rounded-2xl p-6 glow max-h-[90vh] overflow-y-auto">
             <div class="flex items-center justify-between mb-6">
@@ -513,13 +629,11 @@
                     <input type="url" id="connect-url" placeholder="https://xxxxx.supabase.co" class="w-full bg-[#0B1020] border border-[#2A3347] rounded-lg px-4 py-3 text-white placeholder-[#64748B] focus:outline-none focus:border-[#4F46E5] text-xs mono">
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-[#94A3B8] mb-1">Anon Key (public)</label>
-                    <textarea id="connect-key" rows="2" placeholder="sb_publishable_... or eyJhbGc..." class="w-full bg-[#0B1020] border border-[#2A3347] rounded-lg px-4 py-3 text-white placeholder-[#64748B] focus:outline-none focus:border-[#4F46E5] text-xs mono resize-none"></textarea>
+                    <label class="block text-xs font-medium text-[#94A3B8] mb-1">Anon Key</label>
+                    <textarea id="connect-key" rows="2" placeholder="eyJhbGc..." class="w-full bg-[#0B1020] border border-[#2A3347] rounded-lg px-4 py-3 text-white placeholder-[#64748B] focus:outline-none focus:border-[#4F46E5] text-xs mono resize-none"></textarea>
                 </div>
                 <div class="bg-[#4F46E5]/5 border border-[#4F46E5]/20 rounded-lg p-3">
-                    <p class="text-[#94A3B8] text-[11px] leading-relaxed">
-                        <strong class="text-white">Only paste the anon key.</strong> Never the service_role key. Ukmbase reads through your RLS policies — you stay in control.
-                    </p>
+                    <p class="text-[#94A3B8] text-[11px] leading-relaxed"><strong class="text-white">Only paste the anon key.</strong> Never the service_role key.</p>
                 </div>
                 <button id="create-connect-btn" onclick="createConnection()" class="w-full bg-[#4F46E5] hover:bg-[#4338CA] text-white font-bold py-3 rounded-lg transition-colors glow">Connect</button>
             </div>
