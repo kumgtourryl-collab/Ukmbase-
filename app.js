@@ -1,3 +1,6 @@
+// UKMBASE APP.JS — v501
+// If you don't see this version number in DevTools Sources, the browser is caching an old copy.
+
 // ============================================
 // UKMBASE APP LOGIC — SESSION 1 (ROLES)
 // ============================================
@@ -6,7 +9,6 @@ const SUPABASE_URL = 'https://dwjyzqsrzdgnpwibnyjn.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_4vcPyg62OqmfwNaHxx0CGA_a7O0_NJV';
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// Plan limits
 const PLAN_LIMITS = {
     free:       { projects: 2,   connections: 3   },
     pro:        { projects: 20,  connections: 20  },
@@ -108,8 +110,11 @@ function updateStrength() {
         const bar = document.getElementById('sb-' + i);
         bar.style.background = i <= score ? colors[score] : '#2A3347';
     }
-    document.getElementById('strength-label').textContent = pwd ? labels[score] : 'Password strength';
-    document.getElementById('strength-label').style.color = pwd ? colors[score] : '#64748B';
+    const labelEl = document.getElementById('strength-label');
+    if (labelEl) {
+        labelEl.textContent = pwd ? labels[score] : 'Password strength';
+        labelEl.style.color = pwd ? colors[score] : '#64748B';
+    }
 }
 
 // ============================================
@@ -135,12 +140,17 @@ async function showDashboardView(user) {
     dashboardView.classList.remove('hidden');
     if (user && user.email) userEmailDisplay.textContent = user.email;
     currentUser = user;
+
+    // Load profile FIRST so role badge renders immediately
     await loadProfile();
+
+    // Then the rest in parallel
     loadProjects().then(() => {
         loadPayments();
         loadPlans();
         loadConnections();
     });
+
     switchView('overview');
 }
 
@@ -169,35 +179,55 @@ function switchView(view) {
 // ============================================
 
 function renderRoleBadge(role) {
+    console.log('[Ukmbase] renderRoleBadge called with role:', role);
+
     const badge = document.getElementById('role-badge');
-    if (!badge) return;
+    if (!badge) {
+        console.warn('[Ukmbase] #role-badge element not found');
+        return;
+    }
 
-    badge.classList.remove('role-owner', 'role-admin', 'role-support');
+    // Reset all role classes
+    badge.classList.remove('role-owner', 'role-admin', 'role-support', 'hidden');
 
+    // Hide for normal users
     if (!role || role === 'user') {
         badge.classList.add('hidden');
         return;
     }
 
-    badge.classList.remove('hidden');
+    // Show with role-specific styling
     badge.classList.add('role-' + role);
     badge.textContent = role.charAt(0).toUpperCase() + role.slice(1);
+    console.log('[Ukmbase] Badge shown as:', role);
 }
 
 async function loadProfile() {
     if (!currentUser) return;
+    console.log('[Ukmbase] Loading profile for:', currentUser.id);
+
     const { data, error } = await supabaseClient
         .from('profiles')
         .select('*')
         .eq('id', currentUser.id)
         .single();
 
-    if (error) { console.error('Profile load:', error.message); return; }
+    if (error) {
+        console.error('[Ukmbase] Profile load error:', error.message);
+        return;
+    }
+
+    console.log('[Ukmbase] Profile loaded:', data);
     currentProfile = data;
 
+    // Render the role badge immediately
     renderRoleBadge(data.role);
 
-    supabaseClient.from('profiles').update({ last_login_at: new Date().toISOString() }).eq('id', currentUser.id).then(() => {});
+    // Update last_login_at (fire and forget)
+    supabaseClient.from('profiles')
+        .update({ last_login_at: new Date().toISOString() })
+        .eq('id', currentUser.id)
+        .then(() => {});
 }
 
 function renderSettings() {
@@ -209,7 +239,6 @@ function renderSettings() {
     document.getElementById('settings-display-email').textContent = currentProfile.email || currentUser.email;
     document.getElementById('settings-plan').textContent = currentProfile.plan || 'free';
 
-    // Role tag in settings
     const roleTag = document.getElementById('settings-role-tag');
     roleTag.classList.remove('role-owner', 'role-admin', 'role-support');
     const role = currentProfile.role || 'user';
@@ -231,8 +260,10 @@ function renderSettings() {
         ? currentProfile.role
         : (currentProfile.plan || 'free');
     document.getElementById('settings-plan-2').textContent = displayPlan;
-    document.getElementById('settings-limit-projects').textContent = `${projectsCache.length} / ${limits.projects >= 999 ? '∞' : limits.projects}`;
-    document.getElementById('settings-limit-connections').textContent = `${connectionsCache.length} / ${limits.connections >= 999 ? '∞' : limits.connections}`;
+    document.getElementById('settings-limit-projects').textContent =
+        `${projectsCache.length} / ${limits.projects >= 999 ? '∞' : limits.projects}`;
+    document.getElementById('settings-limit-connections').textContent =
+        `${connectionsCache.length} / ${limits.connections >= 999 ? '∞' : limits.connections}`;
 }
 
 async function saveProfile() {
@@ -260,7 +291,9 @@ async function saveProfile() {
     btn.textContent = 'Save Changes'; btn.disabled = false;
 
     if (error) {
-        errEl.textContent = error.message.includes('duplicate') ? 'That username is taken.' : error.message;
+        errEl.textContent = error.message.includes('duplicate')
+            ? 'That username is taken.'
+            : error.message;
         errEl.classList.remove('hidden'); return;
     }
 
@@ -350,8 +383,14 @@ async function joinWaitlist() {
     submitBtn.disabled = true;
 
     const { error } = await supabaseClient.from('waitlist').insert([{ email }]);
-    if (error) { alert('Error: ' + error.message); submitBtn.innerText = 'Join Waitlist'; submitBtn.disabled = false; }
-    else { formContainer.classList.add('hidden'); successMessage.classList.remove('hidden'); }
+    if (error) {
+        alert('Error: ' + error.message);
+        submitBtn.innerText = 'Join Waitlist';
+        submitBtn.disabled = false;
+    } else {
+        formContainer.classList.add('hidden');
+        successMessage.classList.remove('hidden');
+    }
 }
 
 // ============================================
@@ -495,7 +534,10 @@ async function sendChat() {
         const { data: { session } } = await supabaseClient.auth.getSession();
         const res = await fetch(`${SUPABASE_URL}/functions/v1/ukmai`, {
             method: 'POST',
-            headers: { 'Authorization': `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+            headers: {
+                'Authorization': `Bearer ${session.access_token}`,
+                'Content-Type': 'application/json'
+            },
             body: JSON.stringify({ prompt })
         });
         const data = await res.json();
