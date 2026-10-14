@@ -1,5 +1,5 @@
 // ============================================
-// UKMBASE APP LOGIC — SESSION 1
+// UKMBASE APP LOGIC — SESSION 1 (ROLES)
 // ============================================
 
 const SUPABASE_URL = 'https://dwjyzqsrzdgnpwibnyjn.supabase.co';
@@ -8,12 +8,14 @@ const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Plan limits
 const PLAN_LIMITS = {
-    free:       { projects: 2,  connections: 3   },
-    pro:        { projects: 20, connections: 20  },
-    team:       { projects: 100,connections: 100 },
-    enterprise: { projects: 999,connections: 999 },
-    owner:      { projects: 999,connections: 999 },
+    free:       { projects: 2,   connections: 3   },
+    pro:        { projects: 20,  connections: 20  },
+    team:       { projects: 100, connections: 100 },
+    enterprise: { projects: 999, connections: 999 },
+    staff:      { projects: 999, connections: 999 },
 };
+
+const STAFF_ROLES = ['owner', 'admin', 'support'];
 
 const landingView = document.getElementById('landing-view');
 const authView = document.getElementById('auth-view');
@@ -47,7 +49,7 @@ function getHeaders(key) {
 // ============================================
 
 function getLimits() {
-    if (currentProfile?.is_owner) return PLAN_LIMITS.owner;
+    if (STAFF_ROLES.includes(currentProfile?.role)) return PLAN_LIMITS.staff;
     const plan = currentProfile?.plan || 'free';
     return PLAN_LIMITS[plan] || PLAN_LIMITS.free;
 }
@@ -166,6 +168,22 @@ function switchView(view) {
 // PROFILE
 // ============================================
 
+function renderRoleBadge(role) {
+    const badge = document.getElementById('role-badge');
+    if (!badge) return;
+
+    badge.classList.remove('role-owner', 'role-admin', 'role-support');
+
+    if (!role || role === 'user') {
+        badge.classList.add('hidden');
+        return;
+    }
+
+    badge.classList.remove('hidden');
+    badge.classList.add('role-' + role);
+    badge.textContent = role.charAt(0).toUpperCase() + role.slice(1);
+}
+
 async function loadProfile() {
     if (!currentUser) return;
     const { data, error } = await supabaseClient
@@ -177,10 +195,8 @@ async function loadProfile() {
     if (error) { console.error('Profile load:', error.message); return; }
     currentProfile = data;
 
-    // Update owner badge
-    document.getElementById('owner-badge').classList.toggle('hidden', !data.is_owner);
+    renderRoleBadge(data.role);
 
-    // Update last_login_at (fire and forget)
     supabaseClient.from('profiles').update({ last_login_at: new Date().toISOString() }).eq('id', currentUser.id).then(() => {});
 }
 
@@ -192,7 +208,18 @@ function renderSettings() {
     document.getElementById('settings-display-name').textContent = currentProfile.full_name || currentProfile.username || 'User';
     document.getElementById('settings-display-email').textContent = currentProfile.email || currentUser.email;
     document.getElementById('settings-plan').textContent = currentProfile.plan || 'free';
-    document.getElementById('settings-owner-tag').classList.toggle('hidden', !currentProfile.is_owner);
+
+    // Role tag in settings
+    const roleTag = document.getElementById('settings-role-tag');
+    roleTag.classList.remove('role-owner', 'role-admin', 'role-support');
+    const role = currentProfile.role || 'user';
+    if (role === 'user') {
+        roleTag.classList.add('hidden');
+    } else {
+        roleTag.classList.remove('hidden');
+        roleTag.classList.add('role-' + role);
+        roleTag.textContent = role.charAt(0).toUpperCase() + role.slice(1);
+    }
 
     document.getElementById('settings-fullname').value = currentProfile.full_name || '';
     document.getElementById('settings-username').value = currentProfile.username || '';
@@ -200,7 +227,10 @@ function renderSettings() {
     document.getElementById('settings-country').value = currentProfile.country || '';
 
     const limits = getLimits();
-    document.getElementById('settings-plan-2').textContent = currentProfile.is_owner ? 'owner' : (currentProfile.plan || 'free');
+    const displayPlan = STAFF_ROLES.includes(currentProfile.role)
+        ? currentProfile.role
+        : (currentProfile.plan || 'free');
+    document.getElementById('settings-plan-2').textContent = displayPlan;
     document.getElementById('settings-limit-projects').textContent = `${projectsCache.length} / ${limits.projects >= 999 ? '∞' : limits.projects}`;
     document.getElementById('settings-limit-connections').textContent = `${connectionsCache.length} / ${limits.connections >= 999 ? '∞' : limits.connections}`;
 }
@@ -338,7 +368,7 @@ function toggleSidebar() {
 
 function openProjectModal() {
     if (!canCreateProject()) {
-        alert(`You've reached your plan limit (${getLimits().projects} projects on ${currentProfile?.is_owner ? 'owner' : currentProfile?.plan || 'free'}). Upgrade to add more.`);
+        alert(`You've reached your plan limit. Upgrade to add more.`);
         return;
     }
     document.getElementById('project-modal').classList.remove('hidden');
@@ -768,7 +798,7 @@ async function createPayment() {
 
 function openConnectModal() {
     if (!canCreateConnection()) {
-        alert(`You've reached your plan limit (${getLimits().connections} connections on ${currentProfile?.is_owner ? 'owner' : currentProfile?.plan || 'free'}). Upgrade to add more.`);
+        alert(`You've reached your plan limit. Upgrade to add more.`);
         return;
     }
     document.getElementById('connect-modal').classList.remove('hidden');
