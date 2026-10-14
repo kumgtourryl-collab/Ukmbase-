@@ -20,6 +20,19 @@ let activeTable = null;
 let activeSchema = null;
 
 // ============================================
+// HEADERS HELPER
+// Handles both JWT keys and new sb_publishable_ keys
+// ============================================
+
+function getHeaders(key) {
+    const headers = { 'apikey': key };
+    if (!key.startsWith('sb_publishable_')) {
+        headers['Authorization'] = `Bearer ${key}`;
+    }
+    return headers;
+}
+
+// ============================================
 // VIEW SWITCHERS
 // ============================================
 
@@ -642,12 +655,12 @@ async function createConnection() {
 
     btn.innerText = 'Testing connection...'; btn.disabled = true;
 
-    // Test the connection by fetching the schema
     try {
-        const testRes = await fetch(`${url}/rest/v1/`, {
-            headers: { 'apikey': key, 'Authorization': `Bearer ${key}` }
+        const testRes = await fetch(`${url}/rest/v1/profiles?select=id&limit=1`, {
+            headers: getHeaders(key)
         });
-        if (!testRes.ok) throw new Error(`Connection failed (${testRes.status}). Check URL and anon key.`);
+        if (testRes.status >= 500) throw new Error(`Connection failed (${testRes.status}).`);
+        if (testRes.status === 404) throw new Error('Endpoint not reachable. Check the URL.');
     } catch (err) {
         btn.innerText = 'Connect'; btn.disabled = false;
         errEl.textContent = err.message;
@@ -703,32 +716,55 @@ async function openConnection(id) {
     document.getElementById('ukmtables-rows-loading').classList.remove('hidden');
     document.getElementById('ukmtables-pills').innerHTML = '';
 
-    // Fetch schema via PostgREST OpenAPI
     try {
+        // Try OpenAPI schema first
         const res = await fetch(`${conn.supabase_url}/rest/v1/`, {
-            headers: { 'apikey': conn.supabase_anon_key, 'Authorization': `Bearer ${conn.supabase_anon_key}` }
+            headers: getHeaders(conn.supabase_anon_key)
         });
-        if (!res.ok) throw new Error(`Failed to load schema (${res.status})`);
 
-        const spec = await res.json();
+        let spec = null;
+        if (res.ok) {
+            try { spec = await res.json(); } catch (_) { spec = null; }
+        }
+
+        let tables = [];
+        if (spec) {
+            tables = Object.keys(spec.definitions || spec.components?.schemas || {}).sort();
+        }
+
+        // Fallback: probe common Ukmbase table names
+        if (tables.length === 0) {
+            const candidates = ['profiles', 'projects', 'plans', 'payments', 'subscriptions', 'usage_metrics', 'waitlist', 'connected_databases'];
+            for (const t of candidates) {
+                try {
+                    const r = await fetch(`${conn.supabase_url}/rest/v1/${t}?select=*&limit=1`, {
+                        headers: getHeaders(conn.supabase_anon_key)
+                    });
+                    if (r.status === 200 || r.status === 206) tables.push(t);
+                } catch (_) {}
+            }
+        }
+
         activeSchema = spec;
-
-        const tables = Object.keys(spec.definitions || spec.components?.schemas || {}).sort();
         subtitle.textContent = `${tables.length} tables`;
 
         const pills = document.getElementById('ukmtables-pills');
+
+        if (tables.length === 0) {
+            document.getElementById('ukmtables-rows-loading').classList.add('hidden');
+            document.getElementById('ukmtables-rows-empty').classList.remove('hidden');
+            document.getElementById('ukmtables-rows-empty').innerHTML = `
+                <p class="text-[#94A3B8] text-sm">No tables found. Either the database is empty, RLS is blocking all reads, or the URL/key is wrong.</p>`;
+            return;
+        }
+
         pills.innerHTML = tables.map(t => `
             <button onclick="selectTable('${t}')" data-table="${t}" class="table-pill bg-[#1C2333] border border-[#2A3347] text-[#94A3B8] text-xs px-3 py-1.5 rounded-lg mono">
                 ${escapeHtml(t)}
             </button>
         `).join('');
 
-        if (tables.length > 0) {
-            await selectTable(tables[0]);
-        } else {
-            document.getElementById('ukmtables-rows-loading').classList.add('hidden');
-            document.getElementById('ukmtables-rows-empty').classList.remove('hidden');
-        }
+        await selectTable(tables[0]);
     } catch (err) {
         subtitle.textContent = 'Error loading schema';
         document.getElementById('ukmtables-rows-loading').classList.add('hidden');
@@ -751,13 +787,9 @@ async function selectTable(tableName) {
     if (!activeConnection) return;
     activeTable = tableName;
 
-    // Update pills
     document.querySelectorAll('.table-pill').forEach(p => {
-        if (p.dataset.table === tableName) {
-            p.classList.add('active');
-        } else {
-            p.classList.remove('active');
-        }
+        if (p.dataset.table === tableName) p.classList.add('active');
+        else p.classList.remove('active');
     });
 
     document.getElementById('ukmtables-rows').classList.add('hidden');
@@ -766,17 +798,19 @@ async function selectTable(tableName) {
 
     try {
         const res = await fetch(`${activeConnection.supabase_url}/rest/v1/${tableName}?select=*&limit=50`, {
-            headers: { 'apikey': activeConnection.supabase_anon_key, 'Authorization': `Bearer ${activeConnection.supabase_anon_key}` }
+            headers: getHeaders(activeConnection.supabase_anon_key)
         });
+
+        document.getElementById('ukmtables-rows-loading').classList.add('hidden');
+
         if (!res.ok) throw new Error(`Failed to load rows (${res.status})`);
 
         const rows = await res.json();
-        document.getElementById('ukmtables-rows-loading').classList.add('hidden');
 
         if (!rows || rows.length === 0) {
             document.getElementById('ukmtables-rows-empty').classList.remove('hidden');
             document.getElementById('ukmtables-rows-empty').innerHTML = `
-                <p class="text-[#94A3B8] text-sm">No rows in this table (or RLS is blocking reads).</p>`;
+                <p class="text-[#94A3B8] text-sm">No rows visible (or RLS is blocking reads on this table).</p>`;
             return;
         }
 
@@ -817,7 +851,6 @@ function renderRows(rows) {
 }
 
 function copyRow(jsonStr) {
-    // Unescape the HTML entities back
     const clean = jsonStr.replace(/&quot;/g, '"').replace(/&#39;/g, "'");
     navigator.clipboard.writeText(clean);
     alert('Row copied as JSON!');
