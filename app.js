@@ -1,10 +1,19 @@
 // ============================================
-// UKMBASE APP LOGIC
+// UKMBASE APP LOGIC — SESSION 1
 // ============================================
 
 const SUPABASE_URL = 'https://dwjyzqsrzdgnpwibnyjn.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_4vcPyg62OqmfwNaHxx0CGA_a7O0_NJV';
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Plan limits
+const PLAN_LIMITS = {
+    free:       { projects: 2,  connections: 3   },
+    pro:        { projects: 20, connections: 20  },
+    team:       { projects: 100,connections: 100 },
+    enterprise: { projects: 999,connections: 999 },
+    owner:      { projects: 999,connections: 999 },
+};
 
 const landingView = document.getElementById('landing-view');
 const authView = document.getElementById('auth-view');
@@ -12,16 +21,17 @@ const dashboardView = document.getElementById('dashboard-view');
 const userEmailDisplay = document.getElementById('user-email');
 
 let currentUser = null;
+let currentProfile = null;
 let chatHistory = [];
 let projectsCache = [];
 let connectionsCache = [];
 let activeConnection = null;
 let activeTable = null;
 let activeSchema = null;
+let authMode = 'login';
 
 // ============================================
 // HEADERS HELPER
-// Handles both JWT keys and new sb_publishable_ keys
 // ============================================
 
 function getHeaders(key) {
@@ -30,6 +40,74 @@ function getHeaders(key) {
         headers['Authorization'] = `Bearer ${key}`;
     }
     return headers;
+}
+
+// ============================================
+// PLAN LIMITS
+// ============================================
+
+function getLimits() {
+    if (currentProfile?.is_owner) return PLAN_LIMITS.owner;
+    const plan = currentProfile?.plan || 'free';
+    return PLAN_LIMITS[plan] || PLAN_LIMITS.free;
+}
+
+function canCreateProject() {
+    return projectsCache.length < getLimits().projects;
+}
+
+function canCreateConnection() {
+    return connectionsCache.length < getLimits().connections;
+}
+
+// ============================================
+// AUTH MODE TOGGLE
+// ============================================
+
+function setAuthMode(mode) {
+    authMode = mode;
+    const isSignup = mode === 'signup';
+
+    document.getElementById('field-fullname').classList.toggle('hidden', !isSignup);
+    document.getElementById('field-confirm').classList.toggle('hidden', !isSignup);
+    document.getElementById('strength-meter').classList.toggle('hidden', !isSignup);
+    document.getElementById('auth-submit').textContent = isSignup ? 'Create Account' : 'Sign In';
+
+    document.getElementById('tab-login').classList.toggle('active', !isSignup);
+    document.getElementById('tab-signup').classList.toggle('active', isSignup);
+    document.getElementById('auth-error').classList.add('hidden');
+    document.getElementById('auth-success').classList.add('hidden');
+}
+
+// ============================================
+// PASSWORD HELPERS
+// ============================================
+
+function togglePassword(id, btn) {
+    const input = document.getElementById(id);
+    const isPassword = input.type === 'password';
+    input.type = isPassword ? 'text' : 'password';
+    btn.classList.toggle('text-[#4F46E5]', isPassword);
+}
+
+function updateStrength() {
+    const pwd = document.getElementById('auth-password').value;
+    let score = 0;
+    if (pwd.length >= 8) score++;
+    if (/[a-z]/.test(pwd) && /[A-Z]/.test(pwd)) score++;
+    if (/\d/.test(pwd)) score++;
+    if (/[^A-Za-z0-9]/.test(pwd)) score++;
+    if (pwd.length >= 12) score++;
+
+    const colors = ['#EF4444', '#EF4444', '#F59E0B', '#06B6D4', '#10B981', '#10B981'];
+    const labels = ['Too short', 'Weak', 'Fair', 'Good', 'Strong', 'Excellent'];
+
+    for (let i = 1; i <= 5; i++) {
+        const bar = document.getElementById('sb-' + i);
+        bar.style.background = i <= score ? colors[score] : '#2A3347';
+    }
+    document.getElementById('strength-label').textContent = pwd ? labels[score] : 'Password strength';
+    document.getElementById('strength-label').style.color = pwd ? colors[score] : '#64748B';
 }
 
 // ============================================
@@ -46,14 +124,16 @@ function showAuthView() {
     landingView.classList.add('hidden');
     authView.classList.remove('hidden');
     dashboardView.classList.add('hidden');
+    setAuthMode('login');
 }
 
-function showDashboardView(user) {
+async function showDashboardView(user) {
     landingView.classList.add('hidden');
     authView.classList.add('hidden');
     dashboardView.classList.remove('hidden');
     if (user && user.email) userEmailDisplay.textContent = user.email;
     currentUser = user;
+    await loadProfile();
     loadProjects().then(() => {
         loadPayments();
         loadPlans();
@@ -63,7 +143,7 @@ function showDashboardView(user) {
 }
 
 function switchView(view) {
-    const views = ['overview', 'ukmai', 'ukmtables', 'ukmpay'];
+    const views = ['overview', 'ukmai', 'ukmtables', 'ukmpay', 'settings'];
     views.forEach(v => {
         const el = document.getElementById('view-' + v);
         const nav = document.getElementById('nav-' + v);
@@ -78,12 +158,96 @@ function switchView(view) {
 
     if (view === 'ukmpay') { loadPayments(); loadPlans(); }
     if (view === 'ukmtables') { loadConnections(); }
+    if (view === 'settings') { renderSettings(); }
     document.getElementById('sidebar').classList.add('-translate-x-full');
+}
+
+// ============================================
+// PROFILE
+// ============================================
+
+async function loadProfile() {
+    if (!currentUser) return;
+    const { data, error } = await supabaseClient
+        .from('profiles')
+        .select('*')
+        .eq('id', currentUser.id)
+        .single();
+
+    if (error) { console.error('Profile load:', error.message); return; }
+    currentProfile = data;
+
+    // Update owner badge
+    document.getElementById('owner-badge').classList.toggle('hidden', !data.is_owner);
+
+    // Update last_login_at (fire and forget)
+    supabaseClient.from('profiles').update({ last_login_at: new Date().toISOString() }).eq('id', currentUser.id).then(() => {});
+}
+
+function renderSettings() {
+    if (!currentProfile) return;
+
+    const initial = (currentProfile.full_name || currentProfile.username || 'U').charAt(0).toUpperCase();
+    document.getElementById('settings-initial').textContent = initial;
+    document.getElementById('settings-display-name').textContent = currentProfile.full_name || currentProfile.username || 'User';
+    document.getElementById('settings-display-email').textContent = currentProfile.email || currentUser.email;
+    document.getElementById('settings-plan').textContent = currentProfile.plan || 'free';
+    document.getElementById('settings-owner-tag').classList.toggle('hidden', !currentProfile.is_owner);
+
+    document.getElementById('settings-fullname').value = currentProfile.full_name || '';
+    document.getElementById('settings-username').value = currentProfile.username || '';
+    document.getElementById('settings-phone').value = currentProfile.phone || '';
+    document.getElementById('settings-country').value = currentProfile.country || '';
+
+    const limits = getLimits();
+    document.getElementById('settings-plan-2').textContent = currentProfile.is_owner ? 'owner' : (currentProfile.plan || 'free');
+    document.getElementById('settings-limit-projects').textContent = `${projectsCache.length} / ${limits.projects >= 999 ? '∞' : limits.projects}`;
+    document.getElementById('settings-limit-connections').textContent = `${connectionsCache.length} / ${limits.connections >= 999 ? '∞' : limits.connections}`;
+}
+
+async function saveProfile() {
+    const full_name = document.getElementById('settings-fullname').value.trim();
+    const username = document.getElementById('settings-username').value.trim();
+    const phone = document.getElementById('settings-phone').value.trim();
+    const country = document.getElementById('settings-country').value;
+    const errEl = document.getElementById('settings-error');
+    const succEl = document.getElementById('settings-success');
+    const btn = document.getElementById('settings-save-btn');
+
+    errEl.classList.add('hidden'); succEl.classList.add('hidden');
+    if (!full_name || !username) {
+        errEl.textContent = 'Full name and username are required.';
+        errEl.classList.remove('hidden'); return;
+    }
+
+    btn.textContent = 'Saving...'; btn.disabled = true;
+
+    const { error } = await supabaseClient
+        .from('profiles')
+        .update({ full_name, username, phone: phone || null, country: country || null })
+        .eq('id', currentUser.id);
+
+    btn.textContent = 'Save Changes'; btn.disabled = false;
+
+    if (error) {
+        errEl.textContent = error.message.includes('duplicate') ? 'That username is taken.' : error.message;
+        errEl.classList.remove('hidden'); return;
+    }
+
+    succEl.textContent = 'Profile saved.';
+    succEl.classList.remove('hidden');
+    await loadProfile();
+    renderSettings();
 }
 
 // ============================================
 // AUTH
 // ============================================
+
+async function handleAuthSubmit() {
+    if (authMode === 'login') return handleLogin();
+    return handleSignup();
+}
 
 async function handleLogin() {
     const email = document.getElementById('auth-email').value;
@@ -91,7 +255,11 @@ async function handleLogin() {
     const errEl = document.getElementById('auth-error');
     const succEl = document.getElementById('auth-success');
     errEl.classList.add('hidden'); succEl.classList.add('hidden');
-    if (!email || !password) { errEl.textContent = 'Please fill in all fields.'; errEl.classList.remove('hidden'); return; }
+
+    if (!email || !password) {
+        errEl.textContent = 'Please fill in all fields.';
+        errEl.classList.remove('hidden'); return;
+    }
 
     const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
     if (error) { errEl.textContent = error.message; errEl.classList.remove('hidden'); }
@@ -99,22 +267,41 @@ async function handleLogin() {
 }
 
 async function handleSignup() {
-    const email = document.getElementById('auth-email').value;
+    const fullName = document.getElementById('auth-fullname').value.trim();
+    const email = document.getElementById('auth-email').value.trim();
     const password = document.getElementById('auth-password').value;
+    const confirm = document.getElementById('auth-confirm').value;
     const errEl = document.getElementById('auth-error');
     const succEl = document.getElementById('auth-success');
     errEl.classList.add('hidden'); succEl.classList.add('hidden');
-    if (!email || !password) { errEl.textContent = 'Please fill in all fields.'; errEl.classList.remove('hidden'); return; }
 
-    const { data, error } = await supabaseClient.auth.signUp({ email, password });
+    if (!fullName || !email || !password || !confirm) {
+        errEl.textContent = 'Please fill in all fields.';
+        errEl.classList.remove('hidden'); return;
+    }
+    if (password !== confirm) {
+        errEl.textContent = 'Passwords do not match.';
+        errEl.classList.remove('hidden'); return;
+    }
+    if (password.length < 8) {
+        errEl.textContent = 'Password must be at least 8 characters.';
+        errEl.classList.remove('hidden'); return;
+    }
+
+    const { data, error } = await supabaseClient.auth.signUp({
+        email, password,
+        options: { data: { full_name: fullName } }
+    });
+
     if (error) { errEl.textContent = error.message; errEl.classList.remove('hidden'); }
     else if (data.session) { showDashboardView(data.user); }
-    else { succEl.textContent = 'Account created! Check your email.'; succEl.classList.remove('hidden'); }
+    else { succEl.textContent = 'Account created! Check your email to confirm.'; succEl.classList.remove('hidden'); }
 }
 
 async function handleLogout() {
     await supabaseClient.auth.signOut();
     currentUser = null;
+    currentProfile = null;
     showLandingView();
 }
 
@@ -150,6 +337,10 @@ function toggleSidebar() {
 // ============================================
 
 function openProjectModal() {
+    if (!canCreateProject()) {
+        alert(`You've reached your plan limit (${getLimits().projects} projects on ${currentProfile?.is_owner ? 'owner' : currentProfile?.plan || 'free'}). Upgrade to add more.`);
+        return;
+    }
     document.getElementById('project-modal').classList.remove('hidden');
     document.getElementById('modal-error').classList.add('hidden');
     document.getElementById('project-name').value = '';
@@ -228,6 +419,7 @@ async function createProject() {
 
     errEl.classList.add('hidden');
     if (!name || !slug) { errEl.textContent = 'Project name is required.'; errEl.classList.remove('hidden'); return; }
+    if (!canCreateProject()) { errEl.textContent = 'Plan limit reached.'; errEl.classList.remove('hidden'); return; }
 
     btn.innerText = 'Forging...'; btn.disabled = true;
 
@@ -575,6 +767,10 @@ async function createPayment() {
 // ============================================
 
 function openConnectModal() {
+    if (!canCreateConnection()) {
+        alert(`You've reached your plan limit (${getLimits().connections} connections on ${currentProfile?.is_owner ? 'owner' : currentProfile?.plan || 'free'}). Upgrade to add more.`);
+        return;
+    }
     document.getElementById('connect-modal').classList.remove('hidden');
     document.getElementById('connect-error').classList.add('hidden');
     ['connect-name', 'connect-url', 'connect-key'].forEach(id => document.getElementById(id).value = '');
@@ -652,6 +848,10 @@ async function createConnection() {
         errEl.textContent = 'All fields are required.';
         errEl.classList.remove('hidden'); return;
     }
+    if (!canCreateConnection()) {
+        errEl.textContent = 'Plan limit reached.';
+        errEl.classList.remove('hidden'); return;
+    }
 
     btn.innerText = 'Testing connection...'; btn.disabled = true;
 
@@ -717,22 +917,18 @@ async function openConnection(id) {
     document.getElementById('ukmtables-pills').innerHTML = '';
 
     try {
-        // Try OpenAPI schema first
         const res = await fetch(`${conn.supabase_url}/rest/v1/`, {
             headers: getHeaders(conn.supabase_anon_key)
         });
 
         let spec = null;
-        if (res.ok) {
-            try { spec = await res.json(); } catch (_) { spec = null; }
-        }
+        if (res.ok) { try { spec = await res.json(); } catch (_) { spec = null; } }
 
         let tables = [];
         if (spec) {
             tables = Object.keys(spec.definitions || spec.components?.schemas || {}).sort();
         }
 
-        // Fallback: probe common Ukmbase table names
         if (tables.length === 0) {
             const candidates = ['profiles', 'projects', 'plans', 'payments', 'subscriptions', 'usage_metrics', 'waitlist', 'connected_databases'];
             for (const t of candidates) {
@@ -748,8 +944,6 @@ async function openConnection(id) {
         activeSchema = spec;
         subtitle.textContent = `${tables.length} tables`;
 
-        const pills = document.getElementById('ukmtables-pills');
-
         if (tables.length === 0) {
             document.getElementById('ukmtables-rows-loading').classList.add('hidden');
             document.getElementById('ukmtables-rows-empty').classList.remove('hidden');
@@ -758,7 +952,7 @@ async function openConnection(id) {
             return;
         }
 
-        pills.innerHTML = tables.map(t => `
+        document.getElementById('ukmtables-pills').innerHTML = tables.map(t => `
             <button onclick="selectTable('${t}')" data-table="${t}" class="table-pill bg-[#1C2333] border border-[#2A3347] text-[#94A3B8] text-xs px-3 py-1.5 rounded-lg mono">
                 ${escapeHtml(t)}
             </button>
