@@ -1,4 +1,4 @@
-// UKMBASE APP.JS — v505 (Billing)
+// UKMBASE APP.JS — v506 (UkmQuery)
 
 const SUPABASE_URL = 'https://dwjyzqsrzdgnpwibnyjn.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_4vcPyg62OqmfwNaHxx0CGA_a7O0_NJV';
@@ -37,6 +37,7 @@ let activeTable = null;
 let activeSchema = null;
 let authMode = 'login';
 let currentUpgradePlan = null;
+let lastGeneratedSQL = '';
 
 // ============================================
 // HEADERS HELPER
@@ -144,14 +145,15 @@ async function showDashboardView(user) {
     loadProjects().then(() => {
         loadPayments();
         loadPlans();
-        loadConnections();
+        loadConnections().then(() => populateQueryConnections());
         loadMyUpgradeRequests();
+        loadQueryHistory();
     });
     switchView('overview');
 }
 
 function switchView(view) {
-    const views = ['overview', 'ukmai', 'ukmtables', 'ukmpay', 'billing', 'settings', 'owner'];
+    const views = ['overview', 'ukmai', 'ukmquery', 'ukmtables', 'ukmpay', 'billing', 'settings', 'owner'];
     views.forEach(v => {
         const el = document.getElementById('view-' + v);
         const nav = document.getElementById('nav-' + v);
@@ -165,6 +167,7 @@ function switchView(view) {
     });
     if (view === 'ukmpay') { loadPayments(); loadPlans(); }
     if (view === 'ukmtables') { loadConnections(); }
+    if (view === 'ukmquery') { loadConnections().then(() => { populateQueryConnections(); loadQueryHistory(); }); }
     if (view === 'settings') { renderSettings(); }
     if (view === 'billing') { renderBilling(); }
     if (view === 'owner') { loadOwnerConsole(); }
@@ -209,7 +212,6 @@ function renderSettings() {
     document.getElementById('settings-display-name').textContent = currentProfile.full_name || currentProfile.username || 'User';
     document.getElementById('settings-display-email').textContent = currentProfile.email || currentUser.email;
     document.getElementById('settings-plan').textContent = currentProfile.plan || 'free';
-
     const roleTag = document.getElementById('settings-role-tag');
     roleTag.classList.remove('role-owner', 'role-admin', 'role-support');
     const role = currentProfile.role || 'user';
@@ -224,7 +226,6 @@ function renderSettings() {
     document.getElementById('settings-username').value = currentProfile.username || '';
     document.getElementById('settings-phone').value = currentProfile.phone || '';
     document.getElementById('settings-country').value = currentProfile.country || '';
-
     const limits = getLimits();
     const displayPlan = STAFF_ROLES.includes(currentProfile.role) ? currentProfile.role : (currentProfile.plan || 'free');
     document.getElementById('settings-plan-2').textContent = displayPlan;
@@ -242,7 +243,6 @@ async function saveProfile() {
     const errEl = document.getElementById('settings-error');
     const succEl = document.getElementById('settings-success');
     const btn = document.getElementById('settings-save-btn');
-
     errEl.classList.add('hidden'); succEl.classList.add('hidden');
     if (!full_name || !username) {
         errEl.textContent = 'Full name and username are required.';
@@ -296,7 +296,6 @@ async function handleSignup() {
     const errEl = document.getElementById('auth-error');
     const succEl = document.getElementById('auth-success');
     errEl.classList.add('hidden'); succEl.classList.add('hidden');
-
     if (!fullName || !email || !password || !confirm) {
         errEl.textContent = 'Please fill in all fields.';
         errEl.classList.remove('hidden'); return;
@@ -496,7 +495,7 @@ async function sendChat() {
         const res = await fetch(`${SUPABASE_URL}/functions/v1/ukmai`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt })
+            body: JSON.stringify({ prompt, mode: 'default' })
         });
         const data = await res.json();
         removeTypingIndicator(typingId);
@@ -575,6 +574,207 @@ function clearChat() {
             <p class="text-[#94A3B8] text-xs">Describe your next app.</p>
         </div>`;
     chatHistory = [];
+}
+
+// ============================================
+// UKMQUERY
+// ============================================
+
+function populateQueryConnections() {
+    const sel = document.getElementById('query-connection');
+    if (!sel) return;
+    const current = sel.value;
+    sel.innerHTML = '<option value="">— no database selected —</option>' +
+        connectionsCache.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+    if (current) sel.value = current;
+}
+
+function setQueryPrompt(text) {
+    document.getElementById('query-prompt').value = text;
+    document.getElementById('query-prompt').focus();
+}
+
+async function generateSQL() {
+    const prompt = document.getElementById('query-prompt').value.trim();
+    const submitBtn = document.getElementById('query-submit');
+    const outputWrap = document.getElementById('query-output-wrap');
+    const outputEl = document.getElementById('query-output');
+    const loadingEl = document.getElementById('query-loading');
+    const warningEl = document.getElementById('query-warning');
+
+    if (!prompt) {
+        alert('Describe what you want to do first.');
+        return;
+    }
+
+    // Optionally add connection context
+    const connId = document.getElementById('query-connection').value;
+    let contextPrompt = prompt;
+    if (connId) {
+        const conn = connectionsCache.find(c => c.id === connId);
+        if (conn) {
+            contextPrompt = `Database: ${conn.name} (${conn.supabase_url.replace('https://', '')})\n\nTask: ${prompt}`;
+        }
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span> Generating...';
+    outputWrap.classList.add('hidden');
+    loadingEl.classList.remove('hidden');
+    warningEl.classList.add('hidden');
+
+    try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/ukmai`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt: contextPrompt, mode: 'sql' })
+        });
+        const data = await res.json();
+
+        loadingEl.classList.add('hidden');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> Generate SQL';
+
+        if (data.error) {
+            outputWrap.classList.remove('hidden');
+            outputEl.innerHTML = `<p class="text-red-400 text-sm">${escapeHtml(data.error)}</p>`;
+            return;
+        }
+
+        // Extract SQL from markdown code block
+        const raw = data.content || '';
+        const match = raw.match(/```(?:sql)?\s*([\s\S]*?)```/i);
+        const sql = match ? match[1].trim() : raw.trim();
+        lastGeneratedSQL = sql;
+
+        outputWrap.classList.remove('hidden');
+
+        // Destructive warning
+        if (/^\s*--\s*WARNING: destructive/i.test(sql) || /\b(DROP|DELETE|TRUNCATE)\b/i.test(sql)) {
+            warningEl.classList.remove('hidden');
+        }
+
+        // Render with syntax highlighting
+        outputEl.innerHTML = `<pre><code class="language-sql">${escapeHtml(sql)}</code></pre>`;
+        outputEl.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b));
+
+        // Add copy button to the pre
+        const pre = outputEl.querySelector('pre');
+        if (pre) {
+            pre.style.position = 'relative';
+            const btn = document.createElement('button');
+            btn.className = 'copy-btn';
+            btn.innerText = 'Copy';
+            btn.onclick = () => {
+                navigator.clipboard.writeText(sql);
+                btn.innerText = 'Copied!';
+                setTimeout(() => btn.innerText = 'Copy', 1500);
+            };
+            pre.appendChild(btn);
+        }
+
+        // Save to history
+        await saveQueryToHistory(connId || null, prompt, sql);
+
+    } catch (err) {
+        loadingEl.classList.add('hidden');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> Generate SQL';
+        outputWrap.classList.remove('hidden');
+        outputEl.innerHTML = `<p class="text-red-400 text-sm">Network error: ${escapeHtml(err.message)}</p>`;
+    }
+}
+
+function copyGeneratedSQL() {
+    if (!lastGeneratedSQL) return;
+    navigator.clipboard.writeText(lastGeneratedSQL);
+    const btn = document.getElementById('query-copy-btn');
+    if (btn) {
+        const original = btn.innerHTML;
+        btn.innerHTML = '✓ Copied!';
+        setTimeout(() => btn.innerHTML = original, 1500);
+    }
+}
+
+async function saveQueryToHistory(connectionId, prompt, sql) {
+    if (!currentUser) return;
+    const { error } = await supabaseClient.from('query_history').insert([{
+        user_id: currentUser.id,
+        connection_id: connectionId,
+        prompt,
+        generated_sql: sql
+    }]);
+    if (error) { console.error('Query history save failed:', error.message); return; }
+    await loadQueryHistory();
+}
+
+async function loadQueryHistory() {
+    if (!currentUser) return;
+    const wrap = document.getElementById('query-history-wrap');
+    const list = document.getElementById('query-history-list');
+    if (!wrap || !list) return;
+
+    const { data, error } = await supabaseClient
+        .from('query_history')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+    if (error) { console.error(error.message); return; }
+    if (!data || data.length === 0) { wrap.classList.add('hidden'); return; }
+
+    wrap.classList.remove('hidden');
+    list.innerHTML = data.map(h => `
+        <div class="bg-[#1C2333] border border-[#2A3347] rounded-xl p-3 cursor-pointer hover:border-[#4F46E5] transition-colors" onclick="loadHistoryItem('${h.id}')">
+            <div class="flex items-start justify-between mb-1">
+                <p class="text-white text-xs font-medium flex-1 pr-2 line-clamp-2">${escapeHtml(h.prompt)}</p>
+                <span class="text-[10px] text-[#64748B] flex-shrink-0 mono">${new Date(h.created_at).toLocaleDateString()}</span>
+            </div>
+            <p class="text-[#06B6D4] text-[10px] mono truncate">${escapeHtml(h.generated_sql.split('\n')[0])}</p>
+        </div>
+    `).join('');
+}
+
+async function loadHistoryItem(id) {
+    const { data, error } = await supabaseClient
+        .from('query_history').select('*').eq('id', id).single();
+    if (error || !data) return;
+
+    document.getElementById('query-prompt').value = data.prompt;
+    lastGeneratedSQL = data.generated_sql;
+
+    const outputWrap = document.getElementById('query-output-wrap');
+    const outputEl = document.getElementById('query-output');
+    const warningEl = document.getElementById('query-warning');
+
+    outputWrap.classList.remove('hidden');
+    warningEl.classList.add('hidden');
+
+    if (/^\s*--\s*WARNING: destructive/i.test(data.generated_sql) || /\b(DROP|DELETE|TRUNCATE)\b/i.test(data.generated_sql)) {
+        warningEl.classList.remove('hidden');
+    }
+
+    outputEl.innerHTML = `<pre><code class="language-sql">${escapeHtml(data.generated_sql)}</code></pre>`;
+    outputEl.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b));
+
+    const pre = outputEl.querySelector('pre');
+    if (pre) {
+        pre.style.position = 'relative';
+        const btn = document.createElement('button');
+        btn.className = 'copy-btn';
+        btn.innerText = 'Copy';
+        btn.onclick = () => {
+            navigator.clipboard.writeText(data.generated_sql);
+            btn.innerText = 'Copied!';
+            setTimeout(() => btn.innerText = 'Copy', 1500);
+        };
+        pre.appendChild(btn);
+    }
+
+    // Scroll to output
+    outputWrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // ============================================
@@ -805,6 +1005,7 @@ function renderConnections(connections) {
     const subtitle = document.getElementById('ukmtables-subtitle');
     const actionBtn = document.getElementById('ukmtables-action');
     const backBtn = document.getElementById('ukmtables-back');
+    if (!empty) return;
     title.textContent = 'UkmTables';
     subtitle.textContent = 'Connect any Supabase database';
     actionBtn.innerText = '+ Connect';
@@ -873,6 +1074,7 @@ async function createConnection() {
     if (error) { errEl.textContent = error.message; errEl.classList.remove('hidden'); return; }
     closeConnectModal();
     await loadConnections();
+    populateQueryConnections();
 }
 
 async function deleteConnection(id) {
@@ -880,6 +1082,7 @@ async function deleteConnection(id) {
     const { error } = await supabaseClient.from('connected_databases').delete().eq('id', id);
     if (error) { alert(error.message); return; }
     await loadConnections();
+    populateQueryConnections();
 }
 
 // ============================================
@@ -916,7 +1119,7 @@ async function openConnection(id) {
             tables = Object.keys(spec.definitions || spec.components?.schemas || {}).sort();
         }
         if (tables.length === 0) {
-            const candidates = ['profiles', 'projects', 'plans', 'payments', 'subscriptions', 'usage_metrics', 'waitlist', 'connected_databases', 'upgrade_requests'];
+            const candidates = ['profiles', 'projects', 'plans', 'payments', 'subscriptions', 'usage_metrics', 'waitlist', 'connected_databases', 'upgrade_requests', 'query_history'];
             for (const t of candidates) {
                 try {
                     const r = await fetch(`${conn.supabase_url}/rest/v1/${t}?select=*&limit=1`, { headers: getHeaders(conn.supabase_anon_key) });
@@ -929,8 +1132,7 @@ async function openConnection(id) {
         if (tables.length === 0) {
             document.getElementById('ukmtables-rows-loading').classList.add('hidden');
             document.getElementById('ukmtables-rows-empty').classList.remove('hidden');
-            document.getElementById('ukmtables-rows-empty').innerHTML = `
-                <p class="text-[#94A3B8] text-sm">No tables found.</p>`;
+            document.getElementById('ukmtables-rows-empty').innerHTML = `<p class="text-[#94A3B8] text-sm">No tables found.</p>`;
             return;
         }
         document.getElementById('ukmtables-pills').innerHTML = tables.map(t => `
@@ -943,8 +1145,7 @@ async function openConnection(id) {
         subtitle.textContent = 'Error loading schema';
         document.getElementById('ukmtables-rows-loading').classList.add('hidden');
         document.getElementById('ukmtables-rows-empty').classList.remove('hidden');
-        document.getElementById('ukmtables-rows-empty').innerHTML = `
-            <p class="text-red-400 text-sm">${escapeHtml(err.message)}</p>`;
+        document.getElementById('ukmtables-rows-empty').innerHTML = `<p class="text-red-400 text-sm">${escapeHtml(err.message)}</p>`;
     }
 }
 
@@ -976,16 +1177,14 @@ async function selectTable(tableName) {
         const rows = await res.json();
         if (!rows || rows.length === 0) {
             document.getElementById('ukmtables-rows-empty').classList.remove('hidden');
-            document.getElementById('ukmtables-rows-empty').innerHTML = `
-                <p class="text-[#94A3B8] text-sm">No rows visible.</p>`;
+            document.getElementById('ukmtables-rows-empty').innerHTML = `<p class="text-[#94A3B8] text-sm">No rows visible.</p>`;
             return;
         }
         renderRows(rows);
     } catch (err) {
         document.getElementById('ukmtables-rows-loading').classList.add('hidden');
         document.getElementById('ukmtables-rows-empty').classList.remove('hidden');
-        document.getElementById('ukmtables-rows-empty').innerHTML = `
-            <p class="text-red-400 text-sm">${escapeHtml(err.message)}</p>`;
+        document.getElementById('ukmtables-rows-empty').innerHTML = `<p class="text-red-400 text-sm">${escapeHtml(err.message)}</p>`;
     }
 }
 
@@ -1027,10 +1226,8 @@ function renderBilling() {
     if (!currentProfile) return;
     const plan = STAFF_ROLES.includes(currentProfile.role) ? currentProfile.role : (currentProfile.plan || 'free');
     const price = PLAN_PRICES[plan] || PLAN_PRICES.free;
-
     document.getElementById('billing-plan-name').textContent = plan;
     document.getElementById('billing-plan-price').textContent = price.label;
-
     const roleTag = document.getElementById('billing-role-tag');
     if (STAFF_ROLES.includes(currentProfile.role)) {
         roleTag.classList.remove('hidden');
@@ -1039,22 +1236,15 @@ function renderBilling() {
     } else {
         roleTag.classList.add('hidden');
     }
-
     const limits = getLimits();
-
-    // Projects
     const projPct = limits.projects >= 999 ? 5 : Math.min(100, (projectsCache.length / limits.projects) * 100);
     document.getElementById('billing-projects-label').textContent =
         `${projectsCache.length} / ${limits.projects >= 999 ? '∞' : limits.projects}`;
     document.getElementById('billing-projects-bar').style.width = projPct + '%';
-
-    // Connections
     const connPct = limits.connections >= 999 ? 5 : Math.min(100, (connectionsCache.length / limits.connections) * 100);
     document.getElementById('billing-connections-label').textContent =
         `${connectionsCache.length} / ${limits.connections >= 999 ? '∞' : limits.connections}`;
     document.getElementById('billing-connections-bar').style.width = connPct + '%';
-
-    // AI tokens (from projects cache sum)
     const tokensUsed = projectsCache.reduce((s, p) => s + (Number(p.ai_tokens_used) || 0), 0);
     const tokenLimit = STAFF_ROLES.includes(currentProfile.role) ? 999999 : (currentProfile.plan === 'pro' ? 500000 : currentProfile.plan === 'team' ? 2000000 : 100000);
     const tokenPct = Math.min(100, (tokensUsed / tokenLimit) * 100);
@@ -1085,16 +1275,13 @@ async function submitUpgradeRequest() {
     const notes = document.getElementById('upgrade-notes').value.trim();
     const errEl = document.getElementById('upgrade-error');
     const btn = document.getElementById('submit-upgrade-btn');
-
     errEl.classList.add('hidden');
     if (!name || !contact) {
         errEl.textContent = 'Name and contact are required.';
         errEl.classList.remove('hidden'); return;
     }
     if (!currentUpgradePlan) return;
-
     btn.textContent = 'Sending...'; btn.disabled = true;
-
     const { error } = await supabaseClient.from('upgrade_requests').insert([{
         user_id: currentUser.id,
         requested_plan: currentUpgradePlan.plan,
@@ -1105,14 +1292,11 @@ async function submitUpgradeRequest() {
         notes: `Name: ${name}${notes ? ' | ' + notes : ''}`,
         status: 'pending'
     }]);
-
     btn.textContent = 'Send Request'; btn.disabled = false;
-
     if (error) {
         errEl.textContent = error.message;
         errEl.classList.remove('hidden'); return;
     }
-
     closeUpgradeModal();
     alert("Request sent! We'll reach out on WhatsApp within 24 hours to arrange payment.");
     await loadMyUpgradeRequests();
@@ -1122,12 +1306,12 @@ async function loadMyUpgradeRequests() {
     if (!currentUser) return;
     const wrap = document.getElementById('billing-my-requests');
     const list = document.getElementById('billing-requests-list');
+    if (!wrap) return;
     const { data, error } = await supabaseClient
         .from('upgrade_requests')
         .select('*')
         .eq('user_id', currentUser.id)
         .order('created_at', { ascending: false });
-
     if (error) { console.error(error.message); return; }
     if (!data || data.length === 0) { wrap.classList.add('hidden'); return; }
     wrap.classList.remove('hidden');
@@ -1349,7 +1533,6 @@ async function updateOwnerStats() {
     const { data: payments } = await supabaseClient.from('payments').select('amount').eq('status', 'paid');
     const { count: pendingCount } = await supabaseClient.from('upgrade_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending');
     const revenue = (payments || []).reduce((s, p) => s + Number(p.amount || 0), 0);
-
     document.getElementById('owner-stat-users').textContent = userCount ?? '—';
     document.getElementById('owner-stat-projects').textContent = projectCount ?? '—';
     document.getElementById('owner-stat-revenue').textContent = '$' + revenue.toFixed(2);
