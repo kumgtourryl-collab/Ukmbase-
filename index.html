@@ -30,8 +30,6 @@
         .typing-dot:nth-child(1) { animation-delay: -0.32s; }
         .typing-dot:nth-child(2) { animation-delay: -0.16s; }
         @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
-        .row-card { transition: all 0.2s ease; cursor: pointer; }
-        .row-card:hover { border-color: #4F46E5; }
         .field-key { color: #06B6D4; }
         .field-val { color: #94A3B8; word-break: break-all; }
         .table-pill { transition: all 0.2s ease; }
@@ -43,6 +41,10 @@
         .role-owner   { background: linear-gradient(135deg, #F59E0B, #EF4444); }
         .role-admin   { background: linear-gradient(135deg, #4F46E5, #06B6D4); }
         .role-support { background: linear-gradient(135deg, #8B5CF6, #EC4899); }
+        .plan-card { transition: all 0.3s ease; }
+        .plan-card:hover { transform: translateY(-4px); border-color: #4F46E5; }
+        .plan-card.featured { border-color: #4F46E5; box-shadow: 0 0 40px -10px rgba(79, 70, 229, 0.5); }
+        .usage-bar { transition: width 0.5s ease; }
     </style>
 </head>
 <body class="min-h-screen">
@@ -96,26 +98,21 @@
                 <div class="text-3xl font-extrabold tracking-tighter text-white mb-2">Ukm<span class="text-[#4F46E5]">base</span></div>
                 <p class="text-[#94A3B8] text-sm">Forge your backend. Ship your SaaS.</p>
             </div>
-
             <div class="flex border-b border-[#2A3347] mb-6">
                 <button id="tab-login" onclick="setAuthMode('login')" class="auth-tab active flex-1 py-3 text-sm font-semibold text-[#94A3B8] border-b-2 border-transparent -mb-px">Sign In</button>
                 <button id="tab-signup" onclick="setAuthMode('signup')" class="auth-tab flex-1 py-3 text-sm font-semibold text-[#94A3B8] border-b-2 border-transparent -mb-px">Create Account</button>
             </div>
-
             <div id="auth-error" class="hidden bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-3 rounded-lg mb-4"></div>
             <div id="auth-success" class="hidden bg-green-500/10 border border-green-500/30 text-green-400 text-xs p-3 rounded-lg mb-4"></div>
-
             <div class="space-y-4">
                 <div id="field-fullname" class="hidden">
                     <label class="block text-xs font-medium text-[#94A3B8] mb-1">Full Name</label>
                     <input type="text" id="auth-fullname" placeholder="Kerryl Murwisi" class="w-full bg-[#0B1020] border border-[#2A3347] rounded-lg px-4 py-3 text-white placeholder-[#64748B] focus:outline-none focus:border-[#4F46E5]">
                 </div>
-
                 <div>
                     <label class="block text-xs font-medium text-[#94A3B8] mb-1">Email</label>
                     <input type="email" id="auth-email" placeholder="founder@startup.com" class="w-full bg-[#0B1020] border border-[#2A3347] rounded-lg px-4 py-3 text-white placeholder-[#64748B] focus:outline-none focus:border-[#4F46E5]">
                 </div>
-
                 <div>
                     <label class="block text-xs font-medium text-[#94A3B8] mb-1">Password</label>
                     <div class="relative">
@@ -135,7 +132,6 @@
                         <p id="strength-label" class="text-[10px] text-[#64748B]">Password strength</p>
                     </div>
                 </div>
-
                 <div id="field-confirm" class="hidden">
                     <label class="block text-xs font-medium text-[#94A3B8] mb-1">Confirm Password</label>
                     <div class="relative">
@@ -145,15 +141,12 @@
                         </button>
                     </div>
                 </div>
-
                 <button id="auth-submit" onclick="handleAuthSubmit()" class="w-full bg-[#4F46E5] hover:bg-[#4338CA] text-white font-bold py-3 rounded-lg transition-colors mt-2 glow">Sign In</button>
-
                 <div class="flex items-center gap-3 my-2">
                     <div class="flex-1 h-px bg-[#2A3347]"></div>
                     <span class="text-[10px] text-[#64748B] uppercase tracking-wider">Or continue with</span>
                     <div class="flex-1 h-px bg-[#2A3347]"></div>
                 </div>
-
                 <div class="grid grid-cols-2 gap-3">
                     <button onclick="signInWithProvider('google')" class="flex items-center justify-center gap-2 bg-[#0B1020] border border-[#2A3347] hover:border-[#4F46E5] text-white font-medium py-3 rounded-lg transition-colors">
                         <svg class="w-4 h-4" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
@@ -164,7 +157,6 @@
                         GitHub
                     </button>
                 </div>
-
                 <button onclick="showLandingView()" class="w-full text-center text-xs text-[#64748B] hover:text-white mt-2">← Back to home</button>
             </div>
         </div>
@@ -207,14 +199,16 @@
                         <svg class="w-5 h-5 text-[#06B6D4]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
                         UkmPay
                     </a>
-
+                    <a href="#" onclick="switchView('billing')" id="nav-billing" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#94A3B8] hover:text-white hover:bg-white/5 text-sm font-medium transition-colors">
+                        <svg class="w-5 h-5 text-[#10B981]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
+                        Billing
+                    </a>
                     <div id="nav-owner-wrap" class="hidden pt-3 mt-3 border-t border-[#2A3347]">
                         <a href="#" onclick="switchView('owner')" id="nav-owner" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#94A3B8] hover:text-white hover:bg-white/5 text-sm font-medium transition-colors">
                             <svg class="w-5 h-5 text-[#F59E0B]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
                             Owner Console
                         </a>
                     </div>
-
                     <div class="pt-3 mt-3 border-t border-[#2A3347]">
                         <a href="#" onclick="switchView('settings')" id="nav-settings" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#94A3B8] hover:text-white hover:bg-white/5 text-sm font-medium transition-colors">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
@@ -409,6 +403,134 @@
                     </div>
                 </div>
 
+                <!-- BILLING -->
+                <div id="view-billing" class="hidden flex-1 overflow-y-auto p-4 md:p-8">
+                    <div class="max-w-6xl mx-auto">
+
+                        <div class="mb-8">
+                            <h1 class="text-2xl font-bold text-white mb-1">Billing</h1>
+                            <p class="text-[#94A3B8] text-sm">Manage your Ukmbase plan and usage.</p>
+                        </div>
+
+                        <!-- Current plan -->
+                        <div class="bg-[#1C2333] border border-[#2A3347] rounded-xl p-6 mb-6">
+                            <div class="flex items-center justify-between mb-6 flex-wrap gap-4">
+                                <div>
+                                    <p class="text-[#94A3B8] text-xs uppercase font-bold tracking-wider mb-1">Current Plan</p>
+                                    <div class="flex items-center gap-3">
+                                        <span id="billing-plan-name" class="text-2xl font-extrabold text-white uppercase">free</span>
+                                        <span id="billing-plan-price" class="text-[#64748B] text-sm mono">$0/mo</span>
+                                    </div>
+                                </div>
+                                <span id="billing-role-tag" class="hidden text-white text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded">Staff</span>
+                            </div>
+
+                            <!-- Usage meters -->
+                            <div class="space-y-4">
+                                <div>
+                                    <div class="flex items-center justify-between mb-1">
+                                        <span class="text-[#94A3B8] text-xs font-medium">Projects</span>
+                                        <span id="billing-projects-label" class="text-white text-xs mono">0 / 2</span>
+                                    </div>
+                                    <div class="w-full bg-[#0B1020] rounded-full h-2 overflow-hidden">
+                                        <div id="billing-projects-bar" class="usage-bar h-2 bg-[#4F46E5] rounded-full" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="flex items-center justify-between mb-1">
+                                        <span class="text-[#94A3B8] text-xs font-medium">DB Connections</span>
+                                        <span id="billing-connections-label" class="text-white text-xs mono">0 / 3</span>
+                                    </div>
+                                    <div class="w-full bg-[#0B1020] rounded-full h-2 overflow-hidden">
+                                        <div id="billing-connections-bar" class="usage-bar h-2 bg-[#06B6D4] rounded-full" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="flex items-center justify-between mb-1">
+                                        <span class="text-[#94A3B8] text-xs font-medium">AI Tokens (this month)</span>
+                                        <span id="billing-tokens-label" class="text-white text-xs mono">0 / 100k</span>
+                                    </div>
+                                    <div class="w-full bg-[#0B1020] rounded-full h-2 overflow-hidden">
+                                        <div id="billing-tokens-bar" class="usage-bar h-2 bg-[#F59E0B] rounded-full" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Plans grid -->
+                        <h2 class="text-lg font-bold text-white mb-4">Upgrade your plan</h2>
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+
+                            <!-- Pro -->
+                            <div class="plan-card featured bg-[#1C2333] border-2 border-[#4F46E5] rounded-xl p-6 flex flex-col">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h3 class="text-xl font-extrabold text-white">Pro</h3>
+                                    <span class="text-[10px] font-bold uppercase tracking-wider text-white bg-[#4F46E5] px-2 py-1 rounded">Popular</span>
+                                </div>
+                                <div class="mb-4">
+                                    <span class="text-3xl font-extrabold text-white mono">$19</span>
+                                    <span class="text-[#64748B] text-sm">/mo</span>
+                                </div>
+                                <ul class="space-y-2 text-sm text-[#94A3B8] mb-6 flex-1">
+                                    <li class="flex items-start gap-2"><span class="text-[#06B6D4]">✓</span> 20 projects</li>
+                                    <li class="flex items-start gap-2"><span class="text-[#06B6D4]">✓</span> 20 DB connections</li>
+                                    <li class="flex items-start gap-2"><span class="text-[#06B6D4]">✓</span> 500k AI tokens / mo</li>
+                                    <li class="flex items-start gap-2"><span class="text-[#06B6D4]">✓</span> UkmPay + UkmTables</li>
+                                    <li class="flex items-start gap-2"><span class="text-[#06B6D4]">✓</span> Email support</li>
+                                </ul>
+                                <button onclick="openUpgradeModal('pro', 19)" class="w-full bg-[#4F46E5] hover:bg-[#4338CA] text-white font-bold py-3 rounded-lg transition-colors glow">Upgrade to Pro</button>
+                                <p class="text-[10px] text-center text-[#64748B] mt-2">Africa pricing: $5/mo</p>
+                            </div>
+
+                            <!-- Team -->
+                            <div class="plan-card bg-[#1C2333] border-2 border-[#2A3347] rounded-xl p-6 flex flex-col">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h3 class="text-xl font-extrabold text-white">Team</h3>
+                                </div>
+                                <div class="mb-4">
+                                    <span class="text-3xl font-extrabold text-white mono">$79</span>
+                                    <span class="text-[#64748B] text-sm">/mo</span>
+                                </div>
+                                <ul class="space-y-2 text-sm text-[#94A3B8] mb-6 flex-1">
+                                    <li class="flex items-start gap-2"><span class="text-[#06B6D4]">✓</span> 100 projects</li>
+                                    <li class="flex items-start gap-2"><span class="text-[#06B6D4]">✓</span> 100 DB connections</li>
+                                    <li class="flex items-start gap-2"><span class="text-[#06B6D4]">✓</span> 2M AI tokens / mo</li>
+                                    <li class="flex items-start gap-2"><span class="text-[#06B6D4]">✓</span> 3 team seats</li>
+                                    <li class="flex items-start gap-2"><span class="text-[#06B6D4]">✓</span> Priority support</li>
+                                </ul>
+                                <button onclick="openUpgradeModal('team', 79)" class="w-full bg-transparent border border-[#2A3347] hover:border-[#4F46E5] text-white font-bold py-3 rounded-lg transition-colors">Upgrade to Team</button>
+                            </div>
+
+                            <!-- Enterprise -->
+                            <div class="plan-card bg-[#1C2333] border-2 border-[#2A3347] rounded-xl p-6 flex flex-col">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h3 class="text-xl font-extrabold text-white">Enterprise</h3>
+                                </div>
+                                <div class="mb-4">
+                                    <span class="text-3xl font-extrabold text-white mono">Custom</span>
+                                </div>
+                                <ul class="space-y-2 text-sm text-[#94A3B8] mb-6 flex-1">
+                                    <li class="flex items-start gap-2"><span class="text-[#06B6D4]">✓</span> Unlimited everything</li>
+                                    <li class="flex items-start gap-2"><span class="text-[#06B6D4]">✓</span> SSO + audit logs</li>
+                                    <li class="flex items-start gap-2"><span class="text-[#06B6D4]">✓</span> SLA guarantee</li>
+                                    <li class="flex items-start gap-2"><span class="text-[#06B6D4]">✓</span> Dedicated support</li>
+                                    <li class="flex items-start gap-2"><span class="text-[#06B6D4]">✓</span> Self-host option</li>
+                                </ul>
+                                <button onclick="openUpgradeModal('enterprise', null)" class="w-full bg-transparent border border-[#2A3347] hover:border-[#4F46E5] text-white font-bold py-3 rounded-lg transition-colors">Contact us</button>
+                            </div>
+
+                        </div>
+
+                        <!-- My requests -->
+                        <div id="billing-my-requests" class="hidden bg-[#1C2333] border border-[#2A3347] rounded-xl p-6 mt-6">
+                            <h3 class="text-white font-bold mb-4">My Upgrade Requests</h3>
+                            <div id="billing-requests-list" class="space-y-3"></div>
+                        </div>
+
+                    </div>
+                </div>
+
                 <!-- OWNER CONSOLE -->
                 <div id="view-owner" class="hidden flex-1 overflow-y-auto p-4 md:p-8">
                     <div class="max-w-6xl mx-auto">
@@ -416,12 +538,11 @@
                         <div class="mb-6">
                             <div class="flex items-center gap-2 mb-1">
                                 <h1 class="text-2xl font-bold text-white">Owner Console</h1>
-                                <span class="owner-badge role-owner text-white text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded">Staff</span>
+                                <span class="text-white text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded role-owner">Staff</span>
                             </div>
                             <p class="text-[#94A3B8] text-sm">Full platform visibility and control.</p>
                         </div>
 
-                        <!-- Platform stats -->
                         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
                             <div class="bg-[#1C2333] border border-[#2A3347] p-4 rounded-xl">
                                 <span class="text-[#94A3B8] text-[10px] font-medium uppercase tracking-wider">Total Users</span>
@@ -436,16 +557,16 @@
                                 <div id="owner-stat-revenue" class="text-xl font-bold text-white mono mt-1">—</div>
                             </div>
                             <div class="bg-[#1C2333] border border-[#2A3347] p-4 rounded-xl">
-                                <span class="text-[#94A3B8] text-[10px] font-medium uppercase tracking-wider">Connections</span>
-                                <div id="owner-stat-connections" class="text-xl font-bold text-white mono mt-1">—</div>
+                                <span class="text-[#94A3B8] text-[10px] font-medium uppercase tracking-wider">Pending Upgrades</span>
+                                <div id="owner-stat-pending" class="text-xl font-bold text-white mono mt-1">—</div>
                             </div>
                         </div>
 
-                        <!-- Tabs -->
                         <div class="flex gap-2 mb-4 border-b border-[#2A3347] overflow-x-auto no-scrollbar">
                             <button onclick="switchOwnerTab('users')" id="owner-tab-users" class="px-4 py-2 text-sm font-medium text-white border-b-2 border-[#4F46E5] -mb-px whitespace-nowrap">Users</button>
                             <button onclick="switchOwnerTab('projects')" id="owner-tab-projects" class="px-4 py-2 text-sm font-medium text-[#94A3B8] hover:text-white -mb-px whitespace-nowrap">Projects</button>
                             <button onclick="switchOwnerTab('payments')" id="owner-tab-payments" class="px-4 py-2 text-sm font-medium text-[#94A3B8] hover:text-white -mb-px whitespace-nowrap">Payments</button>
+                            <button onclick="switchOwnerTab('requests')" id="owner-tab-requests" class="px-4 py-2 text-sm font-medium text-[#94A3B8] hover:text-white -mb-px whitespace-nowrap">Upgrade Requests</button>
                         </div>
 
                         <div id="owner-users-panel">
@@ -472,6 +593,14 @@
                             <div id="owner-payments-list" class="hidden space-y-3"></div>
                         </div>
 
+                        <div id="owner-requests-panel" class="hidden">
+                            <div id="owner-requests-loading" class="text-center py-12">
+                                <div class="inline-block w-6 h-6 border-2 border-[#4F46E5] border-t-transparent rounded-full animate-spin"></div>
+                                <p class="text-[#94A3B8] text-xs mt-3">Loading requests...</p>
+                            </div>
+                            <div id="owner-requests-list" class="hidden space-y-3"></div>
+                        </div>
+
                     </div>
                 </div>
 
@@ -482,7 +611,6 @@
                             <h1 class="text-2xl font-bold text-white mb-1">Settings</h1>
                             <p class="text-[#94A3B8] text-sm">Manage your account and preferences.</p>
                         </div>
-
                         <div class="bg-[#1C2333] border border-[#2A3347] rounded-xl p-6 mb-6">
                             <div class="flex items-center gap-4 mb-6">
                                 <div class="w-16 h-16 rounded-full bg-[#4F46E5]/20 border border-[#4F46E5]/40 flex items-center justify-center text-2xl font-extrabold text-[#4F46E5]">
@@ -497,10 +625,8 @@
                                     </div>
                                 </div>
                             </div>
-
                             <div id="settings-error" class="hidden bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-3 rounded-lg mb-4"></div>
                             <div id="settings-success" class="hidden bg-green-500/10 border border-green-500/30 text-green-400 text-xs p-3 rounded-lg mb-4"></div>
-
                             <div class="space-y-4">
                                 <div>
                                     <label class="block text-xs font-medium text-[#94A3B8] mb-1">Full Name</label>
@@ -531,7 +657,6 @@
                                 <button id="settings-save-btn" onclick="saveProfile()" class="w-full bg-[#4F46E5] hover:bg-[#4338CA] text-white font-bold py-3 rounded-lg transition-colors glow">Save Changes</button>
                             </div>
                         </div>
-
                         <div class="bg-[#1C2333] border border-[#2A3347] rounded-xl p-6">
                             <h3 class="text-white font-bold mb-4">Your Plan</h3>
                             <div class="flex items-center justify-between mb-3">
@@ -546,10 +671,7 @@
                                 <span class="text-[#94A3B8] text-sm">DB Connections</span>
                                 <span id="settings-limit-connections" class="text-white mono text-sm">0 / 3</span>
                             </div>
-                            <div class="bg-[#0B1020] border border-[#2A3347] rounded-lg p-3 text-center">
-                                <p class="text-[#94A3B8] text-xs mb-2">Upgrade to Pro for unlimited projects</p>
-                                <p class="text-[10px] text-[#64748B]">Billing launches soon.</p>
-                            </div>
+                            <button onclick="switchView('billing')" class="w-full bg-[#4F46E5] hover:bg-[#4338CA] text-white text-xs font-bold py-2 rounded-lg transition-colors">Manage plan</button>
                         </div>
                     </div>
                 </div>
@@ -728,9 +850,48 @@
         </div>
     </div>
 
+    <!-- UPGRADE MODAL -->
+    <div id="upgrade-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+        <div class="w-full max-w-md bg-[#1C2333] border border-[#2A3347] rounded-2xl p-6 glow max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h2 class="text-lg font-bold text-white">Upgrade to <span id="upgrade-plan-name">Pro</span></h2>
+                    <p class="text-[#64748B] text-xs mt-1" id="upgrade-plan-detail">$19/mo billed monthly</p>
+                </div>
+                <button onclick="closeUpgradeModal()" class="text-[#94A3B8] hover:text-white p-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+
+            <div class="bg-[#4F46E5]/5 border border-[#4F46E5]/20 rounded-lg p-4 mb-5">
+                <p class="text-white text-sm font-bold mb-1">How payment works right now</p>
+                <p class="text-[#94A3B8] text-xs leading-relaxed">Ukmbase is in early access. Payments are handled personally so we can support EcoCash, Paynow, bank transfer, and regional pricing. Fill in the form and the founder will reach out within 24 hours.</p>
+            </div>
+
+            <div id="upgrade-error" class="hidden bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-3 rounded-lg mb-4"></div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-medium text-[#94A3B8] mb-1">Your name</label>
+                    <input type="text" id="upgrade-name" placeholder="Kerryl Murwisi" class="w-full bg-[#0B1020] border border-[#2A3347] rounded-lg px-4 py-3 text-white placeholder-[#64748B] focus:outline-none focus:border-[#4F46E5]">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-[#94A3B8] mb-1">WhatsApp or Email</label>
+                    <input type="text" id="upgrade-contact" placeholder="+263 78 123 4567 or you@email.com" class="w-full bg-[#0B1020] border border-[#2A3347] rounded-lg px-4 py-3 text-white placeholder-[#64748B] focus:outline-none focus:border-[#4F46E5]">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-[#94A3B8] mb-1">Notes (optional)</label>
+                    <textarea id="upgrade-notes" rows="3" placeholder="I'm in Zimbabwe — can I pay via EcoCash?" class="w-full bg-[#0B1020] border border-[#2A3347] rounded-lg px-4 py-3 text-white placeholder-[#64748B] focus:outline-none focus:border-[#4F46E5] resize-none"></textarea>
+                </div>
+                <button id="submit-upgrade-btn" onclick="submitUpgradeRequest()" class="w-full bg-[#4F46E5] hover:bg-[#4338CA] text-white font-bold py-3 rounded-lg transition-colors glow">Send Request</button>
+                <p class="text-[10px] text-[#64748B] text-center">Your plan activates once payment is confirmed.</p>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-    <script src="app.js?v=504"></script>
+    <script src="app.js?v=505"></script>
 </body>
 </html>
