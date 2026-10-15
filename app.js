@@ -1,9 +1,4 @@
-// UKMBASE APP.JS — v503
-// Bump this version + the script src version in index.html on every update
-
-// ============================================
-// CONFIG & CLIENT
-// ============================================
+// UKMBASE APP.JS — v504 (Owner Console)
 
 const SUPABASE_URL = 'https://dwjyzqsrzdgnpwibnyjn.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_4vcPyg62OqmfwNaHxx0CGA_a7O0_NJV';
@@ -29,6 +24,7 @@ let currentProfile = null;
 let chatHistory = [];
 let projectsCache = [];
 let connectionsCache = [];
+let allUsersCache = [];
 let activeConnection = null;
 let activeTable = null;
 let activeSchema = null;
@@ -153,7 +149,7 @@ async function showDashboardView(user) {
 }
 
 function switchView(view) {
-    const views = ['overview', 'ukmai', 'ukmtables', 'ukmpay', 'settings'];
+    const views = ['overview', 'ukmai', 'ukmtables', 'ukmpay', 'settings', 'owner'];
     views.forEach(v => {
         const el = document.getElementById('view-' + v);
         const nav = document.getElementById('nav-' + v);
@@ -169,6 +165,7 @@ function switchView(view) {
     if (view === 'ukmpay') { loadPayments(); loadPlans(); }
     if (view === 'ukmtables') { loadConnections(); }
     if (view === 'settings') { renderSettings(); }
+    if (view === 'owner') { loadOwnerConsole(); }
     document.getElementById('sidebar').classList.add('-translate-x-full');
 }
 
@@ -178,17 +175,24 @@ function switchView(view) {
 
 function renderRoleBadge(role) {
     const badge = document.getElementById('role-badge');
+    const navOwnerWrap = document.getElementById('nav-owner-wrap');
     if (!badge) return;
 
     badge.classList.remove('role-owner', 'role-admin', 'role-support', 'hidden');
 
+    const isStaff = STAFF_ROLES.includes(role);
+
     if (!role || role === 'user') {
         badge.classList.add('hidden');
-        return;
+    } else {
+        badge.classList.add('role-' + role);
+        badge.textContent = role.charAt(0).toUpperCase() + role.slice(1);
     }
 
-    badge.classList.add('role-' + role);
-    badge.textContent = role.charAt(0).toUpperCase() + role.slice(1);
+    // Show/hide Owner Console sidebar item
+    if (navOwnerWrap) {
+        navOwnerWrap.classList.toggle('hidden', !isStaff);
+    }
 }
 
 async function loadProfile() {
@@ -361,7 +365,6 @@ async function signInWithProvider(provider) {
         errEl.textContent = error.message;
         errEl.classList.remove('hidden');
     }
-    // On success, browser redirects to Google/GitHub consent screen
 }
 
 async function handleLogout() {
@@ -892,262 +895,3 @@ function renderConnections(connections) {
     list.classList.remove('hidden');
     list.innerHTML = connections.map(c => `
         <div class="bg-[#1C2333] border border-[#2A3347] p-4 rounded-xl flex items-center justify-between">
-            <div class="flex items-center gap-3 min-w-0 cursor-pointer flex-1" onclick="openConnection('${c.id}')">
-                <div class="w-9 h-9 rounded-lg bg-[#06B6D4]/10 border border-[#06B6D4]/30 flex items-center justify-center flex-shrink-0">
-                    <svg class="w-4 h-4 text-[#06B6D4]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
-                </div>
-                <div class="min-w-0">
-                    <p class="text-white text-sm font-medium truncate">${escapeHtml(c.name)}</p>
-                    <p class="text-[#64748B] text-xs mono truncate">${escapeHtml(c.supabase_url.replace('https://', ''))}</p>
-                </div>
-            </div>
-            <div class="flex items-center gap-2 flex-shrink-0">
-                <button onclick="deleteConnection('${c.id}')" class="text-[#94A3B8] hover:text-red-400 p-2">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22"></path></svg>
-                </button>
-                <svg class="w-4 h-4 text-[#4F46E5]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-            </div>
-        </div>
-    `).join('');
-}
-
-async function createConnection() {
-    const name = document.getElementById('connect-name').value.trim();
-    const url = document.getElementById('connect-url').value.trim().replace(/\/$/, '');
-    const key = document.getElementById('connect-key').value.trim();
-    const errEl = document.getElementById('connect-error');
-    const btn = document.getElementById('create-connect-btn');
-
-    errEl.classList.add('hidden');
-    if (!name || !url || !key) {
-        errEl.textContent = 'All fields are required.';
-        errEl.classList.remove('hidden'); return;
-    }
-    if (!canCreateConnection()) {
-        errEl.textContent = 'Plan limit reached.';
-        errEl.classList.remove('hidden'); return;
-    }
-
-    btn.innerText = 'Testing connection...'; btn.disabled = true;
-
-    try {
-        const testRes = await fetch(`${url}/rest/v1/profiles?select=id&limit=1`, {
-            headers: getHeaders(key)
-        });
-        if (testRes.status >= 500) throw new Error(`Connection failed (${testRes.status}).`);
-        if (testRes.status === 404) throw new Error('Endpoint not reachable. Check the URL.');
-    } catch (err) {
-        btn.innerText = 'Connect'; btn.disabled = false;
-        errEl.textContent = err.message;
-        errEl.classList.remove('hidden'); return;
-    }
-
-    const { error } = await supabaseClient.from('connected_databases').insert([{
-        owner_id: currentUser.id, name,
-        supabase_url: url, supabase_anon_key: key
-    }]);
-
-    btn.innerText = 'Connect'; btn.disabled = false;
-
-    if (error) { errEl.textContent = error.message; errEl.classList.remove('hidden'); return; }
-
-    closeConnectModal();
-    await loadConnections();
-}
-
-async function deleteConnection(id) {
-    if (!confirm('Delete this connection?')) return;
-    const { error } = await supabaseClient.from('connected_databases').delete().eq('id', id);
-    if (error) { alert(error.message); return; }
-    await loadConnections();
-}
-
-// ============================================
-// UKMTABLES — BROWSER
-// ============================================
-
-async function openConnection(id) {
-    const conn = connectionsCache.find(c => c.id === id);
-    if (!conn) return;
-    activeConnection = conn;
-    activeTable = null;
-    activeSchema = null;
-
-    const title = document.getElementById('ukmtables-title');
-    const subtitle = document.getElementById('ukmtables-subtitle');
-    const actionBtn = document.getElementById('ukmtables-action');
-    const backBtn = document.getElementById('ukmtables-back');
-
-    title.textContent = conn.name;
-    subtitle.textContent = 'Reading schema...';
-    actionBtn.innerText = '+ Refresh';
-    actionBtn.onclick = () => openConnection(id);
-    backBtn.classList.remove('hidden');
-
-    document.getElementById('ukmtables-connections-view').classList.add('hidden');
-    document.getElementById('ukmtables-browser').classList.remove('hidden');
-    document.getElementById('ukmtables-rows').classList.add('hidden');
-    document.getElementById('ukmtables-rows-empty').classList.add('hidden');
-    document.getElementById('ukmtables-rows-loading').classList.remove('hidden');
-    document.getElementById('ukmtables-pills').innerHTML = '';
-
-    try {
-        const res = await fetch(`${conn.supabase_url}/rest/v1/`, {
-            headers: getHeaders(conn.supabase_anon_key)
-        });
-
-        let spec = null;
-        if (res.ok) { try { spec = await res.json(); } catch (_) { spec = null; } }
-
-        let tables = [];
-        if (spec) {
-            tables = Object.keys(spec.definitions || spec.components?.schemas || {}).sort();
-        }
-
-        if (tables.length === 0) {
-            const candidates = ['profiles', 'projects', 'plans', 'payments', 'subscriptions', 'usage_metrics', 'waitlist', 'connected_databases'];
-            for (const t of candidates) {
-                try {
-                    const r = await fetch(`${conn.supabase_url}/rest/v1/${t}?select=*&limit=1`, {
-                        headers: getHeaders(conn.supabase_anon_key)
-                    });
-                    if (r.status === 200 || r.status === 206) tables.push(t);
-                } catch (_) {}
-            }
-        }
-
-        activeSchema = spec;
-        subtitle.textContent = `${tables.length} tables`;
-
-        if (tables.length === 0) {
-            document.getElementById('ukmtables-rows-loading').classList.add('hidden');
-            document.getElementById('ukmtables-rows-empty').classList.remove('hidden');
-            document.getElementById('ukmtables-rows-empty').innerHTML = `
-                <p class="text-[#94A3B8] text-sm">No tables found. Either the database is empty, RLS is blocking all reads, or the URL/key is wrong.</p>`;
-            return;
-        }
-
-        document.getElementById('ukmtables-pills').innerHTML = tables.map(t => `
-            <button onclick="selectTable('${t}')" data-table="${t}" class="table-pill bg-[#1C2333] border border-[#2A3347] text-[#94A3B8] text-xs px-3 py-1.5 rounded-lg mono">
-                ${escapeHtml(t)}
-            </button>
-        `).join('');
-
-        await selectTable(tables[0]);
-    } catch (err) {
-        subtitle.textContent = 'Error loading schema';
-        document.getElementById('ukmtables-rows-loading').classList.add('hidden');
-        document.getElementById('ukmtables-rows-empty').classList.remove('hidden');
-        document.getElementById('ukmtables-rows-empty').innerHTML = `
-            <p class="text-red-400 text-sm">${escapeHtml(err.message)}</p>`;
-    }
-}
-
-function exitTableBrowser() {
-    activeConnection = null;
-    activeTable = null;
-    activeSchema = null;
-    document.getElementById('ukmtables-connections-view').classList.remove('hidden');
-    document.getElementById('ukmtables-browser').classList.add('hidden');
-    renderConnections(connectionsCache);
-}
-
-async function selectTable(tableName) {
-    if (!activeConnection) return;
-    activeTable = tableName;
-
-    document.querySelectorAll('.table-pill').forEach(p => {
-        if (p.dataset.table === tableName) p.classList.add('active');
-        else p.classList.remove('active');
-    });
-
-    document.getElementById('ukmtables-rows').classList.add('hidden');
-    document.getElementById('ukmtables-rows-empty').classList.add('hidden');
-    document.getElementById('ukmtables-rows-loading').classList.remove('hidden');
-
-    try {
-        const res = await fetch(`${activeConnection.supabase_url}/rest/v1/${tableName}?select=*&limit=50`, {
-            headers: getHeaders(activeConnection.supabase_anon_key)
-        });
-
-        document.getElementById('ukmtables-rows-loading').classList.add('hidden');
-
-        if (!res.ok) throw new Error(`Failed to load rows (${res.status})`);
-
-        const rows = await res.json();
-
-        if (!rows || rows.length === 0) {
-            document.getElementById('ukmtables-rows-empty').classList.remove('hidden');
-            document.getElementById('ukmtables-rows-empty').innerHTML = `
-                <p class="text-[#94A3B8] text-sm">No rows visible (or RLS is blocking reads on this table).</p>`;
-            return;
-        }
-
-        renderRows(rows);
-    } catch (err) {
-        document.getElementById('ukmtables-rows-loading').classList.add('hidden');
-        document.getElementById('ukmtables-rows-empty').classList.remove('hidden');
-        document.getElementById('ukmtables-rows-empty').innerHTML = `
-            <p class="text-red-400 text-sm">${escapeHtml(err.message)}</p>`;
-    }
-}
-
-function renderRows(rows) {
-    const container = document.getElementById('ukmtables-rows');
-    container.classList.remove('hidden');
-
-    container.innerHTML = rows.map((row, idx) => {
-        const fields = Object.entries(row).map(([k, v]) => {
-            let display;
-            if (v === null || v === undefined) display = '<span class="text-[#64748B] italic">null</span>';
-            else if (typeof v === 'object') display = escapeHtml(JSON.stringify(v));
-            else display = escapeHtml(String(v));
-            return `<div class="flex gap-2 py-1 text-xs"><span class="field-key mono flex-shrink-0">${escapeHtml(k)}:</span><span class="field-val mono flex-1">${display}</span></div>`;
-        }).join('');
-
-        const jsonStr = JSON.stringify(row).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
-
-        return `
-            <div class="bg-[#1C2333] border border-[#2A3347] rounded-xl p-4">
-                <div class="flex items-center justify-between mb-2 pb-2 border-b border-[#2A3347]">
-                    <span class="text-[10px] uppercase font-bold text-[#4F46E5] mono">Row ${idx + 1}</span>
-                    <button onclick="copyRow('${jsonStr}')" class="text-[10px] text-[#06B6D4] hover:text-white">Copy JSON</button>
-                </div>
-                <div class="space-y-0.5">${fields}</div>
-            </div>
-        `;
-    }).join('');
-}
-
-function copyRow(jsonStr) {
-    const clean = jsonStr.replace(/&quot;/g, '"').replace(/&#39;/g, "'");
-    navigator.clipboard.writeText(clean);
-    alert('Row copied as JSON!');
-}
-
-// ============================================
-// UTIL
-// ============================================
-
-function escapeHtml(str) {
-    if (!str) return '';
-    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
-}
-
-// ============================================
-// INIT
-// ============================================
-
-async function init() {
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    if (session) showDashboardView(session.user);
-    else showLandingView();
-}
-
-supabaseClient.auth.onAuthStateChange((event, session) => {
-    if (session) showDashboardView(session.user);
-    else showLandingView();
-});
-
-init();
