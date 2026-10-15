@@ -1,4 +1,4 @@
-// UKMBASE APP.JS — v507 (Theme, Toasts, Project CRUD, GitHub linking)
+// UKMBASE APP.JS — v508
 
 const SUPABASE_URL = 'https://dwjyzqsrzdgnpwibnyjn.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_4vcPyg62OqmfwNaHxx0CGA_a7O0_NJV';
@@ -16,7 +16,7 @@ const STAFF_ROLES = ['owner', 'admin', 'support'];
 
 const PLAN_PRICES = {
     free: { usd: 0, label: '$0/mo' },
-    pro: { usd: 19, label: '$19/mo', africa: '$5/mo' },
+    pro: { usd: 19, label: '$19/mo' },
     team: { usd: 79, label: '$79/mo' },
     enterprise: { usd: null, label: 'Custom' },
 };
@@ -34,7 +34,6 @@ let connectionsCache = [];
 let allUsersCache = [];
 let activeConnection = null;
 let activeTable = null;
-let activeSchema = null;
 let authMode = 'login';
 let currentUpgradePlan = null;
 let lastGeneratedSQL = '';
@@ -58,7 +57,6 @@ function applyTheme(theme) {
         document.documentElement.removeAttribute('data-theme');
     }
     localStorage.setItem('ukmbase-theme', theme);
-
     const sunIcon = document.getElementById('theme-icon-sun');
     const moonIcon = document.getElementById('theme-icon-moon');
     if (sunIcon && moonIcon) {
@@ -70,7 +68,6 @@ function applyTheme(theme) {
             moonIcon.classList.remove('hidden');
         }
     }
-
     const label = document.getElementById('settings-theme-label');
     if (label) label.textContent = theme === 'light' ? 'Light' : 'Dark';
 }
@@ -79,36 +76,38 @@ function toggleTheme() {
     const current = localStorage.getItem('ukmbase-theme') || 'dark';
     const next = current === 'dark' ? 'light' : 'dark';
     applyTheme(next);
-    showToast(`Switched to ${next} theme`, 'success');
+    showToast('Switched to ' + next + ' theme', 'success');
 }
 
 // ============================================
 // TOAST
 // ============================================
 
-function showToast(message, type = 'success', duration = 3000) {
+function showToast(message, type, duration) {
+    type = type || 'success';
+    duration = duration || 3000;
     const container = document.getElementById('toast-container');
     if (!container) return;
     const toast = document.createElement('div');
     toast.className = 'toast ' + type;
     toast.textContent = message;
     container.appendChild(toast);
-    setTimeout(() => {
+    setTimeout(function() {
         toast.style.opacity = '0';
         toast.style.transform = 'translateY(-20px)';
         toast.style.transition = 'all 0.3s ease';
-        setTimeout(() => toast.remove(), 300);
+        setTimeout(function() { toast.remove(); }, 300);
     }, duration);
 }
 
 // ============================================
-// HEADERS HELPER
+// HEADERS
 // ============================================
 
 function getHeaders(key) {
     const headers = { 'apikey': key };
-    if (!key.startsWith('sb_publishable_')) {
-        headers['Authorization'] = `Bearer ${key}`;
+    if (key.indexOf('sb_publishable_') !== 0) {
+        headers['Authorization'] = 'Bearer ' + key;
     }
     return headers;
 }
@@ -118,8 +117,8 @@ function getHeaders(key) {
 // ============================================
 
 function getLimits() {
-    if (STAFF_ROLES.includes(currentProfile?.role)) return PLAN_LIMITS.staff;
-    const plan = currentProfile?.plan || 'free';
+    if (currentProfile && STAFF_ROLES.indexOf(currentProfile.role) !== -1) return PLAN_LIMITS.staff;
+    const plan = (currentProfile && currentProfile.plan) || 'free';
     return PLAN_LIMITS[plan] || PLAN_LIMITS.free;
 }
 
@@ -132,7 +131,7 @@ function canCreateConnection() {
 }
 
 function canLinkRepo() {
-    const linked = projectsCache.filter(p => p.github_repo).length;
+    const linked = projectsCache.filter(function(p) { return p.github_repo; }).length;
     return linked < getLimits().repos;
 }
 
@@ -209,10 +208,10 @@ async function showDashboardView(user) {
     if (user && user.email) userEmailDisplay.textContent = user.email;
     currentUser = user;
     await loadProfile();
-    loadProjects().then(() => {
+    loadProjects().then(function() {
         loadPayments();
         loadPlans();
-        loadConnections().then(() => populateQueryConnections());
+        loadConnections().then(function() { populateQueryConnections(); });
         loadMyUpgradeRequests();
         loadQueryHistory();
     });
@@ -221,7 +220,7 @@ async function showDashboardView(user) {
 
 function switchView(view) {
     const views = ['overview', 'ukmai', 'ukmquery', 'ukmtables', 'ukmpay', 'billing', 'settings', 'owner'];
-    views.forEach(v => {
+    views.forEach(function(v) {
         const el = document.getElementById('view-' + v);
         const nav = document.getElementById('nav-' + v);
         if (v === view) {
@@ -234,7 +233,7 @@ function switchView(view) {
     });
     if (view === 'ukmpay') { loadPayments(); loadPlans(); }
     if (view === 'ukmtables') { loadConnections(); }
-    if (view === 'ukmquery') { loadConnections().then(() => { populateQueryConnections(); loadQueryHistory(); }); }
+    if (view === 'ukmquery') { loadConnections().then(function() { populateQueryConnections(); loadQueryHistory(); }); }
     if (view === 'settings') { renderSettings(); }
     if (view === 'billing') { renderBilling(); }
     if (view === 'owner') { loadOwnerConsole(); }
@@ -250,7 +249,7 @@ function renderRoleBadge(role) {
     const navOwnerWrap = document.getElementById('nav-owner-wrap');
     if (!badge) return;
     badge.classList.remove('role-owner', 'role-admin', 'role-support', 'hidden');
-    const isStaff = STAFF_ROLES.includes(role);
+    const isStaff = STAFF_ROLES.indexOf(role) !== -1;
     if (!role || role === 'user') {
         badge.classList.add('hidden');
     } else {
@@ -269,7 +268,7 @@ async function loadProfile() {
     renderRoleBadge(data.role);
     supabaseClient.from('profiles')
         .update({ last_login_at: new Date().toISOString() })
-        .eq('id', currentUser.id).then(() => {});
+        .eq('id', currentUser.id).then(function() {});
 }
 
 function renderSettings() {
@@ -294,16 +293,15 @@ function renderSettings() {
     document.getElementById('settings-phone').value = currentProfile.phone || '';
     document.getElementById('settings-country').value = currentProfile.country || '';
     const limits = getLimits();
-    const displayPlan = STAFF_ROLES.includes(currentProfile.role) ? currentProfile.role : (currentProfile.plan || 'free');
+    const displayPlan = STAFF_ROLES.indexOf(currentProfile.role) !== -1 ? currentProfile.role : (currentProfile.plan || 'free');
     document.getElementById('settings-plan-2').textContent = displayPlan;
     document.getElementById('settings-limit-projects').textContent =
-        `${projectsCache.length} / ${limits.projects >= 999 ? '∞' : limits.projects}`;
+        projectsCache.length + ' / ' + (limits.projects >= 999 ? '∞' : limits.projects);
     document.getElementById('settings-limit-connections').textContent =
-        `${connectionsCache.length} / ${limits.connections >= 999 ? '∞' : limits.connections}`;
-    const reposLinked = projectsCache.filter(p => p.github_repo).length;
+        connectionsCache.length + ' / ' + (limits.connections >= 999 ? '∞' : limits.connections);
+    const reposLinked = projectsCache.filter(function(p) { return p.github_repo; }).length;
     document.getElementById('settings-limit-repos').textContent =
-        `${reposLinked} / ${limits.repos >= 999 ? '∞' : limits.repos}`;
-
+        reposLinked + ' / ' + (limits.repos >= 999 ? '∞' : limits.repos);
     const themeLabel = document.getElementById('settings-theme-label');
     if (themeLabel) themeLabel.textContent = (localStorage.getItem('ukmbase-theme') || 'dark') === 'light' ? 'Light' : 'Dark';
 }
@@ -324,11 +322,11 @@ async function saveProfile() {
     btn.textContent = 'Saving...'; btn.disabled = true;
     const { error } = await supabaseClient
         .from('profiles')
-        .update({ full_name, username, phone: phone || null, country: country || null })
+        .update({ full_name: full_name, username: username, phone: phone || null, country: country || null })
         .eq('id', currentUser.id);
     btn.textContent = 'Save Changes'; btn.disabled = false;
     if (error) {
-        errEl.textContent = error.message.includes('duplicate') ? 'That username is taken.' : error.message;
+        errEl.textContent = error.message.indexOf('duplicate') !== -1 ? 'That username is taken.' : error.message;
         errEl.classList.remove('hidden'); return;
     }
     succEl.textContent = 'Profile saved.';
@@ -357,7 +355,7 @@ async function handleLogin() {
         errEl.textContent = 'Please fill in all fields.';
         errEl.classList.remove('hidden'); return;
     }
-    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email: email, password: password });
     if (error) { errEl.textContent = error.message; errEl.classList.remove('hidden'); }
     else { showDashboardView(data.user); }
 }
@@ -383,7 +381,7 @@ async function handleSignup() {
         errEl.classList.remove('hidden'); return;
     }
     const { data, error } = await supabaseClient.auth.signUp({
-        email, password,
+        email: email, password: password,
         options: { data: { full_name: fullName } }
     });
     if (error) { errEl.textContent = error.message; errEl.classList.remove('hidden'); }
@@ -396,7 +394,7 @@ async function signInWithProvider(provider) {
     const succEl = document.getElementById('auth-success');
     errEl.classList.add('hidden'); succEl.classList.add('hidden');
     const { error } = await supabaseClient.auth.signInWithOAuth({
-        provider,
+        provider: provider,
         options: { redirectTo: window.location.origin + window.location.pathname }
     });
     if (error) { errEl.textContent = error.message; errEl.classList.remove('hidden'); }
@@ -423,7 +421,7 @@ async function joinWaitlist() {
     if (!email) return showToast('Please enter your email', 'error');
     submitBtn.innerText = 'Joining...';
     submitBtn.disabled = true;
-    const { error } = await supabaseClient.from('waitlist').insert([{ email }]);
+    const { error } = await supabaseClient.from('waitlist').insert([{ email: email }]);
     if (error) {
         showToast('Error: ' + error.message, 'error');
         submitBtn.innerText = 'Join Waitlist';
@@ -448,7 +446,7 @@ function toggleSidebar() {
 
 function openProjectModal() {
     if (!canCreateProject()) {
-        if (confirm(`You've reached your plan limit (${getLimits().projects} projects). Upgrade?`)) switchView('billing');
+        if (confirm('Plan limit reached. Upgrade?')) switchView('billing');
         return;
     }
     document.getElementById('project-modal').classList.remove('hidden');
@@ -474,10 +472,9 @@ async function loadProjects() {
     if (loadingEl) loadingEl.classList.remove('hidden');
     if (gridEl) gridEl.classList.add('hidden');
     if (emptyEl) emptyEl.classList.add('hidden');
-
     const { data, error } = await supabaseClient.from('projects').select('*').order('created_at', { ascending: false });
     if (loadingEl) loadingEl.classList.add('hidden');
-    if (error) { console.error(error.message); showToast('Failed to load projects', 'error'); return; }
+    if (error) { console.error(error.message); return; }
     projectsCache = data || [];
     renderProjects(projectsCache);
     updateStats(projectsCache);
@@ -486,49 +483,49 @@ async function loadProjects() {
 
 function renderProjects(projects) {
     const emptyState = document.getElementById('empty-state');
-    let grid = document.getElementById('projects-grid');
+    const grid = document.getElementById('projects-grid');
     if (!projects || projects.length === 0) {
         emptyState.classList.remove('hidden');
-        if (grid) grid.classList.add('hidden');
+        grid.classList.add('hidden');
         return;
     }
     emptyState.classList.add('hidden');
-    if (!grid) {
-        grid = document.createElement('div');
-        grid.id = 'projects-grid';
-        grid.className = 'hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4';
-        emptyState.parentNode.insertBefore(grid, emptyState.nextSibling);
-    }
     grid.classList.remove('hidden');
-    grid.innerHTML = projects.map(p => {
+    let html = '';
+    projects.forEach(function(p) {
         const paused = p.status === 'paused';
-        const statusColor = paused ? 'text-yellow-400 bg-yellow-400/10' : (p.status === 'archived' ? 'text-[#64748B] bg-[#64748B]/10' : 'text-[#06B6D4] bg-[#06B6D4]/10');
-        return `
-        <div class="feature-card rounded-xl p-5" style="background: var(--surface); border: 1px solid var(--border); ${paused ? 'opacity: 0.7;' : ''}" onclick="openProjectDetail('${p.id}')">
-            <div class="flex items-start justify-between mb-3">
-                <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background: rgba(79,70,229,0.1); border: 1px solid rgba(79,70,229,0.3);">
-                    <svg class="w-5 h-5" style="color: var(--accent);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
-                </div>
-                <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded ${statusColor}">${p.status || 'active'}</span>
-            </div>
-            <h3 class="font-bold mb-1 truncate" style="color: var(--text);">${escapeHtml(p.name)}</h3>
-            <p class="text-xs mono mb-3 truncate" style="color: var(--text-muted);">${escapeHtml(p.slug)}</p>
-            <p class="text-sm line-clamp-2 mb-4" style="color: var(--text-muted);">${escapeHtml(p.description || 'No description yet.')}</p>
-            <div class="flex items-center justify-between text-[10px]" style="color: var(--text-dim);">
-                <span>${new Date(p.created_at).toLocaleDateString()}</span>
-                ${p.github_repo ? `<span class="mono flex items-center gap-1"><svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>${escapeHtml(p.github_repo.split('/')[1] || p.github_repo)}</span>` : ''}
-            </div>
-        </div>
-        `;
-    }).join('');
+        const statusColor = paused ? 'text-yellow-400 bg-yellow-400/10' : 'text-[#06B6D4] bg-[#06B6D4]/10';
+        let repoPill = '';
+        if (p.github_repo) {
+            const parts = p.github_repo.split('/');
+            const shortName = parts[1] || p.github_repo;
+            repoPill = '<span class="mono flex items-center gap-1"><svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>' + escapeHtml(shortName) + '</span>';
+        }
+        html += '<div class="feature-card rounded-xl p-5" style="background: var(--surface); border: 1px solid var(--border);' + (paused ? ' opacity: 0.7;' : '') + '" onclick="openProjectDetail(\'' + p.id + '\')">' +
+            '<div class="flex items-start justify-between mb-3">' +
+                '<div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background: rgba(79,70,229,0.1); border: 1px solid rgba(79,70,229,0.3);">' +
+                    '<svg class="w-5 h-5" style="color: var(--accent);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>' +
+                '</div>' +
+                '<span class="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded ' + statusColor + '">' + (p.status || 'active') + '</span>' +
+            '</div>' +
+            '<h3 class="font-bold mb-1 truncate" style="color: var(--text);">' + escapeHtml(p.name) + '</h3>' +
+            '<p class="text-xs mono mb-3 truncate" style="color: var(--text-muted);">' + escapeHtml(p.slug) + '</p>' +
+            '<p class="text-sm line-clamp-2 mb-4" style="color: var(--text-muted);">' + escapeHtml(p.description || 'No description yet.') + '</p>' +
+            '<div class="flex items-center justify-between text-[10px]" style="color: var(--text-dim);">' +
+                '<span>' + new Date(p.created_at).toLocaleDateString() + '</span>' +
+                repoPill +
+            '</div>' +
+        '</div>';
+    });
+    grid.innerHTML = html;
 }
 
 function updateStats(projects) {
-    const tokens = projects.reduce((s, p) => s + (Number(p.ai_tokens_used) || 0), 0);
-    const syncs = projects.reduce((s, p) => s + (Number(p.sync_ops_used) || 0), 0);
+    const tokens = projects.reduce(function(s, p) { return s + (Number(p.ai_tokens_used) || 0); }, 0);
+    const syncs = projects.reduce(function(s, p) { return s + (Number(p.sync_ops_used) || 0); }, 0);
     const tEl = document.getElementById('stat-tokens');
     const sEl = document.getElementById('stat-syncs');
-    if (tEl) tEl.innerHTML = `${tokens.toLocaleString()} <span class="text-xs font-normal" style="color: var(--text-dim);">/ 100k</span>`;
+    if (tEl) tEl.innerHTML = tokens.toLocaleString() + ' <span class="text-xs font-normal" style="color: var(--text-dim);">/ 100k</span>';
     if (sEl) sEl.textContent = syncs.toLocaleString();
 }
 
@@ -543,12 +540,12 @@ async function createProject() {
     if (!canCreateProject()) { errEl.textContent = 'Plan limit reached.'; errEl.classList.remove('hidden'); return; }
     btn.innerText = 'Forging...'; btn.disabled = true;
     const { error } = await supabaseClient.from('projects').insert([{
-        owner_id: currentUser.id, name, slug,
+        owner_id: currentUser.id, name: name, slug: slug,
         description: description || null, status: 'active'
     }]);
     btn.innerText = 'Forge Project'; btn.disabled = false;
     if (error) {
-        errEl.textContent = error.message.includes('duplicate') ? 'That slug is already taken.' : error.message;
+        errEl.textContent = error.message.indexOf('duplicate') !== -1 ? 'That slug is already taken.' : error.message;
         errEl.classList.remove('hidden'); return;
     }
     closeProjectModal();
@@ -557,60 +554,56 @@ async function createProject() {
 }
 
 // ============================================
-// PROJECT DETAIL / EDIT / PAUSE / DELETE / GITHUB
+// PROJECT DETAIL / EDIT / PAUSE / DELETE
 // ============================================
 
 async function openProjectDetail(id) {
-    const p = projectsCache.find(x => x.id === id);
+    const p = projectsCache.find(function(x) { return x.id === id; });
     if (!p) return;
     viewingProjectId = id;
     document.getElementById('pd-title').textContent = p.name;
     const body = document.getElementById('pd-body');
-
     const paused = p.status === 'paused';
-    const statusColor = paused ? 'text-yellow-400' : 'text-[#06B6D4]';
 
-    body.innerHTML = `
-        <div class="flex items-center gap-3">
-            <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded ${paused ? 'text-yellow-400 bg-yellow-400/10' : 'text-[#06B6D4] bg-[#06B6D4]/10'}">${p.status || 'active'}</span>
-            <span class="text-xs mono" style="color: var(--text-dim);">${escapeHtml(p.slug)}</span>
-        </div>
-        <p class="text-sm" style="color: var(--text-muted);">${escapeHtml(p.description || 'No description yet.')}</p>
-        <div class="rounded-lg p-3 text-xs space-y-1" style="background: var(--bg); border: 1px solid var(--border);">
-            <div class="flex justify-between"><span style="color: var(--text-dim);">Created</span><span class="mono" style="color: var(--text-muted);">${new Date(p.created_at).toLocaleDateString()}</span></div>
-            <div class="flex justify-between"><span style="color: var(--text-dim);">AI Tokens</span><span class="mono" style="color: var(--text-muted);">${(Number(p.ai_tokens_used) || 0).toLocaleString()}</span></div>
-        </div>
-        ${p.github_repo ? `
-            <div id="pd-repo-info" class="rounded-lg p-3 text-xs" style="background: var(--bg); border: 1px solid var(--border);">
-                <div class="flex items-center justify-between mb-2">
-                    <span class="mono flex items-center gap-1" style="color: var(--text-muted);">
-                        <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
-                        ${escapeHtml(p.github_repo)}
-                    </span>
-                    <button onclick="refreshRepoInfo('${p.github_repo}')" class="text-[10px]" style="color: var(--cyan);">Refresh</button>
-                </div>
-                <div id="pd-repo-stats" style="color: var(--text-dim);">Loading repo info...</div>
-            </div>
-        ` : ''}
+    let repoBlock = '';
+    if (p.github_repo) {
+        repoBlock = '<div class="rounded-lg p-3 text-xs" style="background: var(--bg); border: 1px solid var(--border);">' +
+            '<div class="flex items-center justify-between mb-2">' +
+                '<span class="mono flex items-center gap-1" style="color: var(--text-muted);">' +
+                    '<svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>' +
+                    escapeHtml(p.github_repo) +
+                '</span>' +
+                '<button onclick="refreshRepoInfo(\'' + p.github_repo + '\')" class="text-[10px]" style="color: var(--cyan);">Refresh</button>' +
+            '</div>' +
+            '<div id="pd-repo-stats" style="color: var(--text-dim);">Loading repo info...</div>' +
+        '</div>';
+    }
 
-        <div class="space-y-2 pt-2">
-            <button onclick="openGithubModal('${p.id}')" class="w-full text-sm font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-colors" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
-                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
-                ${p.github_repo ? 'Change Repository' : 'Link GitHub Repo'}
-            </button>
-            <button onclick="openProjectEdit('${p.id}')" class="w-full text-sm font-bold py-3 rounded-lg transition-colors text-white" style="background: var(--accent);">Edit Project</button>
-            <button onclick="toggleProjectPause('${p.id}')" class="w-full text-sm font-bold py-3 rounded-lg transition-colors" style="background: var(--bg); border: 1px solid var(--border); color: ${paused ? 'var(--green)' : 'var(--amber)'};">
-                ${paused ? '▶ Resume Project' : '⏸ Pause Project'}
-            </button>
-            <button onclick="deleteProject('${p.id}')" class="w-full text-sm font-bold py-3 rounded-lg bg-red-500/20 border border-red-500/40 text-red-400 hover:bg-red-500/30 transition-colors">Delete Project</button>
-        </div>
-    `;
+    body.innerHTML =
+        '<div class="flex items-center gap-3">' +
+            '<span class="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded ' + (paused ? 'text-yellow-400 bg-yellow-400/10' : 'text-[#06B6D4] bg-[#06B6D4]/10') + '">' + (p.status || 'active') + '</span>' +
+            '<span class="text-xs mono" style="color: var(--text-dim);">' + escapeHtml(p.slug) + '</span>' +
+        '</div>' +
+        '<p class="text-sm" style="color: var(--text-muted);">' + escapeHtml(p.description || 'No description yet.') + '</p>' +
+        '<div class="rounded-lg p-3 text-xs space-y-1" style="background: var(--bg); border: 1px solid var(--border);">' +
+            '<div class="flex justify-between"><span style="color: var(--text-dim);">Created</span><span class="mono" style="color: var(--text-muted);">' + new Date(p.created_at).toLocaleDateString() + '</span></div>' +
+            '<div class="flex justify-between"><span style="color: var(--text-dim);">AI Tokens</span><span class="mono" style="color: var(--text-muted);">' + (Number(p.ai_tokens_used) || 0).toLocaleString() + '</span></div>' +
+        '</div>' +
+        repoBlock +
+        '<div class="space-y-2 pt-2">' +
+            '<button onclick="openGithubModal(\'' + p.id + '\')" class="w-full text-sm font-bold py-3 rounded-lg flex items-center justify-center gap-2" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">' +
+                '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>' +
+                (p.github_repo ? 'Change Repository' : 'Link GitHub Repo') +
+            '</button>' +
+            '<button onclick="openProjectEdit(\'' + p.id + '\')" class="w-full text-sm font-bold py-3 rounded-lg text-white" style="background: var(--accent);">Edit Project</button>' +
+            '<button onclick="toggleProjectPause(\'' + p.id + '\')" class="w-full text-sm font-bold py-3 rounded-lg" style="background: var(--bg); border: 1px solid var(--border); color: ' + (paused ? 'var(--green)' : 'var(--amber)') + ';">' +
+                (paused ? 'Resume Project' : 'Pause Project') +
+            '</button>' +
+            '<button onclick="deleteProject(\'' + p.id + '\')" class="w-full text-sm font-bold py-3 rounded-lg bg-red-500/20 border border-red-500/40 text-red-400 hover:bg-red-500/30">Delete Project</button>' +
+        '</div>';
 
     document.getElementById('project-detail-modal').classList.remove('hidden');
-
-    if (p.github_repo) {
-        refreshRepoInfo(p.github_repo);
-    }
+    if (p.github_repo) refreshRepoInfo(p.github_repo);
 }
 
 function closeProjectDetail() {
@@ -622,22 +615,20 @@ async function refreshRepoInfo(repo) {
     const el = document.getElementById('pd-repo-stats');
     if (!el) return;
     try {
-        const res = await fetch(`https://api.github.com/repos/${repo}`);
-        if (!res.ok) throw new Error(`Repo not found (${res.status})`);
+        const res = await fetch('https://api.github.com/repos/' + repo);
+        if (!res.ok) throw new Error('Repo not found (' + res.status + ')');
         const data = await res.json();
-        el.innerHTML = `
-            <div class="flex justify-between"><span>Stars</span><span class="mono">${data.stargazers_count ?? 0}</span></div>
-            <div class="flex justify-between"><span>Language</span><span class="mono">${escapeHtml(data.language || '—')}</span></div>
-            <div class="flex justify-between"><span>Last push</span><span class="mono">${data.pushed_at ? new Date(data.pushed_at).toLocaleDateString() : '—'}</span></div>
-            <div class="flex justify-between"><span>Visibility</span><span class="mono">${data.private ? 'private' : 'public'}</span></div>
-        `;
+        el.innerHTML =
+            '<div class="flex justify-between"><span>Stars</span><span class="mono">' + (data.stargazers_count || 0) + '</span></div>' +
+            '<div class="flex justify-between"><span>Language</span><span class="mono">' + escapeHtml(data.language || '—') + '</span></div>' +
+            '<div class="flex justify-between"><span>Last push</span><span class="mono">' + (data.pushed_at ? new Date(data.pushed_at).toLocaleDateString() : '—') + '</span></div>';
     } catch (err) {
-        el.innerHTML = `<span style="color: var(--red);">${escapeHtml(err.message)}</span>`;
+        el.innerHTML = '<span style="color: var(--red);">' + escapeHtml(err.message) + '</span>';
     }
 }
 
 function openProjectEdit(id) {
-    const p = projectsCache.find(x => x.id === id);
+    const p = projectsCache.find(function(x) { return x.id === id; });
     if (!p) return;
     editingProjectId = id;
     document.getElementById('edit-project-name').value = p.name || '';
@@ -659,18 +650,15 @@ async function saveProjectEdit() {
     const description = document.getElementById('edit-project-description').value.trim();
     const errEl = document.getElementById('edit-error');
     const btn = document.getElementById('save-project-btn');
-
     errEl.classList.add('hidden');
     if (!name || !slug) { errEl.textContent = 'Name and slug required.'; errEl.classList.remove('hidden'); return; }
-
     btn.textContent = 'Saving...'; btn.disabled = true;
     const { error } = await supabaseClient.from('projects')
-        .update({ name, slug, description: description || null })
+        .update({ name: name, slug: slug, description: description || null })
         .eq('id', editingProjectId);
     btn.textContent = 'Save Changes'; btn.disabled = false;
-
     if (error) {
-        errEl.textContent = error.message.includes('duplicate') ? 'That slug is taken.' : error.message;
+        errEl.textContent = error.message.indexOf('duplicate') !== -1 ? 'That slug is taken.' : error.message;
         errEl.classList.remove('hidden'); return;
     }
     closeProjectEdit();
@@ -680,12 +668,10 @@ async function saveProjectEdit() {
 }
 
 async function toggleProjectPause(id) {
-    const p = projectsCache.find(x => x.id === id);
+    const p = projectsCache.find(function(x) { return x.id === id; });
     if (!p) return;
     const newStatus = p.status === 'paused' ? 'active' : 'paused';
-    const { error } = await supabaseClient.from('projects')
-        .update({ status: newStatus })
-        .eq('id', id);
+    const { error } = await supabaseClient.from('projects').update({ status: newStatus }).eq('id', id);
     if (error) { showToast('Failed: ' + error.message, 'error'); return; }
     closeProjectDetail();
     await loadProjects();
@@ -693,9 +679,9 @@ async function toggleProjectPause(id) {
 }
 
 async function deleteProject(id) {
-    const p = projectsCache.find(x => x.id === id);
+    const p = projectsCache.find(function(x) { return x.id === id; });
     if (!p) return;
-    if (!confirm(`Permanently delete "${p.name}"? This cannot be undone.`)) return;
+    if (!confirm('Permanently delete "' + p.name + '"? This cannot be undone.')) return;
     const { error } = await supabaseClient.from('projects').delete().eq('id', id);
     if (error) { showToast('Failed: ' + error.message, 'error'); return; }
     closeProjectDetail();
@@ -708,10 +694,10 @@ async function deleteProject(id) {
 // ============================================
 
 function openGithubModal(id) {
-    const p = projectsCache.find(x => x.id === id);
+    const p = projectsCache.find(function(x) { return x.id === id; });
     if (!p) return;
     if (!p.github_repo && !canLinkRepo()) {
-        if (confirm(`You've reached your plan limit (${getLimits().repos} repos). Upgrade?`)) {
+        if (confirm('Repo limit reached. Upgrade?')) {
             closeProjectDetail();
             switchView('billing');
         }
@@ -735,38 +721,28 @@ async function saveGithubLink() {
     const branch = document.getElementById('gh-branch').value.trim() || 'main';
     const errEl = document.getElementById('gh-error');
     const btn = document.getElementById('save-gh-btn');
-
     errEl.classList.add('hidden');
-
-    // Normalize: strip URL if pasted
     repo = repo.replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '').replace(/\/$/, '');
-
-    if (!repo || !repo.includes('/')) {
+    if (!repo || repo.indexOf('/') === -1) {
         errEl.textContent = 'Use format: owner/repo';
         errEl.classList.remove('hidden'); return;
     }
-
     btn.textContent = 'Verifying repo...'; btn.disabled = true;
-
     try {
-        const res = await fetch(`https://api.github.com/repos/${repo}`);
-        if (!res.ok) throw new Error(res.status === 404 ? 'Repository not found.' : `GitHub error ${res.status}`);
+        const res = await fetch('https://api.github.com/repos/' + repo);
+        if (!res.ok) throw new Error(res.status === 404 ? 'Repository not found.' : 'GitHub error ' + res.status);
     } catch (err) {
         btn.textContent = 'Link Repository'; btn.disabled = false;
         errEl.textContent = err.message;
         errEl.classList.remove('hidden'); return;
     }
-
     const { error } = await supabaseClient.from('projects').update({
         github_repo: repo,
         github_branch: branch,
         repo_connected_at: new Date().toISOString()
     }).eq('id', linkingProjectId);
-
     btn.textContent = 'Link Repository'; btn.disabled = false;
-
     if (error) { errEl.textContent = error.message; errEl.classList.remove('hidden'); return; }
-
     closeGithubModal();
     closeProjectDetail();
     await loadProjects();
@@ -796,14 +772,14 @@ async function sendChat() {
     const typingId = appendTypingIndicator();
     try {
         const { data: { session } } = await supabaseClient.auth.getSession();
-        const res = await fetch(`${SUPABASE_URL}/functions/v1/ukmai`, {
+        const res = await fetch(SUPABASE_URL + '/functions/v1/ukmai', {
             method: 'POST',
-            headers: { 'Authorization': `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt, mode: 'default' })
+            headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt: prompt, mode: 'default' })
         });
         const data = await res.json();
         removeTypingIndicator(typingId);
-        if (data.error) { appendMessage('ai', `**Error:** ${data.error}`); }
+        if (data.error) { appendMessage('ai', '**Error:** ' + data.error); }
         else {
             appendMessage('ai', data.content || 'No response.');
             chatHistory.push({ role: 'user', content: prompt });
@@ -811,7 +787,7 @@ async function sendChat() {
         }
     } catch (err) {
         removeTypingIndicator(typingId);
-        appendMessage('ai', `**Network error:** ${err.message}`);
+        appendMessage('ai', '**Network error:** ' + err.message);
     }
     sendBtn.disabled = false;
     input.focus();
@@ -824,26 +800,22 @@ function appendMessage(role, content) {
     wrapper.className = 'flex gap-3 max-w-3xl mx-auto';
     if (role === 'user') {
         wrapper.className += ' flex-row-reverse';
-        wrapper.innerHTML = `
-            <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background: rgba(79,70,229,0.2); border: 1px solid rgba(79,70,229,0.4);">
-                <svg class="w-4 h-4" style="color: var(--accent);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
-            </div>
-            <div class="rounded-2xl rounded-tr-sm px-4 py-2.5 max-w-[80%] text-sm text-white" style="background: var(--accent);">${escapeHtml(content)}</div>`;
+        wrapper.innerHTML = '<div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background: rgba(79,70,229,0.2); border: 1px solid rgba(79,70,229,0.4);">' +
+                '<svg class="w-4 h-4" style="color: var(--accent);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg></div>' +
+            '<div class="rounded-2xl rounded-tr-sm px-4 py-2.5 max-w-[80%] text-sm text-white" style="background: var(--accent);">' + escapeHtml(content) + '</div>';
     } else {
-        wrapper.innerHTML = `
-            <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background: rgba(245,158,11,0.2); border: 1px solid rgba(245,158,11,0.4);">
-                <svg class="w-4 h-4 text-[#F59E0B]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path></svg>
-            </div>
-            <div class="rounded-2xl rounded-tl-sm px-4 py-3 max-w-[85%] text-sm chat-message" style="background: var(--surface); border: 1px solid var(--border); color: var(--text);">${marked.parse(content)}</div>`;
+        wrapper.innerHTML = '<div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background: rgba(245,158,11,0.2); border: 1px solid rgba(245,158,11,0.4);">' +
+                '<svg class="w-4 h-4 text-[#F59E0B]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path></svg></div>' +
+            '<div class="rounded-2xl rounded-tl-sm px-4 py-3 max-w-[85%] text-sm chat-message" style="background: var(--surface); border: 1px solid var(--border); color: var(--text);">' + marked.parse(content) + '</div>';
     }
     container.appendChild(wrapper);
-    wrapper.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b));
-    wrapper.querySelectorAll('pre').forEach(pre => {
+    wrapper.querySelectorAll('pre code').forEach(function(b) { hljs.highlightElement(b); });
+    wrapper.querySelectorAll('pre').forEach(function(pre) {
         const btn = document.createElement('button');
         btn.className = 'copy-btn'; btn.innerText = 'Copy';
-        btn.onclick = () => {
+        btn.onclick = function() {
             navigator.clipboard.writeText(pre.querySelector('code').innerText);
-            btn.innerText = 'Copied!'; setTimeout(() => btn.innerText = 'Copy', 1500);
+            btn.innerText = 'Copied!'; setTimeout(function() { btn.innerText = 'Copy'; }, 1500);
         };
         pre.style.position = 'relative'; pre.appendChild(btn);
     });
@@ -856,15 +828,13 @@ function appendTypingIndicator() {
     const id = 'typing-' + Date.now();
     const wrapper = document.createElement('div');
     wrapper.id = id; wrapper.className = 'flex gap-3 max-w-3xl mx-auto';
-    wrapper.innerHTML = `
-        <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background: rgba(245,158,11,0.2); border: 1px solid rgba(245,158,11,0.4);">
-            <svg class="w-4 h-4 text-[#F59E0B]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path></svg>
-        </div>
-        <div class="rounded-2xl rounded-tl-sm px-4 py-3 flex items-center gap-1" style="background: var(--surface); border: 1px solid var(--border);">
-            <span class="typing-dot w-2 h-2 rounded-full" style="background: var(--text-muted);"></span>
-            <span class="typing-dot w-2 h-2 rounded-full" style="background: var(--text-muted);"></span>
-            <span class="typing-dot w-2 h-2 rounded-full" style="background: var(--text-muted);"></span>
-        </div>`;
+    wrapper.innerHTML = '<div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background: rgba(245,158,11,0.2); border: 1px solid rgba(245,158,11,0.4);">' +
+            '<svg class="w-4 h-4 text-[#F59E0B]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path></svg></div>' +
+        '<div class="rounded-2xl rounded-tl-sm px-4 py-3 flex items-center gap-1" style="background: var(--surface); border: 1px solid var(--border);">' +
+            '<span class="typing-dot w-2 h-2 rounded-full" style="background: var(--text-muted);"></span>' +
+            '<span class="typing-dot w-2 h-2 rounded-full" style="background: var(--text-muted);"></span>' +
+            '<span class="typing-dot w-2 h-2 rounded-full" style="background: var(--text-muted);"></span>' +
+        '</div>';
     container.appendChild(wrapper); container.scrollTop = container.scrollHeight;
     return id;
 }
@@ -872,11 +842,9 @@ function appendTypingIndicator() {
 function removeTypingIndicator(id) { const el = document.getElementById(id); if (el) el.remove(); }
 
 function clearChat() {
-    document.getElementById('chat-messages').innerHTML = `
-        <div class="text-center py-8">
-            <h3 class="font-bold mb-1" style="color: var(--text);">Chat cleared</h3>
-            <p class="text-xs" style="color: var(--text-muted);">Describe your next app.</p>
-        </div>`;
+    document.getElementById('chat-messages').innerHTML = '<div class="text-center py-8">' +
+        '<h3 class="font-bold mb-1" style="color: var(--text);">Chat cleared</h3>' +
+        '<p class="text-xs" style="color: var(--text-muted);">Describe your next app.</p></div>';
     chatHistory = [];
 }
 
@@ -888,8 +856,11 @@ function populateQueryConnections() {
     const sel = document.getElementById('query-connection');
     if (!sel) return;
     const current = sel.value;
-    sel.innerHTML = '<option value="">— no database selected —</option>' +
-        connectionsCache.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+    let html = '<option value="">— no database selected —</option>';
+    connectionsCache.forEach(function(c) {
+        html += '<option value="' + c.id + '">' + escapeHtml(c.name) + '</option>';
+    });
+    sel.innerHTML = html;
     if (current) sel.value = current;
 }
 
@@ -905,61 +876,53 @@ async function generateSQL() {
     const outputEl = document.getElementById('query-output');
     const loadingEl = document.getElementById('query-loading');
     const warningEl = document.getElementById('query-warning');
-
     if (!prompt) { showToast('Describe what you want first', 'error'); return; }
-
     const connId = document.getElementById('query-connection').value;
     let contextPrompt = prompt;
     if (connId) {
-        const conn = connectionsCache.find(c => c.id === connId);
-        if (conn) contextPrompt = `Database: ${conn.name} (${conn.supabase_url.replace('https://', '')})\n\nTask: ${prompt}`;
+        const conn = connectionsCache.find(function(c) { return c.id === connId; });
+        if (conn) contextPrompt = 'Database: ' + conn.name + '\n\nTask: ' + prompt;
     }
-
     submitBtn.disabled = true;
     submitBtn.innerHTML = 'Generating...';
     outputWrap.classList.add('hidden');
     loadingEl.classList.remove('hidden');
     warningEl.classList.add('hidden');
-
     try {
         const { data: { session } } = await supabaseClient.auth.getSession();
-        const res = await fetch(`${SUPABASE_URL}/functions/v1/ukmai`, {
+        const res = await fetch(SUPABASE_URL + '/functions/v1/ukmai', {
             method: 'POST',
-            headers: { 'Authorization': `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+            headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
             body: JSON.stringify({ prompt: contextPrompt, mode: 'sql' })
         });
         const data = await res.json();
         loadingEl.classList.add('hidden');
         submitBtn.disabled = false;
         submitBtn.innerHTML = 'Generate SQL';
-
         if (data.error) {
             outputWrap.classList.remove('hidden');
-            outputEl.innerHTML = `<p style="color: var(--red);" class="text-sm">${escapeHtml(data.error)}</p>`;
+            outputEl.innerHTML = '<p style="color: var(--red);" class="text-sm">' + escapeHtml(data.error) + '</p>';
             return;
         }
-
         const raw = data.content || '';
         const match = raw.match(/```(?:sql)?\s*([\s\S]*?)```/i);
         const sql = match ? match[1].trim() : raw.trim();
         lastGeneratedSQL = sql;
-
         outputWrap.classList.remove('hidden');
         if (/^\s*--\s*WARNING: destructive/i.test(sql) || /\b(DROP|DELETE|TRUNCATE)\b/i.test(sql)) {
             warningEl.classList.remove('hidden');
         }
-        outputEl.innerHTML = `<pre><code class="language-sql">${escapeHtml(sql)}</code></pre>`;
-        outputEl.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b));
+        outputEl.innerHTML = '<pre><code class="language-sql">' + escapeHtml(sql) + '</code></pre>';
+        outputEl.querySelectorAll('pre code').forEach(function(b) { hljs.highlightElement(b); });
         const pre = outputEl.querySelector('pre');
         if (pre) {
             pre.style.position = 'relative';
             const btn = document.createElement('button');
-            btn.className = 'copy-btn';
-            btn.innerText = 'Copy';
-            btn.onclick = () => {
+            btn.className = 'copy-btn'; btn.innerText = 'Copy';
+            btn.onclick = function() {
                 navigator.clipboard.writeText(sql);
                 btn.innerText = 'Copied!';
-                setTimeout(() => btn.innerText = 'Copy', 1500);
+                setTimeout(function() { btn.innerText = 'Copy'; }, 1500);
             };
             pre.appendChild(btn);
         }
@@ -969,7 +932,7 @@ async function generateSQL() {
         submitBtn.disabled = false;
         submitBtn.innerHTML = 'Generate SQL';
         outputWrap.classList.remove('hidden');
-        outputEl.innerHTML = `<p style="color: var(--red);" class="text-sm">Network error: ${escapeHtml(err.message)}</p>`;
+        outputEl.innerHTML = '<p style="color: var(--red);" class="text-sm">Network error: ' + escapeHtml(err.message) + '</p>';
     }
 }
 
@@ -982,12 +945,9 @@ function copyGeneratedSQL() {
 async function saveQueryToHistory(connectionId, prompt, sql) {
     if (!currentUser) return;
     const { error } = await supabaseClient.from('query_history').insert([{
-        user_id: currentUser.id,
-        connection_id: connectionId,
-        prompt,
-        generated_sql: sql
+        user_id: currentUser.id, connection_id: connectionId, prompt: prompt, generated_sql: sql
     }]);
-    if (error) { console.error('Query history save failed:', error.message); return; }
+    if (error) { console.error('Query history:', error.message); return; }
     await loadQueryHistory();
 }
 
@@ -1003,15 +963,17 @@ async function loadQueryHistory() {
     if (error) { console.error(error.message); return; }
     if (!data || data.length === 0) { wrap.classList.add('hidden'); return; }
     wrap.classList.remove('hidden');
-    list.innerHTML = data.map(h => `
-        <div class="rounded-xl p-3 cursor-pointer transition-colors" style="background: var(--surface); border: 1px solid var(--border);" onclick="loadHistoryItem('${h.id}')">
-            <div class="flex items-start justify-between mb-1">
-                <p class="text-xs font-medium flex-1 pr-2 line-clamp-2" style="color: var(--text);">${escapeHtml(h.prompt)}</p>
-                <span class="text-[10px] flex-shrink-0 mono" style="color: var(--text-dim);">${new Date(h.created_at).toLocaleDateString()}</span>
-            </div>
-            <p class="text-[10px] mono truncate" style="color: var(--cyan);">${escapeHtml(h.generated_sql.split('\n')[0])}</p>
-        </div>
-    `).join('');
+    let html = '';
+    data.forEach(function(h) {
+        html += '<div class="rounded-xl p-3 cursor-pointer" style="background: var(--surface); border: 1px solid var(--border);" onclick="loadHistoryItem(\'' + h.id + '\')">' +
+            '<div class="flex items-start justify-between mb-1">' +
+                '<p class="text-xs font-medium flex-1 pr-2 line-clamp-2" style="color: var(--text);">' + escapeHtml(h.prompt) + '</p>' +
+                '<span class="text-[10px] flex-shrink-0 mono" style="color: var(--text-dim);">' + new Date(h.created_at).toLocaleDateString() + '</span>' +
+            '</div>' +
+            '<p class="text-[10px] mono truncate" style="color: var(--cyan);">' + escapeHtml(h.generated_sql.split('\n')[0]) + '</p>' +
+        '</div>';
+    });
+    list.innerHTML = html;
 }
 
 async function loadHistoryItem(id) {
@@ -1027,21 +989,8 @@ async function loadHistoryItem(id) {
     if (/^\s*--\s*WARNING: destructive/i.test(data.generated_sql) || /\b(DROP|DELETE|TRUNCATE)\b/i.test(data.generated_sql)) {
         warningEl.classList.remove('hidden');
     }
-    outputEl.innerHTML = `<pre><code class="language-sql">${escapeHtml(data.generated_sql)}</code></pre>`;
-    outputEl.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b));
-    const pre = outputEl.querySelector('pre');
-    if (pre) {
-        pre.style.position = 'relative';
-        const btn = document.createElement('button');
-        btn.className = 'copy-btn';
-        btn.innerText = 'Copy';
-        btn.onclick = () => {
-            navigator.clipboard.writeText(data.generated_sql);
-            btn.innerText = 'Copied!';
-            setTimeout(() => btn.innerText = 'Copy', 1500);
-        };
-        pre.appendChild(btn);
-    }
+    outputEl.innerHTML = '<pre><code class="language-sql">' + escapeHtml(data.generated_sql) + '</code></pre>';
+    outputEl.querySelectorAll('pre code').forEach(function(b) { hljs.highlightElement(b); });
     outputWrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
@@ -1070,14 +1019,15 @@ function openPlanModal() {
     document.getElementById('plan-modal').classList.remove('hidden');
     document.getElementById('plan-error').classList.add('hidden');
     populateProjectSelects();
-    ['plan-name', 'plan-price', 'plan-url'].forEach(id => document.getElementById(id).value = '');
+    ['plan-name', 'plan-price', 'plan-url'].forEach(function(id) { document.getElementById(id).value = ''; });
 }
 
 function closePlanModal() { document.getElementById('plan-modal').classList.add('hidden'); }
 
 function populateProjectSelects() {
-    const options = projectsCache.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
-    ['plan-project', 'pay-project'].forEach(id => {
+    let options = '';
+    projectsCache.forEach(function(p) { options += '<option value="' + p.id + '">' + escapeHtml(p.name) + '</option>'; });
+    ['plan-project', 'pay-project'].forEach(function(id) {
         const el = document.getElementById(id);
         if (el) el.innerHTML = options;
     });
@@ -1088,37 +1038,35 @@ async function loadPlans() {
     const { data, error } = await supabaseClient.from('plans').select('*').order('created_at', { ascending: false });
     if (error) { console.error(error.message); return; }
     const empty = document.getElementById('pay-empty-plans');
-    let grid = document.getElementById('pay-plans-grid');
+    const grid = document.getElementById('pay-plans-grid');
     if (!data || data.length === 0) {
         empty.classList.remove('hidden');
-        if (grid) grid.classList.add('hidden');
+        grid.classList.add('hidden');
         document.getElementById('pay-plans-count').textContent = '0';
         return;
     }
     empty.classList.add('hidden');
-    if (!grid) {
-        grid = document.createElement('div');
-        grid.id = 'pay-plans-grid';
-        grid.className = 'hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4';
-        empty.parentNode.insertBefore(grid, empty.nextSibling);
-    }
     grid.classList.remove('hidden');
-    grid.innerHTML = data.map(pl => `
-        <div class="rounded-xl p-5" style="background: var(--surface); border: 1px solid var(--border);">
-            <div class="flex items-start justify-between mb-3">
-                <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded" style="background: rgba(79,70,229,0.1); color: var(--accent);">${escapeHtml(pl.provider)}</span>
-                <span class="text-[10px]" style="color: var(--text-dim);">${escapeHtml(pl.interval)}</span>
-            </div>
-            <h3 class="font-bold mb-1" style="color: var(--text);">${escapeHtml(pl.name)}</h3>
-            <div class="text-2xl font-extrabold mono mb-3" style="color: var(--text);">${escapeHtml(pl.currency)} ${Number(pl.price_amount).toFixed(2)}</div>
-            ${pl.checkout_url ? `<button onclick="copyCheckout('${escapeHtml(pl.checkout_url)}')" class="w-full text-xs font-bold py-2 rounded-lg transition-colors" style="background: rgba(79,70,229,0.1); border: 1px solid rgba(79,70,229,0.3); color: var(--cyan);">Copy Checkout Link</button>` : `<p class="text-xs" style="color: var(--text-dim);">No checkout link set</p>`}
-        </div>
-    `).join('');
+    let html = '';
+    data.forEach(function(pl) {
+        html += '<div class="rounded-xl p-5" style="background: var(--surface); border: 1px solid var(--border);">' +
+            '<div class="flex items-start justify-between mb-3">' +
+                '<span class="text-[10px] font-bold uppercase px-2 py-1 rounded" style="background: rgba(79,70,229,0.1); color: var(--accent);">' + escapeHtml(pl.provider) + '</span>' +
+                '<span class="text-[10px]" style="color: var(--text-dim);">' + escapeHtml(pl.interval) + '</span>' +
+            '</div>' +
+            '<h3 class="font-bold mb-1" style="color: var(--text);">' + escapeHtml(pl.name) + '</h3>' +
+            '<div class="text-2xl font-extrabold mono mb-3" style="color: var(--text);">' + escapeHtml(pl.currency) + ' ' + Number(pl.price_amount).toFixed(2) + '</div>' +
+            (pl.checkout_url ? '<button onclick="copyCheckout(\'' + escapeHtml(pl.checkout_url) + '\')" class="w-full text-xs font-bold py-2 rounded-lg" style="background: rgba(79,70,229,0.1); border: 1px solid rgba(79,70,229,0.3); color: var(--cyan);">Copy Checkout Link</button>' : '<p class="text-xs" style="color: var(--text-dim);">No checkout link</p>') +
+        '</div>';
+    });
+    grid.innerHTML = html;
     document.getElementById('pay-plans-count').textContent = data.length;
     const payPlanSelect = document.getElementById('pay-plan');
-    payPlanSelect.innerHTML = '<option value="">— none —</option>' + data.map(pl =>
-        `<option value="${pl.id}">${escapeHtml(pl.name)} (${escapeHtml(pl.currency)} ${pl.price_amount})</option>`
-    ).join('');
+    let planOpts = '<option value="">— none —</option>';
+    data.forEach(function(pl) {
+        planOpts += '<option value="' + pl.id + '">' + escapeHtml(pl.name) + '</option>';
+    });
+    payPlanSelect.innerHTML = planOpts;
 }
 
 function copyCheckout(url) {
@@ -1143,8 +1091,8 @@ async function createPlan() {
     }
     btn.innerText = 'Creating...'; btn.disabled = true;
     const { error } = await supabaseClient.from('plans').insert([{
-        project_id, name, price_amount, currency, interval, provider,
-        checkout_url: checkout_url || null, active: true
+        project_id: project_id, name: name, price_amount: price_amount, currency: currency,
+        interval: interval, provider: provider, checkout_url: checkout_url || null, active: true
     }]);
     btn.innerText = 'Create Plan'; btn.disabled = false;
     if (error) { errEl.textContent = error.message; errEl.classList.remove('hidden'); return; }
@@ -1162,7 +1110,7 @@ function openPaymentModal() {
     document.getElementById('payment-modal').classList.remove('hidden');
     document.getElementById('payment-error').classList.add('hidden');
     populateProjectSelects();
-    ['pay-email', 'pay-amount'].forEach(id => document.getElementById(id).value = '');
+    ['pay-email', 'pay-amount'].forEach(function(id) { document.getElementById(id).value = ''; });
 }
 
 function closePaymentModal() { document.getElementById('payment-modal').classList.add('hidden'); }
@@ -1171,12 +1119,13 @@ async function loadPayments() {
     if (!currentUser) return;
     const { data, error } = await supabaseClient.from('payments').select('*').order('paid_at', { ascending: false });
     if (error) { console.error(error.message); return; }
-    const total = (data || []).filter(p => p.status === 'paid').reduce((s, p) => s + Number(p.amount), 0);
+    const paid = (data || []).filter(function(p) { return p.status === 'paid'; });
+    const total = paid.reduce(function(s, p) { return s + Number(p.amount); }, 0);
     const now = new Date();
-    const monthly = (data || []).filter(p => {
+    const monthly = paid.filter(function(p) {
         const d = new Date(p.paid_at);
-        return p.status === 'paid' && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-    }).reduce((s, p) => s + Number(p.amount), 0);
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    }).reduce(function(s, p) { return s + Number(p.amount); }, 0);
     document.getElementById('pay-total').textContent = '$' + total.toFixed(2);
     document.getElementById('pay-month').textContent = '$' + monthly.toFixed(2);
     const statRev = document.getElementById('stat-revenue');
@@ -1185,29 +1134,29 @@ async function loadPayments() {
     const list = document.getElementById('pay-payments-list');
     if (!data || data.length === 0) {
         empty.classList.remove('hidden');
-        if (list) list.classList.add('hidden');
+        list.classList.add('hidden');
         return;
     }
     empty.classList.add('hidden');
-    if (!list) return;
     list.classList.remove('hidden');
-    list.innerHTML = data.map(p => `
-        <div class="rounded-xl p-4 flex items-center justify-between" style="background: var(--surface); border: 1px solid var(--border);">
-            <div class="flex items-center gap-3 min-w-0">
-                <div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style="background: rgba(6,182,212,0.1); border: 1px solid rgba(6,182,212,0.3);">
-                    <svg class="w-4 h-4" style="color: var(--cyan);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                </div>
-                <div class="min-w-0">
-                    <p class="text-sm font-medium truncate" style="color: var(--text);">${escapeHtml(p.customer_email || 'Anonymous')}</p>
-                    <p class="text-xs mono" style="color: var(--text-dim);">${new Date(p.paid_at).toLocaleDateString()} · ${escapeHtml(p.provider || 'manual')}</p>
-                </div>
-            </div>
-            <div class="text-right flex-shrink-0">
-                <div class="font-bold mono" style="color: var(--text);">${escapeHtml(p.currency)} ${Number(p.amount).toFixed(2)}</div>
-                <span class="text-[10px] uppercase font-bold ${p.status === 'paid' ? 'text-green-400' : p.status === 'pending' ? 'text-yellow-400' : 'text-red-400'}">${p.status}</span>
-            </div>
-        </div>
-    `).join('');
+    let html = '';
+    data.forEach(function(p) {
+        html += '<div class="rounded-xl p-4 flex items-center justify-between" style="background: var(--surface); border: 1px solid var(--border);">' +
+            '<div class="flex items-center gap-3 min-w-0">' +
+                '<div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style="background: rgba(6,182,212,0.1); border: 1px solid rgba(6,182,212,0.3);">' +
+                    '<svg class="w-4 h-4" style="color: var(--cyan);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div>' +
+                '<div class="min-w-0">' +
+                    '<p class="text-sm font-medium truncate" style="color: var(--text);">' + escapeHtml(p.customer_email || 'Anonymous') + '</p>' +
+                    '<p class="text-xs mono" style="color: var(--text-dim);">' + new Date(p.paid_at).toLocaleDateString() + ' · ' + escapeHtml(p.provider || 'manual') + '</p>' +
+                '</div>' +
+            '</div>' +
+            '<div class="text-right flex-shrink-0">' +
+                '<div class="font-bold mono" style="color: var(--text);">' + escapeHtml(p.currency) + ' ' + Number(p.amount).toFixed(2) + '</div>' +
+                '<span class="text-[10px] uppercase font-bold ' + (p.status === 'paid' ? 'text-green-400' : 'text-yellow-400') + '">' + p.status + '</span>' +
+            '</div>' +
+        '</div>';
+    });
+    list.innerHTML = html;
 }
 
 async function createPayment() {
@@ -1226,9 +1175,10 @@ async function createPayment() {
     }
     btn.innerText = 'Logging...'; btn.disabled = true;
     const { error } = await supabaseClient.from('payments').insert([{
-        project_id, plan_id: plan_id || null,
+        project_id: project_id, plan_id: plan_id || null,
         customer_email: customer_email || null,
-        amount, currency, provider, status: 'paid', paid_at: new Date().toISOString()
+        amount: amount, currency: currency, provider: provider,
+        status: 'paid', paid_at: new Date().toISOString()
     }]);
     btn.innerText = 'Log Payment'; btn.disabled = false;
     if (error) { errEl.textContent = error.message; errEl.classList.remove('hidden'); return; }
@@ -1243,12 +1193,12 @@ async function createPayment() {
 
 function openConnectModal() {
     if (!canCreateConnection()) {
-        if (confirm(`You've reached your plan limit (${getLimits().connections} connections). Upgrade?`)) switchView('billing');
+        if (confirm('Connection limit reached. Upgrade?')) switchView('billing');
         return;
     }
     document.getElementById('connect-modal').classList.remove('hidden');
     document.getElementById('connect-error').classList.add('hidden');
-    ['connect-name', 'connect-url', 'connect-key'].forEach(id => document.getElementById(id).value = '');
+    ['connect-name', 'connect-url', 'connect-key'].forEach(function(id) { document.getElementById(id).value = ''; });
 }
 
 function closeConnectModal() { document.getElementById('connect-modal').classList.add('hidden'); }
@@ -1284,25 +1234,23 @@ function renderConnections(connections) {
     }
     empty.classList.add('hidden');
     list.classList.remove('hidden');
-    list.innerHTML = connections.map(c => `
-        <div class="rounded-xl p-4 flex items-center justify-between" style="background: var(--surface); border: 1px solid var(--border);">
-            <div class="flex items-center gap-3 min-w-0 cursor-pointer flex-1" onclick="openConnection('${c.id}')">
-                <div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style="background: rgba(6,182,212,0.1); border: 1px solid rgba(6,182,212,0.3);">
-                    <svg class="w-4 h-4" style="color: var(--cyan);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
-                </div>
-                <div class="min-w-0">
-                    <p class="text-sm font-medium truncate" style="color: var(--text);">${escapeHtml(c.name)}</p>
-                    <p class="text-xs mono truncate" style="color: var(--text-dim);">${escapeHtml(c.supabase_url.replace('https://', ''))}</p>
-                </div>
-            </div>
-            <div class="flex items-center gap-2 flex-shrink-0">
-                <button onclick="deleteConnection('${c.id}')" class="p-2" style="color: var(--text-muted);">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22"></path></svg>
-                </button>
-                <svg class="w-4 h-4" style="color: var(--accent);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-            </div>
-        </div>
-    `).join('');
+    let html = '';
+    connections.forEach(function(c) {
+        html += '<div class="rounded-xl p-4 flex items-center justify-between" style="background: var(--surface); border: 1px solid var(--border);">' +
+            '<div class="flex items-center gap-3 min-w-0 cursor-pointer flex-1" onclick="openConnection(\'' + c.id + '\')">' +
+                '<div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style="background: rgba(6,182,212,0.1); border: 1px solid rgba(6,182,212,0.3);">' +
+                    '<svg class="w-4 h-4" style="color: var(--cyan);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg></div>' +
+                '<div class="min-w-0">' +
+                    '<p class="text-sm font-medium truncate" style="color: var(--text);">' + escapeHtml(c.name) + '</p>' +
+                    '<p class="text-xs mono truncate" style="color: var(--text-dim);">' + escapeHtml(c.supabase_url.replace('https://', '')) + '</p>' +
+                '</div>' +
+            '</div>' +
+            '<button onclick="deleteConnection(\'' + c.id + '\')" class="p-2" style="color: var(--text-muted);">' +
+                '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22"></path></svg>' +
+            '</button>' +
+        '</div>';
+    });
+    list.innerHTML = html;
 }
 
 async function createConnection() {
@@ -1322,16 +1270,16 @@ async function createConnection() {
     }
     btn.innerText = 'Testing connection...'; btn.disabled = true;
     try {
-        const testRes = await fetch(`${url}/rest/v1/profiles?select=id&limit=1`, { headers: getHeaders(key) });
-        if (testRes.status >= 500) throw new Error(`Connection failed (${testRes.status}).`);
-        if (testRes.status === 404) throw new Error('Endpoint not reachable. Check the URL.');
+        const testRes = await fetch(url + '/rest/v1/profiles?select=id&limit=1', { headers: getHeaders(key) });
+        if (testRes.status >= 500) throw new Error('Connection failed (' + testRes.status + ').');
+        if (testRes.status === 404) throw new Error('Endpoint not reachable.');
     } catch (err) {
         btn.innerText = 'Connect'; btn.disabled = false;
         errEl.textContent = err.message;
         errEl.classList.remove('hidden'); return;
     }
     const { error } = await supabaseClient.from('connected_databases').insert([{
-        owner_id: currentUser.id, name,
+        owner_id: currentUser.id, name: name,
         supabase_url: url, supabase_anon_key: key
     }]);
     btn.innerText = 'Connect'; btn.disabled = false;
@@ -1356,11 +1304,10 @@ async function deleteConnection(id) {
 // ============================================
 
 async function openConnection(id) {
-    const conn = connectionsCache.find(c => c.id === id);
+    const conn = connectionsCache.find(function(c) { return c.id === id; });
     if (!conn) return;
     activeConnection = conn;
     activeTable = null;
-    activeSchema = null;
     const title = document.getElementById('ukmtables-title');
     const subtitle = document.getElementById('ukmtables-subtitle');
     const actionBtn = document.getElementById('ukmtables-action');
@@ -1368,7 +1315,7 @@ async function openConnection(id) {
     title.textContent = conn.name;
     subtitle.textContent = 'Reading schema...';
     actionBtn.innerText = '+ Refresh';
-    actionBtn.onclick = () => openConnection(id);
+    actionBtn.onclick = function() { openConnection(id); };
     backBtn.classList.remove('hidden');
     document.getElementById('ukmtables-connections-view').classList.add('hidden');
     document.getElementById('ukmtables-browser').classList.remove('hidden');
@@ -1377,46 +1324,44 @@ async function openConnection(id) {
     document.getElementById('ukmtables-rows-loading').classList.remove('hidden');
     document.getElementById('ukmtables-pills').innerHTML = '';
     try {
-        const res = await fetch(`${conn.supabase_url}/rest/v1/`, { headers: getHeaders(conn.supabase_anon_key) });
+        const res = await fetch(conn.supabase_url + '/rest/v1/', { headers: getHeaders(conn.supabase_anon_key) });
         let spec = null;
-        if (res.ok) { try { spec = await res.json(); } catch (_) { spec = null; } }
+        if (res.ok) { try { spec = await res.json(); } catch (_) {} }
         let tables = [];
-        if (spec) tables = Object.keys(spec.definitions || spec.components?.schemas || {}).sort();
+        if (spec) tables = Object.keys(spec.definitions || (spec.components && spec.components.schemas) || {}).sort();
         if (tables.length === 0) {
             const candidates = ['profiles', 'projects', 'plans', 'payments', 'subscriptions', 'usage_metrics', 'waitlist', 'connected_databases', 'upgrade_requests', 'query_history'];
-            for (const t of candidates) {
+            for (let i = 0; i < candidates.length; i++) {
                 try {
-                    const r = await fetch(`${conn.supabase_url}/rest/v1/${t}?select=*&limit=1`, { headers: getHeaders(conn.supabase_anon_key) });
-                    if (r.status === 200 || r.status === 206) tables.push(t);
+                    const r = await fetch(conn.supabase_url + '/rest/v1/' + candidates[i] + '?select=*&limit=1', { headers: getHeaders(conn.supabase_anon_key) });
+                    if (r.status === 200 || r.status === 206) tables.push(candidates[i]);
                 } catch (_) {}
             }
         }
-        activeSchema = spec;
-        subtitle.textContent = `${tables.length} tables`;
+        subtitle.textContent = tables.length + ' tables';
         if (tables.length === 0) {
             document.getElementById('ukmtables-rows-loading').classList.add('hidden');
             document.getElementById('ukmtables-rows-empty').classList.remove('hidden');
-            document.getElementById('ukmtables-rows-empty').innerHTML = `<p class="text-sm" style="color: var(--text-muted);">No tables found.</p>`;
+            document.getElementById('ukmtables-rows-empty').innerHTML = '<p class="text-sm" style="color: var(--text-muted);">No tables found.</p>';
             return;
         }
-        document.getElementById('ukmtables-pills').innerHTML = tables.map(t => `
-            <button onclick="selectTable('${t}')" data-table="${t}" class="table-pill text-xs px-3 py-1.5 rounded-lg mono" style="background: var(--surface); border: 1px solid var(--border); color: var(--text-muted);">
-                ${escapeHtml(t)}
-            </button>
-        `).join('');
+        let pills = '';
+        tables.forEach(function(t) {
+            pills += '<button onclick="selectTable(\'' + t + '\')" data-table="' + t + '" class="table-pill text-xs px-3 py-1.5 rounded-lg mono" style="background: var(--surface); border: 1px solid var(--border); color: var(--text-muted);">' + escapeHtml(t) + '</button>';
+        });
+        document.getElementById('ukmtables-pills').innerHTML = pills;
         await selectTable(tables[0]);
     } catch (err) {
         subtitle.textContent = 'Error';
         document.getElementById('ukmtables-rows-loading').classList.add('hidden');
         document.getElementById('ukmtables-rows-empty').classList.remove('hidden');
-        document.getElementById('ukmtables-rows-empty').innerHTML = `<p class="text-sm" style="color: var(--red);">${escapeHtml(err.message)}</p>`;
+        document.getElementById('ukmtables-rows-empty').innerHTML = '<p class="text-sm" style="color: var(--red);">' + escapeHtml(err.message) + '</p>';
     }
 }
 
 function exitTableBrowser() {
     activeConnection = null;
     activeTable = null;
-    activeSchema = null;
     document.getElementById('ukmtables-connections-view').classList.remove('hidden');
     document.getElementById('ukmtables-browser').classList.add('hidden');
     renderConnections(connectionsCache);
@@ -1425,7 +1370,7 @@ function exitTableBrowser() {
 async function selectTable(tableName) {
     if (!activeConnection) return;
     activeTable = tableName;
-    document.querySelectorAll('.table-pill').forEach(p => {
+    document.querySelectorAll('.table-pill').forEach(function(p) {
         if (p.dataset.table === tableName) p.classList.add('active');
         else p.classList.remove('active');
     });
@@ -1433,47 +1378,49 @@ async function selectTable(tableName) {
     document.getElementById('ukmtables-rows-empty').classList.add('hidden');
     document.getElementById('ukmtables-rows-loading').classList.remove('hidden');
     try {
-        const res = await fetch(`${activeConnection.supabase_url}/rest/v1/${tableName}?select=*&limit=50`, {
+        const res = await fetch(activeConnection.supabase_url + '/rest/v1/' + tableName + '?select=*&limit=50', {
             headers: getHeaders(activeConnection.supabase_anon_key)
         });
         document.getElementById('ukmtables-rows-loading').classList.add('hidden');
-        if (!res.ok) throw new Error(`Failed to load rows (${res.status})`);
+        if (!res.ok) throw new Error('Failed to load rows (' + res.status + ')');
         const rows = await res.json();
         if (!rows || rows.length === 0) {
             document.getElementById('ukmtables-rows-empty').classList.remove('hidden');
-            document.getElementById('ukmtables-rows-empty').innerHTML = `<p class="text-sm" style="color: var(--text-muted);">No rows visible.</p>`;
+            document.getElementById('ukmtables-rows-empty').innerHTML = '<p class="text-sm" style="color: var(--text-muted);">No rows visible.</p>';
             return;
         }
         renderRows(rows);
     } catch (err) {
         document.getElementById('ukmtables-rows-loading').classList.add('hidden');
         document.getElementById('ukmtables-rows-empty').classList.remove('hidden');
-        document.getElementById('ukmtables-rows-empty').innerHTML = `<p class="text-sm" style="color: var(--red);">${escapeHtml(err.message)}</p>`;
+        document.getElementById('ukmtables-rows-empty').innerHTML = '<p class="text-sm" style="color: var(--red);">' + escapeHtml(err.message) + '</p>';
     }
 }
 
 function renderRows(rows) {
     const container = document.getElementById('ukmtables-rows');
     container.classList.remove('hidden');
-    container.innerHTML = rows.map((row, idx) => {
-        const fields = Object.entries(row).map(([k, v]) => {
+    let html = '';
+    rows.forEach(function(row, idx) {
+        let fields = '';
+        Object.keys(row).forEach(function(k) {
+            const v = row[k];
             let display;
             if (v === null || v === undefined) display = '<span style="color: var(--text-dim);" class="italic">null</span>';
             else if (typeof v === 'object') display = escapeHtml(JSON.stringify(v));
             else display = escapeHtml(String(v));
-            return `<div class="flex gap-2 py-1 text-xs"><span class="field-key mono flex-shrink-0">${escapeHtml(k)}:</span><span class="field-val mono flex-1">${display}</span></div>`;
-        }).join('');
+            fields += '<div class="flex gap-2 py-1 text-xs"><span class="field-key mono flex-shrink-0">' + escapeHtml(k) + ':</span><span class="field-val mono flex-1">' + display + '</span></div>';
+        });
         const jsonStr = JSON.stringify(row).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
-        return `
-            <div class="rounded-xl p-4" style="background: var(--surface); border: 1px solid var(--border);">
-                <div class="flex items-center justify-between mb-2 pb-2" style="border-bottom: 1px solid var(--border);">
-                    <span class="text-[10px] uppercase font-bold mono" style="color: var(--accent);">Row ${idx + 1}</span>
-                    <button onclick="copyRow('${jsonStr}')" class="text-[10px]" style="color: var(--cyan);">Copy JSON</button>
-                </div>
-                <div class="space-y-0.5">${fields}</div>
-            </div>
-        `;
-    }).join('');
+        html += '<div class="rounded-xl p-4" style="background: var(--surface); border: 1px solid var(--border);">' +
+            '<div class="flex items-center justify-between mb-2 pb-2" style="border-bottom: 1px solid var(--border);">' +
+                '<span class="text-[10px] uppercase font-bold mono" style="color: var(--accent);">Row ' + (idx + 1) + '</span>' +
+                '<button onclick="copyRow(\'' + jsonStr + '\')" class="text-[10px]" style="color: var(--cyan);">Copy JSON</button>' +
+            '</div>' +
+            '<div class="space-y-0.5">' + fields + '</div>' +
+        '</div>';
+    });
+    container.innerHTML = html;
 }
 
 function copyRow(jsonStr) {
@@ -1488,12 +1435,12 @@ function copyRow(jsonStr) {
 
 function renderBilling() {
     if (!currentProfile) return;
-    const plan = STAFF_ROLES.includes(currentProfile.role) ? currentProfile.role : (currentProfile.plan || 'free');
+    const plan = STAFF_ROLES.indexOf(currentProfile.role) !== -1 ? currentProfile.role : (currentProfile.plan || 'free');
     const price = PLAN_PRICES[plan] || PLAN_PRICES.free;
     document.getElementById('billing-plan-name').textContent = plan;
     document.getElementById('billing-plan-price').textContent = price.label;
     const roleTag = document.getElementById('billing-role-tag');
-    if (STAFF_ROLES.includes(currentProfile.role)) {
+    if (STAFF_ROLES.indexOf(currentProfile.role) !== -1) {
         roleTag.classList.remove('hidden');
         roleTag.classList.add('role-' + currentProfile.role);
         roleTag.textContent = currentProfile.role;
@@ -1502,31 +1449,31 @@ function renderBilling() {
     }
     const limits = getLimits();
     const projPct = limits.projects >= 999 ? 5 : Math.min(100, (projectsCache.length / limits.projects) * 100);
-    document.getElementById('billing-projects-label').textContent = `${projectsCache.length} / ${limits.projects >= 999 ? '∞' : limits.projects}`;
+    document.getElementById('billing-projects-label').textContent = projectsCache.length + ' / ' + (limits.projects >= 999 ? '∞' : limits.projects);
     document.getElementById('billing-projects-bar').style.width = projPct + '%';
     const connPct = limits.connections >= 999 ? 5 : Math.min(100, (connectionsCache.length / limits.connections) * 100);
-    document.getElementById('billing-connections-label').textContent = `${connectionsCache.length} / ${limits.connections >= 999 ? '∞' : limits.connections}`;
+    document.getElementById('billing-connections-label').textContent = connectionsCache.length + ' / ' + (limits.connections >= 999 ? '∞' : limits.connections);
     document.getElementById('billing-connections-bar').style.width = connPct + '%';
-    const reposLinked = projectsCache.filter(p => p.github_repo).length;
+    const reposLinked = projectsCache.filter(function(p) { return p.github_repo; }).length;
     const repoPct = limits.repos >= 999 ? 5 : Math.min(100, (reposLinked / limits.repos) * 100);
-    const repoSettings = document.getElementById('billing-repos-label');
-    if (repoSettings) repoSettings.textContent = `${reposLinked} / ${limits.repos >= 999 ? '∞' : limits.repos}`;
+    const repoLabel = document.getElementById('billing-repos-label');
+    if (repoLabel) repoLabel.textContent = reposLinked + ' / ' + (limits.repos >= 999 ? '∞' : limits.repos);
     const repoBar = document.getElementById('billing-repos-bar');
     if (repoBar) repoBar.style.width = repoPct + '%';
-    const tokensUsed = projectsCache.reduce((s, p) => s + (Number(p.ai_tokens_used) || 0), 0);
-    const tokenLimit = STAFF_ROLES.includes(currentProfile.role) ? 999999 : (currentProfile.plan === 'pro' ? 500000 : currentProfile.plan === 'team' ? 2000000 : 100000);
+    const tokensUsed = projectsCache.reduce(function(s, p) { return s + (Number(p.ai_tokens_used) || 0); }, 0);
+    const tokenLimit = STAFF_ROLES.indexOf(currentProfile.role) !== -1 ? 999999 : (currentProfile.plan === 'pro' ? 500000 : currentProfile.plan === 'team' ? 2000000 : 100000);
     const tokenPct = Math.min(100, (tokensUsed / tokenLimit) * 100);
-    document.getElementById('billing-tokens-label').textContent = `${tokensUsed.toLocaleString()} / ${tokenLimit >= 999999 ? '∞' : (tokenLimit / 1000) + 'k'}`;
+    document.getElementById('billing-tokens-label').textContent = tokensUsed.toLocaleString() + ' / ' + (tokenLimit >= 999999 ? '∞' : (tokenLimit / 1000) + 'k');
     document.getElementById('billing-tokens-bar').style.width = tokenPct + '%';
 }
 
 function openUpgradeModal(plan, price) {
-    currentUpgradePlan = { plan, price };
+    currentUpgradePlan = { plan: plan, price: price };
     document.getElementById('upgrade-plan-name').textContent = plan.charAt(0).toUpperCase() + plan.slice(1);
-    document.getElementById('upgrade-plan-detail').textContent = price ? `$${price}/mo billed monthly` : 'Custom pricing — talk to us';
+    document.getElementById('upgrade-plan-detail').textContent = price ? '$' + price + '/mo billed monthly' : 'Custom pricing';
     document.getElementById('upgrade-error').classList.add('hidden');
-    document.getElementById('upgrade-name').value = currentProfile?.full_name || '';
-    document.getElementById('upgrade-contact').value = currentProfile?.phone || currentProfile?.email || currentUser?.email || '';
+    document.getElementById('upgrade-name').value = (currentProfile && currentProfile.full_name) || '';
+    document.getElementById('upgrade-contact').value = (currentProfile && (currentProfile.phone || currentProfile.email)) || (currentUser && currentUser.email) || '';
     document.getElementById('upgrade-notes').value = '';
     document.getElementById('upgrade-modal').classList.remove('hidden');
 }
@@ -1543,7 +1490,7 @@ async function submitUpgradeRequest() {
     const errEl = document.getElementById('upgrade-error');
     const btn = document.getElementById('submit-upgrade-btn');
     errEl.classList.add('hidden');
-    if (!name || !contact) { errEl.textContent = 'Name and contact are required.'; errEl.classList.remove('hidden'); return; }
+    if (!name || !contact) { errEl.textContent = 'Name and contact required.'; errEl.classList.remove('hidden'); return; }
     if (!currentUpgradePlan) return;
     btn.textContent = 'Sending...'; btn.disabled = true;
     const { error } = await supabaseClient.from('upgrade_requests').insert([{
@@ -1553,7 +1500,7 @@ async function submitUpgradeRequest() {
         currency: 'USD',
         contact_method: 'whatsapp',
         contact_value: contact,
-        notes: `Name: ${name}${notes ? ' | ' + notes : ''}`,
+        notes: 'Name: ' + name + (notes ? ' | ' + notes : ''),
         status: 'pending'
     }]);
     btn.textContent = 'Send Request'; btn.disabled = false;
@@ -1574,15 +1521,17 @@ async function loadMyUpgradeRequests() {
     if (error) { console.error(error.message); return; }
     if (!data || data.length === 0) { wrap.classList.add('hidden'); return; }
     wrap.classList.remove('hidden');
-    list.innerHTML = data.map(r => `
-        <div class="rounded-lg p-3 flex items-center justify-between" style="background: var(--bg); border: 1px solid var(--border);">
-            <div>
-                <p class="text-sm font-medium capitalize" style="color: var(--text);">${escapeHtml(r.requested_plan)}</p>
-                <p class="text-xs mono" style="color: var(--text-dim);">${new Date(r.created_at).toLocaleDateString()}</p>
-            </div>
-            <span class="text-[10px] uppercase font-bold ${r.status === 'approved' ? 'text-green-400' : r.status === 'pending' ? 'text-yellow-400' : 'text-red-400'}">${r.status}</span>
-        </div>
-    `).join('');
+    let html = '';
+    data.forEach(function(r) {
+        html += '<div class="rounded-lg p-3 flex items-center justify-between" style="background: var(--bg); border: 1px solid var(--border);">' +
+            '<div>' +
+                '<p class="text-sm font-medium capitalize" style="color: var(--text);">' + escapeHtml(r.requested_plan) + '</p>' +
+                '<p class="text-xs mono" style="color: var(--text-dim);">' + new Date(r.created_at).toLocaleDateString() + '</p>' +
+            '</div>' +
+            '<span class="text-[10px] uppercase font-bold ' + (r.status === 'approved' ? 'text-green-400' : r.status === 'pending' ? 'text-yellow-400' : 'text-red-400') + '">' + r.status + '</span>' +
+        '</div>';
+    });
+    list.innerHTML = html;
 }
 
 // ============================================
@@ -1590,7 +1539,7 @@ async function loadMyUpgradeRequests() {
 // ============================================
 
 async function loadOwnerConsole() {
-    if (!STAFF_ROLES.includes(currentProfile?.role)) {
+    if (STAFF_ROLES.indexOf(currentProfile && currentProfile.role) === -1) {
         showToast('Access denied', 'error');
         switchView('overview');
         return;
@@ -1600,130 +1549,133 @@ async function loadOwnerConsole() {
 }
 
 async function loadAllUsers() {
-    const usersList = document.getElementById('owner-users-list');
+    const list = document.getElementById('owner-users-list');
     const { data, error } = await supabaseClient.from('profiles').select('*').order('created_at', { ascending: false });
-    if (error) { usersList.classList.remove('hidden'); usersList.innerHTML = `<div class="bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-4 rounded-xl">${escapeHtml(error.message)}</div>`; return; }
+    list.classList.remove('hidden');
+    if (error) { list.innerHTML = '<div class="text-xs p-4 rounded-xl" style="color: var(--red); background: rgba(239,68,68,0.1);">' + escapeHtml(error.message) + '</div>'; return; }
     allUsersCache = data || [];
-    usersList.classList.remove('hidden');
-    if (allUsersCache.length === 0) { usersList.innerHTML = `<p class="text-sm text-center py-8" style="color: var(--text-muted);">No users yet.</p>`; return; }
-    usersList.innerHTML = allUsersCache.map(u => {
+    if (allUsersCache.length === 0) { list.innerHTML = '<p class="text-sm text-center py-8" style="color: var(--text-muted);">No users yet.</p>'; return; }
+    let html = '';
+    allUsersCache.forEach(function(u) {
         const role = u.role || 'user';
         const roleClass = role === 'user' ? '' : 'role-' + role;
         const initial = (u.full_name || u.username || u.email || 'U').charAt(0).toUpperCase();
-        return `
-            <div class="rounded-xl p-4" style="background: var(--surface); border: 1px solid var(--border);">
-                <div class="flex items-start justify-between mb-3">
-                    <div class="flex items-center gap-3 min-w-0">
-                        <div class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0" style="background: rgba(79,70,229,0.2); border: 1px solid rgba(79,70,229,0.4); color: var(--accent);">${escapeHtml(initial)}</div>
-                        <div class="min-w-0">
-                            <p class="font-bold truncate" style="color: var(--text);">${escapeHtml(u.full_name || u.username || 'Unnamed')}</p>
-                            <p class="text-xs mono truncate" style="color: var(--text-dim);">${escapeHtml(u.email || '—')}</p>
-                        </div>
-                    </div>
-                    ${role !== 'user' ? `<span class="${roleClass} text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded flex-shrink-0">${escapeHtml(role)}</span>` : ''}
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div><label class="block text-[10px] uppercase font-bold mb-1" style="color: var(--text-dim);">Role</label>
-                        <select onchange="updateUserRole('${u.id}', this.value)" class="w-full rounded-lg px-3 py-2 text-xs focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
-                            <option value="user" ${role === 'user' ? 'selected' : ''}>user</option>
-                            <option value="support" ${role === 'support' ? 'selected' : ''}>support</option>
-                            <option value="admin" ${role === 'admin' ? 'selected' : ''}>admin</option>
-                            <option value="owner" ${role === 'owner' ? 'selected' : ''}>owner</option>
-                        </select>
-                    </div>
-                    <div><label class="block text-[10px] uppercase font-bold mb-1" style="color: var(--text-dim);">Plan</label>
-                        <select onchange="updateUserPlan('${u.id}', this.value)" class="w-full rounded-lg px-3 py-2 text-xs focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
-                            <option value="free" ${u.plan === 'free' ? 'selected' : ''}>free</option>
-                            <option value="pro" ${u.plan === 'pro' ? 'selected' : ''}>pro</option>
-                            <option value="team" ${u.plan === 'team' ? 'selected' : ''}>team</option>
-                            <option value="enterprise" ${u.plan === 'enterprise' ? 'selected' : ''}>enterprise</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="mt-3 text-[10px]" style="color: var(--text-dim);">Joined: ${u.created_at ? new Date(u.created_at).toLocaleDateString() : '—'}${u.country ? ' · ' + escapeHtml(u.country) : ''}</div>
-            </div>`;
-    }).join('');
+        html += '<div class="rounded-xl p-4" style="background: var(--surface); border: 1px solid var(--border);">' +
+            '<div class="flex items-start justify-between mb-3">' +
+                '<div class="flex items-center gap-3 min-w-0">' +
+                    '<div class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0" style="background: rgba(79,70,229,0.2); border: 1px solid rgba(79,70,229,0.4); color: var(--accent);">' + escapeHtml(initial) + '</div>' +
+                    '<div class="min-w-0">' +
+                        '<p class="font-bold truncate" style="color: var(--text);">' + escapeHtml(u.full_name || u.username || 'Unnamed') + '</p>' +
+                        '<p class="text-xs mono truncate" style="color: var(--text-dim);">' + escapeHtml(u.email || '—') + '</p>' +
+                    '</div>' +
+                '</div>' +
+                (role !== 'user' ? '<span class="' + roleClass + ' text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded flex-shrink-0">' + escapeHtml(role) + '</span>' : '') +
+            '</div>' +
+            '<div class="grid grid-cols-2 gap-3">' +
+                '<div><label class="block text-[10px] uppercase font-bold mb-1" style="color: var(--text-dim);">Role</label>' +
+                    '<select onchange="updateUserRole(\'' + u.id + '\', this.value)" class="w-full rounded-lg px-3 py-2 text-xs" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">' +
+                        '<option value="user"' + (role === 'user' ? ' selected' : '') + '>user</option>' +
+                        '<option value="support"' + (role === 'support' ? ' selected' : '') + '>support</option>' +
+                        '<option value="admin"' + (role === 'admin' ? ' selected' : '') + '>admin</option>' +
+                        '<option value="owner"' + (role === 'owner' ? ' selected' : '') + '>owner</option>' +
+                    '</select></div>' +
+                '<div><label class="block text-[10px] uppercase font-bold mb-1" style="color: var(--text-dim);">Plan</label>' +
+                    '<select onchange="updateUserPlan(\'' + u.id + '\', this.value)" class="w-full rounded-lg px-3 py-2 text-xs" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">' +
+                        '<option value="free"' + (u.plan === 'free' ? ' selected' : '') + '>free</option>' +
+                        '<option value="pro"' + (u.plan === 'pro' ? ' selected' : '') + '>pro</option>' +
+                        '<option value="team"' + (u.plan === 'team' ? ' selected' : '') + '>team</option>' +
+                        '<option value="enterprise"' + (u.plan === 'enterprise' ? ' selected' : '') + '>enterprise</option>' +
+                    '</select></div>' +
+            '</div>' +
+            '<div class="mt-3 text-[10px]" style="color: var(--text-dim);">Joined: ' + (u.created_at ? new Date(u.created_at).toLocaleDateString() : '—') + (u.country ? ' · ' + escapeHtml(u.country) : '') + '</div>' +
+        '</div>';
+    });
+    list.innerHTML = html;
 }
 
 async function loadAllProjectsForOwner() {
     const list = document.getElementById('owner-projects-list');
     const { data, error } = await supabaseClient.from('projects').select('*').order('created_at', { ascending: false });
     list.classList.remove('hidden');
-    if (error) { list.innerHTML = `<div class="bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-4 rounded-xl">${escapeHtml(error.message)}</div>`; return; }
-    if (!data || data.length === 0) { list.innerHTML = `<p class="text-sm text-center py-8" style="color: var(--text-muted);">No projects yet.</p>`; return; }
+    if (error) { list.innerHTML = '<p class="text-sm" style="color: var(--red);">' + escapeHtml(error.message) + '</p>'; return; }
+    if (!data || data.length === 0) { list.innerHTML = '<p class="text-sm text-center py-8" style="color: var(--text-muted);">No projects yet.</p>'; return; }
     const userMap = {};
-    allUsersCache.forEach(u => { userMap[u.id] = u.email || u.username || 'unknown'; });
-    list.innerHTML = data.map(p => `
-        <div class="rounded-xl p-4" style="background: var(--surface); border: 1px solid var(--border);">
-            <div class="flex items-start justify-between mb-2">
-                <div class="min-w-0">
-                    <p class="font-bold truncate" style="color: var(--text);">${escapeHtml(p.name)}</p>
-                    <p class="text-xs mono truncate" style="color: var(--text-dim);">${escapeHtml(p.slug)}</p>
-                </div>
-                <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded flex-shrink-0" style="background: rgba(6,182,212,0.1); color: var(--cyan);">${escapeHtml(p.status || 'active')}</span>
-            </div>
-            <p class="text-xs mb-2 truncate" style="color: var(--text-muted);">Owner: <span class="mono">${escapeHtml(userMap[p.owner_id] || p.owner_id)}</span></p>
-            <div class="text-[10px] flex gap-3" style="color: var(--text-dim);">
-                <span>${new Date(p.created_at).toLocaleDateString()}</span>
-                <span class="mono">${(Number(p.ai_tokens_used) || 0).toLocaleString()} tokens</span>
-            </div>
-        </div>
-    `).join('');
+    allUsersCache.forEach(function(u) { userMap[u.id] = u.email || u.username || 'unknown'; });
+    let html = '';
+    data.forEach(function(p) {
+        html += '<div class="rounded-xl p-4" style="background: var(--surface); border: 1px solid var(--border);">' +
+            '<div class="flex items-start justify-between mb-2">' +
+                '<div class="min-w-0">' +
+                    '<p class="font-bold truncate" style="color: var(--text);">' + escapeHtml(p.name) + '</p>' +
+                    '<p class="text-xs mono truncate" style="color: var(--text-dim);">' + escapeHtml(p.slug) + '</p>' +
+                '</div>' +
+                '<span class="text-[10px] font-bold uppercase px-2 py-1 rounded flex-shrink-0" style="background: rgba(6,182,212,0.1); color: var(--cyan);">' + escapeHtml(p.status || 'active') + '</span>' +
+            '</div>' +
+            '<p class="text-xs mb-2 truncate" style="color: var(--text-muted);">Owner: <span class="mono">' + escapeHtml(userMap[p.owner_id] || p.owner_id) + '</span></p>' +
+            '<div class="text-[10px] flex gap-3" style="color: var(--text-dim);">' +
+                '<span>' + new Date(p.created_at).toLocaleDateString() + '</span>' +
+                '<span class="mono">' + (Number(p.ai_tokens_used) || 0).toLocaleString() + ' tokens</span>' +
+            '</div>' +
+        '</div>';
+    });
+    list.innerHTML = html;
 }
 
 async function loadAllPaymentsForOwner() {
     const list = document.getElementById('owner-payments-list');
     const { data, error } = await supabaseClient.from('payments').select('*').order('paid_at', { ascending: false });
     list.classList.remove('hidden');
-    if (error) { list.innerHTML = `<div class="bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-4 rounded-xl">${escapeHtml(error.message)}</div>`; return; }
-    if (!data || data.length === 0) { list.innerHTML = `<p class="text-sm text-center py-8" style="color: var(--text-muted);">No payments yet.</p>`; return; }
-    list.innerHTML = data.map(p => `
-        <div class="rounded-xl p-4 flex items-center justify-between" style="background: var(--surface); border: 1px solid var(--border);">
-            <div class="min-w-0">
-                <p class="text-sm font-medium truncate" style="color: var(--text);">${escapeHtml(p.customer_email || 'Anonymous')}</p>
-                <p class="text-xs mono" style="color: var(--text-dim);">${new Date(p.paid_at).toLocaleDateString()} · ${escapeHtml(p.provider || 'manual')}</p>
-            </div>
-            <div class="text-right flex-shrink-0">
-                <div class="font-bold mono" style="color: var(--text);">${escapeHtml(p.currency)} ${Number(p.amount).toFixed(2)}</div>
-                <span class="text-[10px] uppercase font-bold ${p.status === 'paid' ? 'text-green-400' : 'text-yellow-400'}">${p.status}</span>
-            </div>
-        </div>
-    `).join('');
+    if (error) { list.innerHTML = '<p class="text-sm" style="color: var(--red);">' + escapeHtml(error.message) + '</p>'; return; }
+    if (!data || data.length === 0) { list.innerHTML = '<p class="text-sm text-center py-8" style="color: var(--text-muted);">No payments yet.</p>'; return; }
+    let html = '';
+    data.forEach(function(p) {
+        html += '<div class="rounded-xl p-4 flex items-center justify-between" style="background: var(--surface); border: 1px solid var(--border);">' +
+            '<div class="min-w-0">' +
+                '<p class="text-sm font-medium truncate" style="color: var(--text);">' + escapeHtml(p.customer_email || 'Anonymous') + '</p>' +
+                '<p class="text-xs mono" style="color: var(--text-dim);">' + new Date(p.paid_at).toLocaleDateString() + ' · ' + escapeHtml(p.provider || 'manual') + '</p>' +
+            '</div>' +
+            '<div class="text-right flex-shrink-0">' +
+                '<div class="font-bold mono" style="color: var(--text);">' + escapeHtml(p.currency) + ' ' + Number(p.amount).toFixed(2) + '</div>' +
+                '<span class="text-[10px] uppercase font-bold ' + (p.status === 'paid' ? 'text-green-400' : 'text-yellow-400') + '">' + p.status + '</span>' +
+            '</div>' +
+        '</div>';
+    });
+    list.innerHTML = html;
 }
 
 async function loadAllRequestsForOwner() {
     const list = document.getElementById('owner-requests-list');
     const { data, error } = await supabaseClient.from('upgrade_requests').select('*').order('created_at', { ascending: false });
     list.classList.remove('hidden');
-    if (error) { list.innerHTML = `<div class="bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-4 rounded-xl">${escapeHtml(error.message)}</div>`; return; }
-    if (!data || data.length === 0) { list.innerHTML = `<p class="text-sm text-center py-8" style="color: var(--text-muted);">No upgrade requests yet.</p>`; return; }
+    if (error) { list.innerHTML = '<p class="text-sm" style="color: var(--red);">' + escapeHtml(error.message) + '</p>'; return; }
+    if (!data || data.length === 0) { list.innerHTML = '<p class="text-sm text-center py-8" style="color: var(--text-muted);">No upgrade requests yet.</p>'; return; }
     const userMap = {};
-    allUsersCache.forEach(u => { userMap[u.id] = u; });
-    list.innerHTML = data.map(r => {
+    allUsersCache.forEach(function(u) { userMap[u.id] = u; });
+    let html = '';
+    data.forEach(function(r) {
         const u = userMap[r.user_id] || {};
-        return `
-            <div class="rounded-xl p-4" style="background: var(--surface); border: 1px solid var(--border);">
-                <div class="flex items-start justify-between mb-3">
-                    <div class="min-w-0">
-                        <p class="font-bold truncate" style="color: var(--text);">${escapeHtml(u.full_name || u.username || 'Unknown user')}</p>
-                        <p class="text-xs mono truncate" style="color: var(--text-dim);">${escapeHtml(u.email || '—')}</p>
-                    </div>
-                    <span class="text-[10px] font-bold uppercase px-2 py-1 rounded flex-shrink-0 ${r.status === 'approved' ? 'text-green-400 bg-green-400/10' : r.status === 'pending' ? 'text-yellow-400 bg-yellow-400/10' : 'text-red-400 bg-red-400/10'}">${r.status}</span>
-                </div>
-                <div class="rounded-lg p-3 mb-3 text-xs" style="background: var(--bg); border: 1px solid var(--border);">
-                    <p class="font-bold capitalize mb-1" style="color: var(--text);">Wants: ${escapeHtml(r.requested_plan)}${r.amount ? ' — $' + r.amount + '/mo' : ''}</p>
-                    ${r.contact_value ? `<p style="color: var(--text-muted);">Contact: <span class="mono">${escapeHtml(r.contact_value)}</span></p>` : ''}
-                    ${r.notes ? `<p class="mt-1" style="color: var(--text-muted);">${escapeHtml(r.notes)}</p>` : ''}
-                    <p class="text-[10px] mt-2" style="color: var(--text-dim);">${new Date(r.created_at).toLocaleString()}</p>
-                </div>
-                ${r.status === 'pending' ? `
-                    <div class="flex gap-2">
-                        <button onclick="approveUpgrade('${r.id}', '${r.user_id}', '${r.requested_plan}')" class="flex-1 bg-green-500/20 hover:bg-green-500/30 border border-green-500/40 text-green-400 font-bold py-2 rounded-lg text-xs">Approve</button>
-                        <button onclick="rejectUpgrade('${r.id}')" class="flex-1 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 font-bold py-2 rounded-lg text-xs">Reject</button>
-                    </div>
-                ` : ''}
-            </div>`;
-    }).join('');
+        const statusBg = r.status === 'approved' ? 'text-green-400 bg-green-400/10' : r.status === 'pending' ? 'text-yellow-400 bg-yellow-400/10' : 'text-red-400 bg-red-400/10';
+        html += '<div class="rounded-xl p-4" style="background: var(--surface); border: 1px solid var(--border);">' +
+            '<div class="flex items-start justify-between mb-3">' +
+                '<div class="min-w-0">' +
+                    '<p class="font-bold truncate" style="color: var(--text);">' + escapeHtml(u.full_name || u.username || 'Unknown') + '</p>' +
+                    '<p class="text-xs mono truncate" style="color: var(--text-dim);">' + escapeHtml(u.email || '—') + '</p>' +
+                '</div>' +
+                '<span class="text-[10px] font-bold uppercase px-2 py-1 rounded flex-shrink-0 ' + statusBg + '">' + r.status + '</span>' +
+            '</div>' +
+            '<div class="rounded-lg p-3 mb-3 text-xs" style="background: var(--bg); border: 1px solid var(--border);">' +
+                '<p class="font-bold capitalize mb-1" style="color: var(--text);">Wants: ' + escapeHtml(r.requested_plan) + (r.amount ? ' — $' + r.amount + '/mo' : '') + '</p>' +
+                (r.contact_value ? '<p style="color: var(--text-muted);">Contact: <span class="mono">' + escapeHtml(r.contact_value) + '</span></p>' : '') +
+                (r.notes ? '<p class="mt-1" style="color: var(--text-muted);">' + escapeHtml(r.notes) + '</p>' : '') +
+            '</div>' +
+            (r.status === 'pending' ?
+                '<div class="flex gap-2">' +
+                    '<button onclick="approveUpgrade(\'' + r.id + '\', \'' + r.user_id + '\', \'' + r.requested_plan + '\')" class="flex-1 bg-green-500/20 hover:bg-green-500/30 border border-green-500/40 text-green-400 font-bold py-2 rounded-lg text-xs">Approve</button>' +
+                    '<button onclick="rejectUpgrade(\'' + r.id + '\')" class="flex-1 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 font-bold py-2 rounded-lg text-xs">Reject</button>' +
+                '</div>' : '') +
+        '</div>';
+    });
+    list.innerHTML = html;
 }
 
 async function updateOwnerStats() {
@@ -1731,17 +1683,17 @@ async function updateOwnerStats() {
     const { count: projectCount } = await supabaseClient.from('projects').select('*', { count: 'exact', head: true });
     const { data: payments } = await supabaseClient.from('payments').select('amount').eq('status', 'paid');
     const { count: pendingCount } = await supabaseClient.from('upgrade_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending');
-    const revenue = (payments || []).reduce((s, p) => s + Number(p.amount || 0), 0);
-    document.getElementById('owner-stat-users').textContent = userCount ?? '—';
-    document.getElementById('owner-stat-projects').textContent = projectCount ?? '—';
+    const revenue = (payments || []).reduce(function(s, p) { return s + Number(p.amount || 0); }, 0);
+    document.getElementById('owner-stat-users').textContent = userCount || '—';
+    document.getElementById('owner-stat-projects').textContent = projectCount || '—';
     document.getElementById('owner-stat-revenue').textContent = '$' + revenue.toFixed(2);
-    document.getElementById('owner-stat-pending').textContent = pendingCount ?? '—';
+    document.getElementById('owner-stat-pending').textContent = pendingCount || '—';
 }
 
 function switchOwnerTab(tab) {
     const panels = { users: 'owner-users-panel', projects: 'owner-projects-panel', payments: 'owner-payments-panel', requests: 'owner-requests-panel' };
     const tabs = { users: 'owner-tab-users', projects: 'owner-tab-projects', payments: 'owner-tab-payments', requests: 'owner-tab-requests' };
-    Object.keys(panels).forEach(k => {
+    Object.keys(panels).forEach(function(k) {
         const panel = document.getElementById(panels[k]);
         const tabEl = document.getElementById(tabs[k]);
         if (k === tab) {
@@ -1776,8 +1728,8 @@ async function updateUserPlan(userId, newPlan) {
 }
 
 async function approveUpgrade(requestId, userId, plan) {
-    if (!confirm(`Approve this upgrade? User will be moved to ${plan}.`)) return;
-    const { error: planError } = await supabaseClient.from('profiles').update({ plan }).eq('id', userId);
+    if (!confirm('Approve this upgrade?')) return;
+    const { error: planError } = await supabaseClient.from('profiles').update({ plan: plan }).eq('id', userId);
     if (planError) { showToast('Failed: ' + planError.message, 'error'); return; }
     const { error: reqError } = await supabaseClient.from('upgrade_requests')
         .update({ status: 'approved', resolved_at: new Date().toISOString() }).eq('id', requestId);
@@ -1805,10 +1757,9 @@ function escapeHtml(str) {
         .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 }
 
-// Escape key closes modals
-document.addEventListener('keydown', (e) => {
+document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
-        ['project-modal','project-detail-modal','project-edit-modal','github-modal','plan-modal','payment-modal','connect-modal','upgrade-modal'].forEach(id => {
+        ['project-modal','project-detail-modal','project-edit-modal','github-modal','plan-modal','payment-modal','connect-modal','upgrade-modal'].forEach(function(id) {
             const el = document.getElementById(id);
             if (el && !el.classList.contains('hidden')) el.classList.add('hidden');
         });
@@ -1826,7 +1777,7 @@ async function init() {
     else showLandingView();
 }
 
-supabaseClient.auth.onAuthStateChange((event, session) => {
+supabaseClient.auth.onAuthStateChange(function(event, session) {
     if (session) showDashboardView(session.user);
     else showLandingView();
 });
