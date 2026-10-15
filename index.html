@@ -70,7 +70,6 @@
     .plan-card.featured { border-color: var(--accent); box-shadow: 0 0 40px -10px rgba(79, 70, 229, 0.5); }
     .usage-bar { transition: width 0.5s ease; }
     .sql-output pre { margin: 0; }
-    /* Toast */
     #toast-container { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 9999; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
     .toast { background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 12px 16px; border-radius: 10px; box-shadow: 0 10px 40px -10px rgba(0,0,0,0.4); font-size: 13px; min-width: 240px; max-width: 90vw; pointer-events: auto; animation: toastIn 0.3s ease; }
     .toast.success { border-color: rgba(16,185,129,0.5); }
@@ -78,10 +77,8 @@
     .toast.success::before { content: '✓'; color: var(--green); margin-right: 8px; font-weight: 700; }
     .toast.error::before { content: '✕'; color: var(--red); margin-right: 8px; font-weight: 700; }
     @keyframes toastIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
-    /* Skeleton */
     .skeleton { background: linear-gradient(90deg, var(--surface) 0%, var(--surface-2) 50%, var(--surface) 100%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 6px; }
     @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-    /* Sun/Moon */
     .theme-btn { transition: transform 0.3s ease; }
     .theme-btn:hover { transform: rotate(20deg); }
 </style>
@@ -244,6 +241,10 @@
                 <a href="#" onclick="switchView('ukmpay')" id="nav-ukmpay" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors" style="color: var(--text-muted);">
                     <svg class="w-5 h-5 text-[#06B6D4]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
                     UkmPay
+                </a>
+                <a href="#" onclick="switchView('team')" id="nav-team" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors" style="color: var(--text-muted);">
+                    <svg class="w-5 h-5 text-[#8B5CF6]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                    Team
                 </a>
                 <a href="#" onclick="switchView('billing')" id="nav-billing" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors" style="color: var(--text-muted);">
                     <svg class="w-5 h-5 text-[#10B981]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
@@ -490,6 +491,58 @@
                 </div>
             </div>
 
+            <!-- TEAM -->
+            <div id="view-team" class="hidden flex-1 overflow-y-auto p-4 md:p-8">
+                <div class="max-w-4xl mx-auto">
+                    <div class="mb-6">
+                        <h1 class="text-2xl font-bold mb-1" style="color: var(--text);">Team</h1>
+                        <p class="text-sm" style="color: var(--text-muted);">Invite teammates to collaborate on your projects.</p>
+                    </div>
+
+                    <div class="rounded-xl p-5 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-xs font-medium uppercase tracking-wider" style="color: var(--text-muted);">Seats Used</span>
+                            <span id="team-seats-display" class="text-sm font-bold mono" style="color: var(--text);">0 / 1</span>
+                        </div>
+                        <div class="w-full rounded-full h-2 overflow-hidden" style="background: var(--bg);">
+                            <div id="team-seats-bar" class="usage-bar h-2 rounded-full" style="width: 0%; background: var(--accent);"></div>
+                        </div>
+                        <p id="team-plan-note" class="text-xs mt-3" style="color: var(--text-dim);">Upgrade to Team for 3 seats (you + 2 teammates).</p>
+                    </div>
+
+                    <div id="team-invite-card" class="rounded-xl p-5 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
+                        <h3 class="font-bold mb-4" style="color: var(--text);">Invite a teammate</h3>
+                        <div id="team-invite-error" class="hidden bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-3 rounded-lg mb-4"></div>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Email</label>
+                                <input type="email" id="team-invite-email" placeholder="teammate@company.com" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Role</label>
+                                <select id="team-invite-role" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
+                                    <option value="member">Member — can view and edit projects</option>
+                                    <option value="viewer">Viewer — can only view projects</option>
+                                    <option value="admin">Admin — full access + can invite</option>
+                                </select>
+                            </div>
+                            <button id="team-invite-btn" onclick="sendTeamInvite()" class="w-full font-bold py-3 rounded-lg text-white" style="background: var(--accent);">Send Invite</button>
+                            <p class="text-[10px] text-center" style="color: var(--text-dim);">If they don't have an Ukmbase account yet, they'll be auto-linked when they sign up with this email.</p>
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl p-5 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
+                        <h3 class="font-bold mb-4" style="color: var(--text);">Active members</h3>
+                        <div id="team-active-list" class="space-y-2"><p class="text-sm" style="color: var(--text-muted);">Loading...</p></div>
+                    </div>
+
+                    <div id="team-pending-card" class="hidden rounded-xl p-5" style="background: var(--surface); border: 1px solid var(--border);">
+                        <h3 class="font-bold mb-4" style="color: var(--text);">Pending invites</h3>
+                        <div id="team-pending-list" class="space-y-2"></div>
+                    </div>
+                </div>
+            </div>
+
             <!-- BILLING -->
             <div id="view-billing" class="hidden flex-1 overflow-y-auto p-4 md:p-8">
                 <div class="max-w-6xl mx-auto">
@@ -538,6 +591,15 @@
                             </div>
                             <div>
                                 <div class="flex items-center justify-between mb-1">
+                                    <span class="text-xs font-medium" style="color: var(--text-muted);">Team Seats</span>
+                                    <span id="billing-seats-label" class="text-xs mono" style="color: var(--text);">0 / 1</span>
+                                </div>
+                                <div class="w-full rounded-full h-2 overflow-hidden" style="background: var(--bg);">
+                                    <div id="billing-seats-bar" class="usage-bar h-2 rounded-full" style="width: 0%; background: #8B5CF6;"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex items-center justify-between mb-1">
                                     <span class="text-xs font-medium" style="color: var(--text-muted);">AI Tokens (this month)</span>
                                     <span id="billing-tokens-label" class="text-xs mono" style="color: var(--text);">0 / 100k</span>
                                 </div>
@@ -563,7 +625,6 @@
                                 <li>✓ Priority support</li>
                             </ul>
                             <button onclick="openUpgradeModal('pro', 19)" class="w-full font-bold py-3 rounded-lg text-white" style="background: var(--accent);">Upgrade to Pro</button>
-                            <p class="text-[10px] text-center mt-2" style="color: var(--text-dim);">Africa pricing: $5/mo</p>
                         </div>
                         <div class="plan-card rounded-xl p-6 flex flex-col" style="background: var(--surface); border: 2px solid var(--border);">
                             <h3 class="text-xl font-extrabold mb-4" style="color: var(--text);">Team</h3>
@@ -572,8 +633,8 @@
                                 <li>✓ 100 projects</li>
                                 <li>✓ 100 DB connections</li>
                                 <li>✓ 50 GitHub repo links</li>
+                                <li>✓ 3 team seats (you + 2)</li>
                                 <li>✓ 2M AI tokens / mo</li>
-                                <li>✓ 3 team seats</li>
                             </ul>
                             <button onclick="openUpgradeModal('team', 79)" class="w-full font-bold py-3 rounded-lg" style="border: 1px solid var(--border); color: var(--text);">Upgrade to Team</button>
                         </div>
@@ -582,8 +643,8 @@
                             <div class="mb-4"><span class="text-3xl font-extrabold mono" style="color: var(--text);">Custom</span></div>
                             <ul class="space-y-2 text-sm mb-6 flex-1" style="color: var(--text-muted);">
                                 <li>✓ Unlimited everything</li>
+                                <li>✓ Unlimited team seats</li>
                                 <li>✓ SSO + audit logs</li>
-                                <li>✓ SLA guarantee</li>
                                 <li>✓ Self-host option</li>
                             </ul>
                             <button onclick="openUpgradeModal('enterprise', null)" class="w-full font-bold py-3 rounded-lg" style="border: 1px solid var(--border); color: var(--text);">Contact us</button>
@@ -620,8 +681,8 @@
                             <div id="owner-stat-revenue" class="text-xl font-bold mono mt-1" style="color: var(--text);">—</div>
                         </div>
                         <div class="p-4 rounded-xl" style="background: var(--surface); border: 1px solid var(--border);">
-                            <span class="text-[10px] font-medium uppercase tracking-wider" style="color: var(--text-muted);">Pending Upgrades</span>
-                            <div id="owner-stat-pending" class="text-xl font-bold mono mt-1" style="color: var(--text);">—</div>
+                            <span class="text-[10px] font-medium uppercase tracking-wider" style="color: var(--text-muted);">Active Teams</span>
+                            <div id="owner-stat-teams" class="text-xl font-bold mono mt-1" style="color: var(--text);">—</div>
                         </div>
                     </div>
                     <div class="flex gap-2 mb-4 overflow-x-auto no-scrollbar" style="border-bottom: 1px solid var(--border);">
@@ -629,11 +690,13 @@
                         <button onclick="switchOwnerTab('projects')" id="owner-tab-projects" class="px-4 py-2 text-sm font-medium -mb-px whitespace-nowrap" style="color: var(--text-muted);">Projects</button>
                         <button onclick="switchOwnerTab('payments')" id="owner-tab-payments" class="px-4 py-2 text-sm font-medium -mb-px whitespace-nowrap" style="color: var(--text-muted);">Payments</button>
                         <button onclick="switchOwnerTab('requests')" id="owner-tab-requests" class="px-4 py-2 text-sm font-medium -mb-px whitespace-nowrap" style="color: var(--text-muted);">Upgrade Requests</button>
+                        <button onclick="switchOwnerTab('teams')" id="owner-tab-teams" class="px-4 py-2 text-sm font-medium -mb-px whitespace-nowrap" style="color: var(--text-muted);">Teams</button>
                     </div>
                     <div id="owner-users-panel"><div class="text-center py-12"><div class="inline-block w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent); border-top-color: transparent;"></div></div><div id="owner-users-list" class="hidden space-y-3"></div></div>
                     <div id="owner-projects-panel" class="hidden"><div class="text-center py-12"><div class="inline-block w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent); border-top-color: transparent;"></div></div><div id="owner-projects-list" class="hidden space-y-3"></div></div>
                     <div id="owner-payments-panel" class="hidden"><div class="text-center py-12"><div class="inline-block w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent); border-top-color: transparent;"></div></div><div id="owner-payments-list" class="hidden space-y-3"></div></div>
                     <div id="owner-requests-panel" class="hidden"><div class="text-center py-12"><div class="inline-block w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent); border-top-color: transparent;"></div></div><div id="owner-requests-list" class="hidden space-y-3"></div></div>
+                    <div id="owner-teams-panel" class="hidden"><div class="text-center py-12"><div class="inline-block w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent); border-top-color: transparent;"></div></div><div id="owner-teams-list" class="hidden space-y-3"></div></div>
                 </div>
             </div>
 
@@ -680,7 +743,7 @@
                         <div class="flex items-center justify-between mb-3"><span class="text-sm" style="color: var(--text-muted);">Current plan</span><span id="settings-plan-2" class="font-bold uppercase text-sm" style="color: var(--text);">free</span></div>
                         <div class="flex items-center justify-between mb-3"><span class="text-sm" style="color: var(--text-muted);">Projects</span><span id="settings-limit-projects" class="mono text-sm" style="color: var(--text);">0 / 2</span></div>
                         <div class="flex items-center justify-between mb-3"><span class="text-sm" style="color: var(--text-muted);">DB Connections</span><span id="settings-limit-connections" class="mono text-sm" style="color: var(--text);">0 / 3</span></div>
-                        <div class="flex items-center justify-between mb-4"><span class="text-sm" style="color: var(--text-muted);">GitHub Repos</span><span id="settings-limit-repos" class="mono text-sm" style="color: var(--text);">0 / 1</span></div>
+                        <div class="flex items-center justify-between mb-4"><span class="text-sm" style="color: var(--text-muted);">Team Seats</span><span id="settings-limit-seats" class="mono text-sm" style="color: var(--text);">0 / 1</span></div>
                         <button onclick="switchView('billing')" class="w-full text-xs font-bold py-2 rounded-lg text-white" style="background: var(--accent);">Manage plan</button>
                     </div>
 
@@ -762,7 +825,7 @@
     </div>
 </div>
 
-<!-- PLAN, PAYMENT, CONNECT, UPGRADE (existing) -->
+<!-- PLAN -->
 <div id="plan-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
     <div class="w-full max-w-md rounded-2xl p-6 glow max-h-[90vh] overflow-y-auto" style="background: var(--surface); border: 1px solid var(--border);">
         <div class="flex items-center justify-between mb-6"><h2 class="text-lg font-bold" style="color: var(--text);">Create a plan</h2><button onclick="closePlanModal()" style="color: var(--text-muted);"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button></div>
@@ -782,6 +845,7 @@
     </div>
 </div>
 
+<!-- PAYMENT -->
 <div id="payment-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
     <div class="w-full max-w-md rounded-2xl p-6 glow max-h-[90vh] overflow-y-auto" style="background: var(--surface); border: 1px solid var(--border);">
         <div class="flex items-center justify-between mb-6"><h2 class="text-lg font-bold" style="color: var(--text);">Log a payment</h2><button onclick="closePaymentModal()" style="color: var(--text-muted);"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button></div>
@@ -800,6 +864,7 @@
     </div>
 </div>
 
+<!-- CONNECT DB -->
 <div id="connect-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
     <div class="w-full max-w-md rounded-2xl p-6 glow max-h-[90vh] overflow-y-auto" style="background: var(--surface); border: 1px solid var(--border);">
         <div class="flex items-center justify-between mb-6"><h2 class="text-lg font-bold" style="color: var(--text);">Connect a database</h2><button onclick="closeConnectModal()" style="color: var(--text-muted);"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button></div>
@@ -814,6 +879,7 @@
     </div>
 </div>
 
+<!-- UPGRADE -->
 <div id="upgrade-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
     <div class="w-full max-w-md rounded-2xl p-6 glow max-h-[90vh] overflow-y-auto" style="background: var(--surface); border: 1px solid var(--border);">
         <div class="flex items-center justify-between mb-6">
@@ -838,6 +904,6 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-<script src="app.js?v=507"></script>
+<script src="app.js?v=509"></script>
 </body>
 </html>
