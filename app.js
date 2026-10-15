@@ -1,24 +1,24 @@
-// UKMBASE APP.JS — v508
+// UKMBASE APP.JS — v509 (Team Management)
 
 const SUPABASE_URL = 'https://dwjyzqsrzdgnpwibnyjn.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_4vcPyg62OqmfwNaHxx0CGA_a7O0_NJV';
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const PLAN_LIMITS = {
-    free:       { projects: 2,   connections: 3,   repos: 1   },
-    pro:        { projects: 20,  connections: 20,  repos: 10  },
-    team:       { projects: 100, connections: 100, repos: 50  },
-    enterprise: { projects: 999, connections: 999, repos: 999 },
-    staff:      { projects: 999, connections: 999, repos: 999 },
+    free:       { projects: 2,   connections: 3,   repos: 1,   seats: 1   },
+    pro:        { projects: 20,  connections: 20,  repos: 10,  seats: 1   },
+    team:       { projects: 100, connections: 100, repos: 50,  seats: 3   },
+    enterprise: { projects: 999, connections: 999, repos: 999, seats: 999 },
+    staff:      { projects: 999, connections: 999, repos: 999, seats: 999 },
 };
 
 const STAFF_ROLES = ['owner', 'admin', 'support'];
 
 const PLAN_PRICES = {
-    free: { usd: 0, label: '$0/mo' },
-    pro: { usd: 19, label: '$19/mo' },
-    team: { usd: 79, label: '$79/mo' },
-    enterprise: { usd: null, label: 'Custom' },
+    free: { label: '$0/mo' },
+    pro: { label: '$19/mo' },
+    team: { label: '$79/mo' },
+    enterprise: { label: 'Custom' },
 };
 
 const landingView = document.getElementById('landing-view');
@@ -31,6 +31,7 @@ let currentProfile = null;
 let chatHistory = [];
 let projectsCache = [];
 let connectionsCache = [];
+let teamCache = [];
 let allUsersCache = [];
 let activeConnection = null;
 let activeTable = null;
@@ -74,9 +75,8 @@ function applyTheme(theme) {
 
 function toggleTheme() {
     const current = localStorage.getItem('ukmbase-theme') || 'dark';
-    const next = current === 'dark' ? 'light' : 'dark';
-    applyTheme(next);
-    showToast('Switched to ' + next + ' theme', 'success');
+    applyTheme(current === 'dark' ? 'light' : 'dark');
+    showToast('Switched to ' + (current === 'dark' ? 'light' : 'dark') + ' theme', 'success');
 }
 
 // ============================================
@@ -94,7 +94,6 @@ function showToast(message, type, duration) {
     container.appendChild(toast);
     setTimeout(function() {
         toast.style.opacity = '0';
-        toast.style.transform = 'translateY(-20px)';
         toast.style.transition = 'all 0.3s ease';
         setTimeout(function() { toast.remove(); }, 300);
     }, duration);
@@ -106,9 +105,7 @@ function showToast(message, type, duration) {
 
 function getHeaders(key) {
     const headers = { 'apikey': key };
-    if (key.indexOf('sb_publishable_') !== 0) {
-        headers['Authorization'] = 'Bearer ' + key;
-    }
+    if (key.indexOf('sb_publishable_') !== 0) headers['Authorization'] = 'Bearer ' + key;
     return headers;
 }
 
@@ -122,17 +119,23 @@ function getLimits() {
     return PLAN_LIMITS[plan] || PLAN_LIMITS.free;
 }
 
-function canCreateProject() {
-    return projectsCache.length < getLimits().projects;
-}
-
-function canCreateConnection() {
-    return connectionsCache.length < getLimits().connections;
-}
-
+function canCreateProject() { return projectsCache.length < getLimits().projects; }
+function canCreateConnection() { return connectionsCache.length < getLimits().connections; }
 function canLinkRepo() {
     const linked = projectsCache.filter(function(p) { return p.github_repo; }).length;
     return linked < getLimits().repos;
+}
+
+function getTeamSeatsUsed() {
+    // Owner + active members (not pending, not removed)
+    return 1 + teamCache.filter(function(m) { return m.status === 'active'; }).length;
+}
+
+function canInviteMember() {
+    const limits = getLimits();
+    const used = getTeamSeatsUsed();
+    const pending = teamCache.filter(function(m) { return m.status === 'pending'; }).length;
+    return used + pending < limits.seats;
 }
 
 // ============================================
@@ -175,7 +178,7 @@ function updateStrength() {
     const labels = ['Too short', 'Weak', 'Fair', 'Good', 'Strong', 'Excellent'];
     for (let i = 1; i <= 5; i++) {
         const bar = document.getElementById('sb-' + i);
-        bar.style.background = i <= score ? colors[score] : 'var(--border)';
+        if (bar) bar.style.background = i <= score ? colors[score] : 'var(--border)';
     }
     const labelEl = document.getElementById('strength-label');
     if (labelEl) {
@@ -208,21 +211,22 @@ async function showDashboardView(user) {
     if (user && user.email) userEmailDisplay.textContent = user.email;
     currentUser = user;
     await loadProfile();
-    loadProjects().then(function() {
-        loadPayments();
-        loadPlans();
-        loadConnections().then(function() { populateQueryConnections(); });
-        loadMyUpgradeRequests();
-        loadQueryHistory();
-    });
+    await loadTeam();
+    await loadProjects();
+    loadPayments();
+    loadPlans();
+    loadConnections().then(function() { populateQueryConnections(); });
+    loadMyUpgradeRequests();
+    loadQueryHistory();
     switchView('overview');
 }
 
 function switchView(view) {
-    const views = ['overview', 'ukmai', 'ukmquery', 'ukmtables', 'ukmpay', 'billing', 'settings', 'owner'];
+    const views = ['overview', 'ukmai', 'ukmquery', 'ukmtables', 'ukmpay', 'team', 'billing', 'settings', 'owner'];
     views.forEach(function(v) {
         const el = document.getElementById('view-' + v);
         const nav = document.getElementById('nav-' + v);
+        if (!el) return;
         if (v === view) {
             el.classList.remove('hidden');
             if (nav) { nav.classList.add('sidebar-active'); nav.style.color = 'var(--text)'; }
@@ -234,6 +238,7 @@ function switchView(view) {
     if (view === 'ukmpay') { loadPayments(); loadPlans(); }
     if (view === 'ukmtables') { loadConnections(); }
     if (view === 'ukmquery') { loadConnections().then(function() { populateQueryConnections(); loadQueryHistory(); }); }
+    if (view === 'team') { renderTeam(); }
     if (view === 'settings') { renderSettings(); }
     if (view === 'billing') { renderBilling(); }
     if (view === 'owner') { loadOwnerConsole(); }
@@ -261,14 +266,11 @@ function renderRoleBadge(role) {
 
 async function loadProfile() {
     if (!currentUser) return;
-    const { data, error } = await supabaseClient
-        .from('profiles').select('*').eq('id', currentUser.id).single();
+    const { data, error } = await supabaseClient.from('profiles').select('*').eq('id', currentUser.id).single();
     if (error) { console.error('Profile load:', error.message); return; }
     currentProfile = data;
     renderRoleBadge(data.role);
-    supabaseClient.from('profiles')
-        .update({ last_login_at: new Date().toISOString() })
-        .eq('id', currentUser.id).then(function() {});
+    supabaseClient.from('profiles').update({ last_login_at: new Date().toISOString() }).eq('id', currentUser.id).then(function() {});
 }
 
 function renderSettings() {
@@ -278,6 +280,7 @@ function renderSettings() {
     document.getElementById('settings-display-name').textContent = currentProfile.full_name || currentProfile.username || 'User';
     document.getElementById('settings-display-email').textContent = currentProfile.email || currentUser.email;
     document.getElementById('settings-plan').textContent = currentProfile.plan || 'free';
+
     const roleTag = document.getElementById('settings-role-tag');
     roleTag.classList.remove('role-owner', 'role-admin', 'role-support');
     const role = currentProfile.role || 'user';
@@ -288,20 +291,19 @@ function renderSettings() {
         roleTag.classList.add('role-' + role);
         roleTag.textContent = role.charAt(0).toUpperCase() + role.slice(1);
     }
+
     document.getElementById('settings-fullname').value = currentProfile.full_name || '';
     document.getElementById('settings-username').value = currentProfile.username || '';
     document.getElementById('settings-phone').value = currentProfile.phone || '';
     document.getElementById('settings-country').value = currentProfile.country || '';
+
     const limits = getLimits();
     const displayPlan = STAFF_ROLES.indexOf(currentProfile.role) !== -1 ? currentProfile.role : (currentProfile.plan || 'free');
     document.getElementById('settings-plan-2').textContent = displayPlan;
-    document.getElementById('settings-limit-projects').textContent =
-        projectsCache.length + ' / ' + (limits.projects >= 999 ? '∞' : limits.projects);
-    document.getElementById('settings-limit-connections').textContent =
-        connectionsCache.length + ' / ' + (limits.connections >= 999 ? '∞' : limits.connections);
-    const reposLinked = projectsCache.filter(function(p) { return p.github_repo; }).length;
-    document.getElementById('settings-limit-repos').textContent =
-        reposLinked + ' / ' + (limits.repos >= 999 ? '∞' : limits.repos);
+    document.getElementById('settings-limit-projects').textContent = projectsCache.length + ' / ' + (limits.projects >= 999 ? '∞' : limits.projects);
+    document.getElementById('settings-limit-connections').textContent = connectionsCache.length + ' / ' + (limits.connections >= 999 ? '∞' : limits.connections);
+    document.getElementById('settings-limit-seats').textContent = getTeamSeatsUsed() + ' / ' + (limits.seats >= 999 ? '∞' : limits.seats);
+
     const themeLabel = document.getElementById('settings-theme-label');
     if (themeLabel) themeLabel.textContent = (localStorage.getItem('ukmbase-theme') || 'dark') === 'light' ? 'Light' : 'Dark';
 }
@@ -320,8 +322,7 @@ async function saveProfile() {
         errEl.classList.remove('hidden'); return;
     }
     btn.textContent = 'Saving...'; btn.disabled = true;
-    const { error } = await supabaseClient
-        .from('profiles')
+    const { error } = await supabaseClient.from('profiles')
         .update({ full_name: full_name, username: username, phone: phone || null, country: country || null })
         .eq('id', currentUser.id);
     btn.textContent = 'Save Changes'; btn.disabled = false;
@@ -329,8 +330,7 @@ async function saveProfile() {
         errEl.textContent = error.message.indexOf('duplicate') !== -1 ? 'That username is taken.' : error.message;
         errEl.classList.remove('hidden'); return;
     }
-    succEl.textContent = 'Profile saved.';
-    succEl.classList.remove('hidden');
+    succEl.textContent = 'Profile saved.'; succEl.classList.remove('hidden');
     await loadProfile();
     renderSettings();
     showToast('Profile saved', 'success');
@@ -349,12 +349,8 @@ async function handleLogin() {
     const email = document.getElementById('auth-email').value;
     const password = document.getElementById('auth-password').value;
     const errEl = document.getElementById('auth-error');
-    const succEl = document.getElementById('auth-success');
-    errEl.classList.add('hidden'); succEl.classList.add('hidden');
-    if (!email || !password) {
-        errEl.textContent = 'Please fill in all fields.';
-        errEl.classList.remove('hidden'); return;
-    }
+    errEl.classList.add('hidden');
+    if (!email || !password) { errEl.textContent = 'Please fill in all fields.'; errEl.classList.remove('hidden'); return; }
     const { data, error } = await supabaseClient.auth.signInWithPassword({ email: email, password: password });
     if (error) { errEl.textContent = error.message; errEl.classList.remove('hidden'); }
     else { showDashboardView(data.user); }
@@ -368,18 +364,9 @@ async function handleSignup() {
     const errEl = document.getElementById('auth-error');
     const succEl = document.getElementById('auth-success');
     errEl.classList.add('hidden'); succEl.classList.add('hidden');
-    if (!fullName || !email || !password || !confirm) {
-        errEl.textContent = 'Please fill in all fields.';
-        errEl.classList.remove('hidden'); return;
-    }
-    if (password !== confirm) {
-        errEl.textContent = 'Passwords do not match.';
-        errEl.classList.remove('hidden'); return;
-    }
-    if (password.length < 8) {
-        errEl.textContent = 'Password must be at least 8 characters.';
-        errEl.classList.remove('hidden'); return;
-    }
+    if (!fullName || !email || !password || !confirm) { errEl.textContent = 'Please fill in all fields.'; errEl.classList.remove('hidden'); return; }
+    if (password !== confirm) { errEl.textContent = 'Passwords do not match.'; errEl.classList.remove('hidden'); return; }
+    if (password.length < 8) { errEl.textContent = 'Password must be at least 8 characters.'; errEl.classList.remove('hidden'); return; }
     const { data, error } = await supabaseClient.auth.signUp({
         email: email, password: password,
         options: { data: { full_name: fullName } }
@@ -391,8 +378,7 @@ async function handleSignup() {
 
 async function signInWithProvider(provider) {
     const errEl = document.getElementById('auth-error');
-    const succEl = document.getElementById('auth-success');
-    errEl.classList.add('hidden'); succEl.classList.add('hidden');
+    errEl.classList.add('hidden');
     const { error } = await supabaseClient.auth.signInWithOAuth({
         provider: provider,
         options: { redirectTo: window.location.origin + window.location.pathname }
@@ -419,13 +405,11 @@ async function joinWaitlist() {
     const successMessage = document.getElementById('waitlist-success');
     const email = emailInput.value;
     if (!email) return showToast('Please enter your email', 'error');
-    submitBtn.innerText = 'Joining...';
-    submitBtn.disabled = true;
+    submitBtn.innerText = 'Joining...'; submitBtn.disabled = true;
     const { error } = await supabaseClient.from('waitlist').insert([{ email: email }]);
     if (error) {
         showToast('Error: ' + error.message, 'error');
-        submitBtn.innerText = 'Join Waitlist';
-        submitBtn.disabled = false;
+        submitBtn.innerText = 'Join Waitlist'; submitBtn.disabled = false;
     } else {
         formContainer.classList.add('hidden');
         successMessage.classList.remove('hidden');
@@ -438,6 +422,187 @@ async function joinWaitlist() {
 
 function toggleSidebar() {
     document.getElementById('sidebar').classList.toggle('-translate-x-full');
+}
+
+// ============================================
+// TEAM
+// ============================================
+
+async function loadTeam() {
+    if (!currentUser) return;
+    const { data, error } = await supabaseClient
+        .from('team_members').select('*')
+        .eq('owner_id', currentUser.id)
+        .order('invited_at', { ascending: false });
+    if (error) { console.error('Team load:', error.message); return; }
+    teamCache = data || [];
+}
+
+function renderTeam() {
+    const limits = getLimits();
+    const used = getTeamSeatsUsed();
+    const pending = teamCache.filter(function(m) { return m.status === 'pending'; }).length;
+    const total = used + pending;
+
+    const seatsDisplay = document.getElementById('team-seats-display');
+    const seatsBar = document.getElementById('team-seats-bar');
+    const planNote = document.getElementById('team-plan-note');
+    const inviteCard = document.getElementById('team-invite-card');
+
+    const seatCap = limits.seats >= 999 ? '∞' : limits.seats;
+    seatsDisplay.textContent = total + ' / ' + seatCap;
+    const pct = limits.seats >= 999 ? 5 : Math.min(100, (total / limits.seats) * 100);
+    seatsBar.style.width = pct + '%';
+
+    if (limits.seats <= 1) {
+        planNote.textContent = 'Upgrade to Team ($79/mo) for 3 seats — you + 2 teammates.';
+        inviteCard.classList.add('hidden');
+    } else if (total >= limits.seats) {
+        planNote.textContent = 'All ' + limits.seats + ' seats used. Remove someone or upgrade.';
+        inviteCard.classList.add('hidden');
+    } else {
+        planNote.textContent = (limits.seats - total) + ' of ' + limits.seats + ' seats available.';
+        inviteCard.classList.remove('hidden');
+    }
+
+    // Active members
+    const activeList = document.getElementById('team-active-list');
+    const active = teamCache.filter(function(m) { return m.status === 'active'; });
+
+    let activeHTML = '<div class="flex items-center gap-3 p-3 rounded-lg" style="background: var(--bg); border: 1px solid var(--border);">' +
+        '<div class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold" style="background: rgba(79,70,229,0.2); border: 1px solid rgba(79,70,229,0.4); color: var(--accent);">' +
+            (currentProfile.full_name || currentProfile.username || 'U').charAt(0).toUpperCase() +
+        '</div>' +
+        '<div class="flex-1 min-w-0">' +
+            '<p class="text-sm font-bold truncate" style="color: var(--text);">' + escapeHtml(currentProfile.full_name || currentProfile.username || 'You') + ' (you)</p>' +
+            '<p class="text-xs mono truncate" style="color: var(--text-dim);">' + escapeHtml(currentUser.email) + '</p>' +
+        '</div>' +
+        '<span class="text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded role-owner">Owner</span>' +
+    '</div>';
+
+    active.forEach(function(m) {
+        activeHTML += '<div class="flex items-center gap-3 p-3 rounded-lg" style="background: var(--bg); border: 1px solid var(--border);">' +
+            '<div class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold" style="background: rgba(6,182,212,0.2); border: 1px solid rgba(6,182,212,0.4); color: var(--cyan);">' +
+                escapeHtml(m.invite_email.charAt(0).toUpperCase()) +
+            '</div>' +
+            '<div class="flex-1 min-w-0">' +
+                '<p class="text-sm font-bold truncate" style="color: var(--text);">' + escapeHtml(m.invite_email) + '</p>' +
+                '<p class="text-xs capitalize" style="color: var(--text-dim);">' + escapeHtml(m.role) + '</p>' +
+            '</div>' +
+            '<select onchange="updateTeamRole(\'' + m.id + '\', this.value)" class="text-xs rounded-lg px-2 py-1" style="background: var(--surface); border: 1px solid var(--border); color: var(--text);">' +
+                '<option value="member"' + (m.role === 'member' ? ' selected' : '') + '>member</option>' +
+                '<option value="viewer"' + (m.role === 'viewer' ? ' selected' : '') + '>viewer</option>' +
+                '<option value="admin"' + (m.role === 'admin' ? ' selected' : '') + '>admin</option>' +
+            '</select>' +
+            '<button onclick="removeTeamMember(\'' + m.id + '\')" class="p-2" style="color: var(--text-muted);">' +
+                '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22"></path></svg>' +
+            '</button>' +
+        '</div>';
+    });
+
+    activeList.innerHTML = activeHTML;
+
+    // Pending invites
+    const pendingCard = document.getElementById('team-pending-card');
+    const pendingList = document.getElementById('team-pending-list');
+    const pendingItems = teamCache.filter(function(m) { return m.status === 'pending'; });
+
+    if (pendingItems.length === 0) {
+        pendingCard.classList.add('hidden');
+    } else {
+        pendingCard.classList.remove('hidden');
+        let pendingHTML = '';
+        pendingItems.forEach(function(m) {
+            pendingHTML += '<div class="flex items-center gap-3 p-3 rounded-lg" style="background: var(--bg); border: 1px dashed var(--border);">' +
+                '<div class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold" style="background: rgba(245,158,11,0.2); border: 1px solid rgba(245,158,11,0.4); color: var(--amber);">?</div>' +
+                '<div class="flex-1 min-w-0">' +
+                    '<p class="text-sm font-bold truncate" style="color: var(--text);">' + escapeHtml(m.invite_email) + '</p>' +
+                    '<p class="text-xs" style="color: var(--amber);">Pending · ' + escapeHtml(m.role) + '</p>' +
+                '</div>' +
+                '<button onclick="cancelInvite(\'' + m.id + '\')" class="text-xs px-3 py-1 rounded" style="background: rgba(239,68,68,0.15); color: var(--red);">Cancel</button>' +
+            '</div>';
+        });
+        pendingList.innerHTML = pendingHTML;
+    }
+}
+
+async function sendTeamInvite() {
+    const email = document.getElementById('team-invite-email').value.trim().toLowerCase();
+    const role = document.getElementById('team-invite-role').value;
+    const errEl = document.getElementById('team-invite-error');
+    const btn = document.getElementById('team-invite-btn');
+    errEl.classList.add('hidden');
+
+    if (!email || email.indexOf('@') === -1) {
+        errEl.textContent = 'Enter a valid email address.';
+        errEl.classList.remove('hidden'); return;
+    }
+    if (email === currentUser.email.toLowerCase()) {
+        errEl.textContent = "You can't invite yourself.";
+        errEl.classList.remove('hidden'); return;
+    }
+    if (!canInviteMember()) {
+        errEl.textContent = 'No seats left. Remove a member or upgrade.';
+        errEl.classList.remove('hidden'); return;
+    }
+
+    // Check for duplicate
+    const existing = teamCache.find(function(m) {
+        return m.invite_email.toLowerCase() === email && m.status !== 'removed';
+    });
+    if (existing) {
+        errEl.textContent = 'Already invited or on team.';
+        errEl.classList.remove('hidden'); return;
+    }
+
+    btn.textContent = 'Sending...'; btn.disabled = true;
+
+    const { error } = await supabaseClient.from('team_members').insert([{
+        owner_id: currentUser.id,
+        invite_email: email,
+        role: role,
+        status: 'pending'
+    }]);
+
+    btn.textContent = 'Send Invite'; btn.disabled = false;
+
+    if (error) {
+        errEl.textContent = error.message;
+        errEl.classList.remove('hidden'); return;
+    }
+
+    document.getElementById('team-invite-email').value = '';
+    await loadTeam();
+    renderTeam();
+    showToast('Invite sent to ' + email, 'success');
+}
+
+async function updateTeamRole(id, newRole) {
+    const { error } = await supabaseClient.from('team_members').update({ role: newRole }).eq('id', id);
+    if (error) { showToast('Failed: ' + error.message, 'error'); return; }
+    await loadTeam();
+    renderTeam();
+    showToast('Role updated', 'success');
+}
+
+async function removeTeamMember(id) {
+    if (!confirm('Remove this member from your team?')) return;
+    const { error } = await supabaseClient.from('team_members')
+        .update({ status: 'removed' })
+        .eq('id', id);
+    if (error) { showToast('Failed: ' + error.message, 'error'); return; }
+    await loadTeam();
+    renderTeam();
+    showToast('Member removed', 'success');
+}
+
+async function cancelInvite(id) {
+    if (!confirm('Cancel this invite?')) return;
+    const { error } = await supabaseClient.from('team_members').delete().eq('id', id);
+    if (error) { showToast('Failed: ' + error.message, 'error'); return; }
+    await loadTeam();
+    renderTeam();
+    showToast('Invite cancelled', 'success');
 }
 
 // ============================================
@@ -472,6 +637,8 @@ async function loadProjects() {
     if (loadingEl) loadingEl.classList.remove('hidden');
     if (gridEl) gridEl.classList.add('hidden');
     if (emptyEl) emptyEl.classList.add('hidden');
+
+    // RLS will return: own projects + team projects
     const { data, error } = await supabaseClient.from('projects').select('*').order('created_at', { ascending: false });
     if (loadingEl) loadingEl.classList.add('hidden');
     if (error) { console.error(error.message); return; }
@@ -494,6 +661,7 @@ function renderProjects(projects) {
     let html = '';
     projects.forEach(function(p) {
         const paused = p.status === 'paused';
+        const isOwned = p.owner_id === currentUser.id;
         const statusColor = paused ? 'text-yellow-400 bg-yellow-400/10' : 'text-[#06B6D4] bg-[#06B6D4]/10';
         let repoPill = '';
         if (p.github_repo) {
@@ -501,12 +669,13 @@ function renderProjects(projects) {
             const shortName = parts[1] || p.github_repo;
             repoPill = '<span class="mono flex items-center gap-1"><svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>' + escapeHtml(shortName) + '</span>';
         }
+        const teamBadge = !isOwned ? '<span class="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded" style="background: rgba(139,92,246,0.15); color: #8B5CF6;">Team</span>' : '';
         html += '<div class="feature-card rounded-xl p-5" style="background: var(--surface); border: 1px solid var(--border);' + (paused ? ' opacity: 0.7;' : '') + '" onclick="openProjectDetail(\'' + p.id + '\')">' +
             '<div class="flex items-start justify-between mb-3">' +
                 '<div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background: rgba(79,70,229,0.1); border: 1px solid rgba(79,70,229,0.3);">' +
                     '<svg class="w-5 h-5" style="color: var(--accent);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>' +
                 '</div>' +
-                '<span class="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded ' + statusColor + '">' + (p.status || 'active') + '</span>' +
+                '<div class="flex items-center gap-1">' + teamBadge + '<span class="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded ' + statusColor + '">' + (p.status || 'active') + '</span></div>' +
             '</div>' +
             '<h3 class="font-bold mb-1 truncate" style="color: var(--text);">' + escapeHtml(p.name) + '</h3>' +
             '<p class="text-xs mono mb-3 truncate" style="color: var(--text-muted);">' + escapeHtml(p.slug) + '</p>' +
@@ -561,6 +730,9 @@ async function openProjectDetail(id) {
     const p = projectsCache.find(function(x) { return x.id === id; });
     if (!p) return;
     viewingProjectId = id;
+    const isOwned = p.owner_id === currentUser.id;
+    const canEdit = isOwned; // Only owner can edit/delete for now
+
     document.getElementById('pd-title').textContent = p.name;
     const body = document.getElementById('pd-body');
     const paused = p.status === 'paused';
@@ -579,18 +751,9 @@ async function openProjectDetail(id) {
         '</div>';
     }
 
-    body.innerHTML =
-        '<div class="flex items-center gap-3">' +
-            '<span class="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded ' + (paused ? 'text-yellow-400 bg-yellow-400/10' : 'text-[#06B6D4] bg-[#06B6D4]/10') + '">' + (p.status || 'active') + '</span>' +
-            '<span class="text-xs mono" style="color: var(--text-dim);">' + escapeHtml(p.slug) + '</span>' +
-        '</div>' +
-        '<p class="text-sm" style="color: var(--text-muted);">' + escapeHtml(p.description || 'No description yet.') + '</p>' +
-        '<div class="rounded-lg p-3 text-xs space-y-1" style="background: var(--bg); border: 1px solid var(--border);">' +
-            '<div class="flex justify-between"><span style="color: var(--text-dim);">Created</span><span class="mono" style="color: var(--text-muted);">' + new Date(p.created_at).toLocaleDateString() + '</span></div>' +
-            '<div class="flex justify-between"><span style="color: var(--text-dim);">AI Tokens</span><span class="mono" style="color: var(--text-muted);">' + (Number(p.ai_tokens_used) || 0).toLocaleString() + '</span></div>' +
-        '</div>' +
-        repoBlock +
-        '<div class="space-y-2 pt-2">' +
+    let actionButtons = '';
+    if (canEdit) {
+        actionButtons =
             '<button onclick="openGithubModal(\'' + p.id + '\')" class="w-full text-sm font-bold py-3 rounded-lg flex items-center justify-center gap-2" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">' +
                 '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>' +
                 (p.github_repo ? 'Change Repository' : 'Link GitHub Repo') +
@@ -599,8 +762,26 @@ async function openProjectDetail(id) {
             '<button onclick="toggleProjectPause(\'' + p.id + '\')" class="w-full text-sm font-bold py-3 rounded-lg" style="background: var(--bg); border: 1px solid var(--border); color: ' + (paused ? 'var(--green)' : 'var(--amber)') + ';">' +
                 (paused ? 'Resume Project' : 'Pause Project') +
             '</button>' +
-            '<button onclick="deleteProject(\'' + p.id + '\')" class="w-full text-sm font-bold py-3 rounded-lg bg-red-500/20 border border-red-500/40 text-red-400 hover:bg-red-500/30">Delete Project</button>' +
+            '<button onclick="deleteProject(\'' + p.id + '\')" class="w-full text-sm font-bold py-3 rounded-lg bg-red-500/20 border border-red-500/40 text-red-400 hover:bg-red-500/30">Delete Project</button>';
+    } else {
+        actionButtons = '<div class="rounded-lg p-4 text-center text-xs" style="background: var(--bg); border: 1px solid var(--border); color: var(--text-muted);">' +
+            'You\'re a team member on this project — view only. Only the owner can edit.' +
         '</div>';
+    }
+
+    body.innerHTML =
+        '<div class="flex items-center gap-3 flex-wrap">' +
+            '<span class="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded ' + (paused ? 'text-yellow-400 bg-yellow-400/10' : 'text-[#06B6D4] bg-[#06B6D4]/10') + '">' + (p.status || 'active') + '</span>' +
+            '<span class="text-xs mono" style="color: var(--text-dim);">' + escapeHtml(p.slug) + '</span>' +
+            (!isOwned ? '<span class="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded" style="background: rgba(139,92,246,0.15); color: #8B5CF6;">Team Project</span>' : '') +
+        '</div>' +
+        '<p class="text-sm" style="color: var(--text-muted);">' + escapeHtml(p.description || 'No description yet.') + '</p>' +
+        '<div class="rounded-lg p-3 text-xs space-y-1" style="background: var(--bg); border: 1px solid var(--border);">' +
+            '<div class="flex justify-between"><span style="color: var(--text-dim);">Created</span><span class="mono" style="color: var(--text-muted);">' + new Date(p.created_at).toLocaleDateString() + '</span></div>' +
+            '<div class="flex justify-between"><span style="color: var(--text-dim);">AI Tokens</span><span class="mono" style="color: var(--text-muted);">' + (Number(p.ai_tokens_used) || 0).toLocaleString() + '</span></div>' +
+        '</div>' +
+        repoBlock +
+        '<div class="space-y-2 pt-2">' + actionButtons + '</div>';
 
     document.getElementById('project-detail-modal').classList.remove('hidden');
     if (p.github_repo) refreshRepoInfo(p.github_repo);
@@ -630,6 +811,7 @@ async function refreshRepoInfo(repo) {
 function openProjectEdit(id) {
     const p = projectsCache.find(function(x) { return x.id === id; });
     if (!p) return;
+    if (p.owner_id !== currentUser.id) { showToast('Only the owner can edit', 'error'); return; }
     editingProjectId = id;
     document.getElementById('edit-project-name').value = p.name || '';
     document.getElementById('edit-project-slug').value = p.slug || '';
@@ -670,6 +852,7 @@ async function saveProjectEdit() {
 async function toggleProjectPause(id) {
     const p = projectsCache.find(function(x) { return x.id === id; });
     if (!p) return;
+    if (p.owner_id !== currentUser.id) { showToast('Only the owner can pause', 'error'); return; }
     const newStatus = p.status === 'paused' ? 'active' : 'paused';
     const { error } = await supabaseClient.from('projects').update({ status: newStatus }).eq('id', id);
     if (error) { showToast('Failed: ' + error.message, 'error'); return; }
@@ -681,6 +864,7 @@ async function toggleProjectPause(id) {
 async function deleteProject(id) {
     const p = projectsCache.find(function(x) { return x.id === id; });
     if (!p) return;
+    if (p.owner_id !== currentUser.id) { showToast('Only the owner can delete', 'error'); return; }
     if (!confirm('Permanently delete "' + p.name + '"? This cannot be undone.')) return;
     const { error } = await supabaseClient.from('projects').delete().eq('id', id);
     if (error) { showToast('Failed: ' + error.message, 'error'); return; }
@@ -696,11 +880,9 @@ async function deleteProject(id) {
 function openGithubModal(id) {
     const p = projectsCache.find(function(x) { return x.id === id; });
     if (!p) return;
+    if (p.owner_id !== currentUser.id) { showToast('Only owner can link repo', 'error'); return; }
     if (!p.github_repo && !canLinkRepo()) {
-        if (confirm('Repo limit reached. Upgrade?')) {
-            closeProjectDetail();
-            switchView('billing');
-        }
+        if (confirm('Repo limit reached. Upgrade?')) { closeProjectDetail(); switchView('billing'); }
         return;
     }
     linkingProjectId = id;
@@ -723,23 +905,17 @@ async function saveGithubLink() {
     const btn = document.getElementById('save-gh-btn');
     errEl.classList.add('hidden');
     repo = repo.replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '').replace(/\/$/, '');
-    if (!repo || repo.indexOf('/') === -1) {
-        errEl.textContent = 'Use format: owner/repo';
-        errEl.classList.remove('hidden'); return;
-    }
+    if (!repo || repo.indexOf('/') === -1) { errEl.textContent = 'Use format: owner/repo'; errEl.classList.remove('hidden'); return; }
     btn.textContent = 'Verifying repo...'; btn.disabled = true;
     try {
         const res = await fetch('https://api.github.com/repos/' + repo);
         if (!res.ok) throw new Error(res.status === 404 ? 'Repository not found.' : 'GitHub error ' + res.status);
     } catch (err) {
         btn.textContent = 'Link Repository'; btn.disabled = false;
-        errEl.textContent = err.message;
-        errEl.classList.remove('hidden'); return;
+        errEl.textContent = err.message; errEl.classList.remove('hidden'); return;
     }
     const { error } = await supabaseClient.from('projects').update({
-        github_repo: repo,
-        github_branch: branch,
-        repo_connected_at: new Date().toISOString()
+        github_repo: repo, github_branch: branch, repo_connected_at: new Date().toISOString()
     }).eq('id', linkingProjectId);
     btn.textContent = 'Link Repository'; btn.disabled = false;
     if (error) { errEl.textContent = error.message; errEl.classList.remove('hidden'); return; }
@@ -857,9 +1033,7 @@ function populateQueryConnections() {
     if (!sel) return;
     const current = sel.value;
     let html = '<option value="">— no database selected —</option>';
-    connectionsCache.forEach(function(c) {
-        html += '<option value="' + c.id + '">' + escapeHtml(c.name) + '</option>';
-    });
+    connectionsCache.forEach(function(c) { html += '<option value="' + c.id + '">' + escapeHtml(c.name) + '</option>'; });
     sel.innerHTML = html;
     if (current) sel.value = current;
 }
@@ -909,9 +1083,7 @@ async function generateSQL() {
         const sql = match ? match[1].trim() : raw.trim();
         lastGeneratedSQL = sql;
         outputWrap.classList.remove('hidden');
-        if (/^\s*--\s*WARNING: destructive/i.test(sql) || /\b(DROP|DELETE|TRUNCATE)\b/i.test(sql)) {
-            warningEl.classList.remove('hidden');
-        }
+        if (/^\s*--\s*WARNING: destructive/i.test(sql) || /\b(DROP|DELETE|TRUNCATE)\b/i.test(sql)) warningEl.classList.remove('hidden');
         outputEl.innerHTML = '<pre><code class="language-sql">' + escapeHtml(sql) + '</code></pre>';
         outputEl.querySelectorAll('pre code').forEach(function(b) { hljs.highlightElement(b); });
         const pre = outputEl.querySelector('pre');
@@ -956,10 +1128,8 @@ async function loadQueryHistory() {
     const wrap = document.getElementById('query-history-wrap');
     const list = document.getElementById('query-history-list');
     if (!wrap || !list) return;
-    const { data, error } = await supabaseClient
-        .from('query_history').select('*')
-        .eq('user_id', currentUser.id)
-        .order('created_at', { ascending: false }).limit(10);
+    const { data, error } = await supabaseClient.from('query_history').select('*')
+        .eq('user_id', currentUser.id).order('created_at', { ascending: false }).limit(10);
     if (error) { console.error(error.message); return; }
     if (!data || data.length === 0) { wrap.classList.add('hidden'); return; }
     wrap.classList.remove('hidden');
@@ -986,16 +1156,14 @@ async function loadHistoryItem(id) {
     const warningEl = document.getElementById('query-warning');
     outputWrap.classList.remove('hidden');
     warningEl.classList.add('hidden');
-    if (/^\s*--\s*WARNING: destructive/i.test(data.generated_sql) || /\b(DROP|DELETE|TRUNCATE)\b/i.test(data.generated_sql)) {
-        warningEl.classList.remove('hidden');
-    }
+    if (/^\s*--\s*WARNING: destructive/i.test(data.generated_sql) || /\b(DROP|DELETE|TRUNCATE)\b/i.test(data.generated_sql)) warningEl.classList.remove('hidden');
     outputEl.innerHTML = '<pre><code class="language-sql">' + escapeHtml(data.generated_sql) + '</code></pre>';
     outputEl.querySelectorAll('pre code').forEach(function(b) { hljs.highlightElement(b); });
     outputWrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // ============================================
-// UKMPAY — PLANS
+// UKMPAY
 // ============================================
 
 function switchPayTab(tab) {
@@ -1025,8 +1193,10 @@ function openPlanModal() {
 function closePlanModal() { document.getElementById('plan-modal').classList.add('hidden'); }
 
 function populateProjectSelects() {
+    // Only own projects can have plans
+    const ownProjects = projectsCache.filter(function(p) { return p.owner_id === currentUser.id; });
     let options = '';
-    projectsCache.forEach(function(p) { options += '<option value="' + p.id + '">' + escapeHtml(p.name) + '</option>'; });
+    ownProjects.forEach(function(p) { options += '<option value="' + p.id + '">' + escapeHtml(p.name) + '</option>'; });
     ['plan-project', 'pay-project'].forEach(function(id) {
         const el = document.getElementById(id);
         if (el) el.innerHTML = options;
@@ -1040,13 +1210,10 @@ async function loadPlans() {
     const empty = document.getElementById('pay-empty-plans');
     const grid = document.getElementById('pay-plans-grid');
     if (!data || data.length === 0) {
-        empty.classList.remove('hidden');
-        grid.classList.add('hidden');
-        document.getElementById('pay-plans-count').textContent = '0';
-        return;
+        empty.classList.remove('hidden'); grid.classList.add('hidden');
+        document.getElementById('pay-plans-count').textContent = '0'; return;
     }
-    empty.classList.add('hidden');
-    grid.classList.remove('hidden');
+    empty.classList.add('hidden'); grid.classList.remove('hidden');
     let html = '';
     data.forEach(function(pl) {
         html += '<div class="rounded-xl p-5" style="background: var(--surface); border: 1px solid var(--border);">' +
@@ -1063,9 +1230,7 @@ async function loadPlans() {
     document.getElementById('pay-plans-count').textContent = data.length;
     const payPlanSelect = document.getElementById('pay-plan');
     let planOpts = '<option value="">— none —</option>';
-    data.forEach(function(pl) {
-        planOpts += '<option value="' + pl.id + '">' + escapeHtml(pl.name) + '</option>';
-    });
+    data.forEach(function(pl) { planOpts += '<option value="' + pl.id + '">' + escapeHtml(pl.name) + '</option>'; });
     payPlanSelect.innerHTML = planOpts;
 }
 
@@ -1101,10 +1266,6 @@ async function createPlan() {
     showToast('Plan created', 'success');
 }
 
-// ============================================
-// UKMPAY — PAYMENTS
-// ============================================
-
 function openPaymentModal() {
     if (projectsCache.length === 0) { showToast('Create a project first', 'error'); return; }
     document.getElementById('payment-modal').classList.remove('hidden');
@@ -1133,22 +1294,15 @@ async function loadPayments() {
     const empty = document.getElementById('pay-empty-payments');
     const list = document.getElementById('pay-payments-list');
     if (!data || data.length === 0) {
-        empty.classList.remove('hidden');
-        list.classList.add('hidden');
-        return;
+        empty.classList.remove('hidden'); list.classList.add('hidden'); return;
     }
-    empty.classList.add('hidden');
-    list.classList.remove('hidden');
+    empty.classList.add('hidden'); list.classList.remove('hidden');
     let html = '';
     data.forEach(function(p) {
         html += '<div class="rounded-xl p-4 flex items-center justify-between" style="background: var(--surface); border: 1px solid var(--border);">' +
-            '<div class="flex items-center gap-3 min-w-0">' +
-                '<div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style="background: rgba(6,182,212,0.1); border: 1px solid rgba(6,182,212,0.3);">' +
-                    '<svg class="w-4 h-4" style="color: var(--cyan);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div>' +
-                '<div class="min-w-0">' +
-                    '<p class="text-sm font-medium truncate" style="color: var(--text);">' + escapeHtml(p.customer_email || 'Anonymous') + '</p>' +
-                    '<p class="text-xs mono" style="color: var(--text-dim);">' + new Date(p.paid_at).toLocaleDateString() + ' · ' + escapeHtml(p.provider || 'manual') + '</p>' +
-                '</div>' +
+            '<div class="min-w-0">' +
+                '<p class="text-sm font-medium truncate" style="color: var(--text);">' + escapeHtml(p.customer_email || 'Anonymous') + '</p>' +
+                '<p class="text-xs mono" style="color: var(--text-dim);">' + new Date(p.paid_at).toLocaleDateString() + ' · ' + escapeHtml(p.provider || 'manual') + '</p>' +
             '</div>' +
             '<div class="text-right flex-shrink-0">' +
                 '<div class="font-bold mono" style="color: var(--text);">' + escapeHtml(p.currency) + ' ' + Number(p.amount).toFixed(2) + '</div>' +
@@ -1188,7 +1342,7 @@ async function createPayment() {
 }
 
 // ============================================
-// UKMTABLES — CONNECTIONS
+// UKMTABLES
 // ============================================
 
 function openConnectModal() {
@@ -1205,8 +1359,7 @@ function closeConnectModal() { document.getElementById('connect-modal').classLis
 
 async function loadConnections() {
     if (!currentUser) return;
-    const { data, error } = await supabaseClient
-        .from('connected_databases').select('*').order('created_at', { ascending: false });
+    const { data, error } = await supabaseClient.from('connected_databases').select('*').order('created_at', { ascending: false });
     if (error) { console.error(error.message); return; }
     connectionsCache = data || [];
     renderConnections(connectionsCache);
@@ -1228,12 +1381,9 @@ function renderConnections(connections) {
     document.getElementById('ukmtables-connections-view').classList.remove('hidden');
     document.getElementById('ukmtables-browser').classList.add('hidden');
     if (!connections || connections.length === 0) {
-        empty.classList.remove('hidden');
-        list.classList.add('hidden');
-        return;
+        empty.classList.remove('hidden'); list.classList.add('hidden'); return;
     }
-    empty.classList.add('hidden');
-    list.classList.remove('hidden');
+    empty.classList.add('hidden'); list.classList.remove('hidden');
     let html = '';
     connections.forEach(function(c) {
         html += '<div class="rounded-xl p-4 flex items-center justify-between" style="background: var(--surface); border: 1px solid var(--border);">' +
@@ -1260,14 +1410,8 @@ async function createConnection() {
     const errEl = document.getElementById('connect-error');
     const btn = document.getElementById('create-connect-btn');
     errEl.classList.add('hidden');
-    if (!name || !url || !key) {
-        errEl.textContent = 'All fields are required.';
-        errEl.classList.remove('hidden'); return;
-    }
-    if (!canCreateConnection()) {
-        errEl.textContent = 'Plan limit reached.';
-        errEl.classList.remove('hidden'); return;
-    }
+    if (!name || !url || !key) { errEl.textContent = 'All fields are required.'; errEl.classList.remove('hidden'); return; }
+    if (!canCreateConnection()) { errEl.textContent = 'Plan limit reached.'; errEl.classList.remove('hidden'); return; }
     btn.innerText = 'Testing connection...'; btn.disabled = true;
     try {
         const testRes = await fetch(url + '/rest/v1/profiles?select=id&limit=1', { headers: getHeaders(key) });
@@ -1275,12 +1419,10 @@ async function createConnection() {
         if (testRes.status === 404) throw new Error('Endpoint not reachable.');
     } catch (err) {
         btn.innerText = 'Connect'; btn.disabled = false;
-        errEl.textContent = err.message;
-        errEl.classList.remove('hidden'); return;
+        errEl.textContent = err.message; errEl.classList.remove('hidden'); return;
     }
     const { error } = await supabaseClient.from('connected_databases').insert([{
-        owner_id: currentUser.id, name: name,
-        supabase_url: url, supabase_anon_key: key
+        owner_id: currentUser.id, name: name, supabase_url: url, supabase_anon_key: key
     }]);
     btn.innerText = 'Connect'; btn.disabled = false;
     if (error) { errEl.textContent = error.message; errEl.classList.remove('hidden'); return; }
@@ -1299,15 +1441,10 @@ async function deleteConnection(id) {
     showToast('Connection deleted', 'success');
 }
 
-// ============================================
-// UKMTABLES — BROWSER
-// ============================================
-
 async function openConnection(id) {
     const conn = connectionsCache.find(function(c) { return c.id === id; });
     if (!conn) return;
     activeConnection = conn;
-    activeTable = null;
     const title = document.getElementById('ukmtables-title');
     const subtitle = document.getElementById('ukmtables-subtitle');
     const actionBtn = document.getElementById('ukmtables-action');
@@ -1330,7 +1467,7 @@ async function openConnection(id) {
         let tables = [];
         if (spec) tables = Object.keys(spec.definitions || (spec.components && spec.components.schemas) || {}).sort();
         if (tables.length === 0) {
-            const candidates = ['profiles', 'projects', 'plans', 'payments', 'subscriptions', 'usage_metrics', 'waitlist', 'connected_databases', 'upgrade_requests', 'query_history'];
+            const candidates = ['profiles', 'projects', 'plans', 'payments', 'subscriptions', 'usage_metrics', 'waitlist', 'connected_databases', 'upgrade_requests', 'query_history', 'team_members'];
             for (let i = 0; i < candidates.length; i++) {
                 try {
                     const r = await fetch(conn.supabase_url + '/rest/v1/' + candidates[i] + '?select=*&limit=1', { headers: getHeaders(conn.supabase_anon_key) });
@@ -1361,7 +1498,6 @@ async function openConnection(id) {
 
 function exitTableBrowser() {
     activeConnection = null;
-    activeTable = null;
     document.getElementById('ukmtables-connections-view').classList.remove('hidden');
     document.getElementById('ukmtables-browser').classList.add('hidden');
     renderConnections(connectionsCache);
@@ -1369,7 +1505,6 @@ function exitTableBrowser() {
 
 async function selectTable(tableName) {
     if (!activeConnection) return;
-    activeTable = tableName;
     document.querySelectorAll('.table-pill').forEach(function(p) {
         if (p.dataset.table === tableName) p.classList.add('active');
         else p.classList.remove('active');
@@ -1444,22 +1579,31 @@ function renderBilling() {
         roleTag.classList.remove('hidden');
         roleTag.classList.add('role-' + currentProfile.role);
         roleTag.textContent = currentProfile.role;
-    } else {
-        roleTag.classList.add('hidden');
-    }
+    } else { roleTag.classList.add('hidden'); }
+
     const limits = getLimits();
     const projPct = limits.projects >= 999 ? 5 : Math.min(100, (projectsCache.length / limits.projects) * 100);
     document.getElementById('billing-projects-label').textContent = projectsCache.length + ' / ' + (limits.projects >= 999 ? '∞' : limits.projects);
     document.getElementById('billing-projects-bar').style.width = projPct + '%';
+
     const connPct = limits.connections >= 999 ? 5 : Math.min(100, (connectionsCache.length / limits.connections) * 100);
     document.getElementById('billing-connections-label').textContent = connectionsCache.length + ' / ' + (limits.connections >= 999 ? '∞' : limits.connections);
     document.getElementById('billing-connections-bar').style.width = connPct + '%';
-    const reposLinked = projectsCache.filter(function(p) { return p.github_repo; }).length;
+
+    const reposLinked = projectsCache.filter(function(p) { return p.github_repo && p.owner_id === currentUser.id; }).length;
     const repoPct = limits.repos >= 999 ? 5 : Math.min(100, (reposLinked / limits.repos) * 100);
     const repoLabel = document.getElementById('billing-repos-label');
     if (repoLabel) repoLabel.textContent = reposLinked + ' / ' + (limits.repos >= 999 ? '∞' : limits.repos);
     const repoBar = document.getElementById('billing-repos-bar');
     if (repoBar) repoBar.style.width = repoPct + '%';
+
+    const seatsUsed = getTeamSeatsUsed() + teamCache.filter(function(m) { return m.status === 'pending'; }).length;
+    const seatPct = limits.seats >= 999 ? 5 : Math.min(100, (seatsUsed / limits.seats) * 100);
+    const seatLabel = document.getElementById('billing-seats-label');
+    if (seatLabel) seatLabel.textContent = seatsUsed + ' / ' + (limits.seats >= 999 ? '∞' : limits.seats);
+    const seatBar = document.getElementById('billing-seats-bar');
+    if (seatBar) seatBar.style.width = seatPct + '%';
+
     const tokensUsed = projectsCache.reduce(function(s, p) { return s + (Number(p.ai_tokens_used) || 0); }, 0);
     const tokenLimit = STAFF_ROLES.indexOf(currentProfile.role) !== -1 ? 999999 : (currentProfile.plan === 'pro' ? 500000 : currentProfile.plan === 'team' ? 2000000 : 100000);
     const tokenPct = Math.min(100, (tokensUsed / tokenLimit) * 100);
@@ -1515,8 +1659,7 @@ async function loadMyUpgradeRequests() {
     const wrap = document.getElementById('billing-my-requests');
     const list = document.getElementById('billing-requests-list');
     if (!wrap) return;
-    const { data, error } = await supabaseClient
-        .from('upgrade_requests').select('*')
+    const { data, error } = await supabaseClient.from('upgrade_requests').select('*')
         .eq('user_id', currentUser.id).order('created_at', { ascending: false });
     if (error) { console.error(error.message); return; }
     if (!data || data.length === 0) { wrap.classList.add('hidden'); return; }
@@ -1544,7 +1687,7 @@ async function loadOwnerConsole() {
         switchView('overview');
         return;
     }
-    await Promise.all([loadAllUsers(), loadAllProjectsForOwner(), loadAllPaymentsForOwner(), loadAllRequestsForOwner()]);
+    await Promise.all([loadAllUsers(), loadAllProjectsForOwner(), loadAllPaymentsForOwner(), loadAllRequestsForOwner(), loadAllTeamsForOwner()]);
     updateOwnerStats();
 }
 
@@ -1552,7 +1695,7 @@ async function loadAllUsers() {
     const list = document.getElementById('owner-users-list');
     const { data, error } = await supabaseClient.from('profiles').select('*').order('created_at', { ascending: false });
     list.classList.remove('hidden');
-    if (error) { list.innerHTML = '<div class="text-xs p-4 rounded-xl" style="color: var(--red); background: rgba(239,68,68,0.1);">' + escapeHtml(error.message) + '</div>'; return; }
+    if (error) { list.innerHTML = '<p class="text-sm" style="color: var(--red);">' + escapeHtml(error.message) + '</p>'; return; }
     allUsersCache = data || [];
     if (allUsersCache.length === 0) { list.innerHTML = '<p class="text-sm text-center py-8" style="color: var(--text-muted);">No users yet.</p>'; return; }
     let html = '';
@@ -1678,32 +1821,73 @@ async function loadAllRequestsForOwner() {
     list.innerHTML = html;
 }
 
+async function loadAllTeamsForOwner() {
+    const list = document.getElementById('owner-teams-list');
+    const { data, error } = await supabaseClient.from('team_members').select('*').order('invited_at', { ascending: false });
+    list.classList.remove('hidden');
+    if (error) { list.innerHTML = '<p class="text-sm" style="color: var(--red);">' + escapeHtml(error.message) + '</p>'; return; }
+    if (!data || data.length === 0) { list.innerHTML = '<p class="text-sm text-center py-8" style="color: var(--text-muted);">No teams yet.</p>'; return; }
+
+    // Group by owner
+    const grouped = {};
+    data.forEach(function(m) {
+        if (!grouped[m.owner_id]) grouped[m.owner_id] = [];
+        grouped[m.owner_id].push(m);
+    });
+
+    const userMap = {};
+    allUsersCache.forEach(function(u) { userMap[u.id] = u; });
+
+    let html = '';
+    Object.keys(grouped).forEach(function(ownerId) {
+        const owner = userMap[ownerId] || {};
+        const members = grouped[ownerId];
+        const active = members.filter(function(m) { return m.status === 'active'; }).length;
+        const pending = members.filter(function(m) { return m.status === 'pending'; }).length;
+
+        html += '<div class="rounded-xl p-4" style="background: var(--surface); border: 1px solid var(--border);">' +
+            '<div class="flex items-start justify-between mb-3">' +
+                '<div class="min-w-0">' +
+                    '<p class="font-bold truncate" style="color: var(--text);">' + escapeHtml(owner.full_name || owner.username || 'Unknown') + '</p>' +
+                    '<p class="text-xs mono truncate" style="color: var(--text-dim);">' + escapeHtml(owner.email || ownerId) + '</p>' +
+                '</div>' +
+                '<span class="text-[10px] font-bold uppercase px-2 py-1 rounded flex-shrink-0" style="background: rgba(139,92,246,0.15); color: #8B5CF6;">' + (active + 1) + ' seats</span>' +
+            '</div>' +
+            '<div class="text-xs space-y-1" style="color: var(--text-muted);">' +
+                '<div>Active members: <span class="font-bold" style="color: var(--text);">' + active + '</span></div>' +
+                '<div>Pending invites: <span class="font-bold" style="color: var(--text);">' + pending + '</span></div>' +
+            '</div>' +
+        '</div>';
+    });
+    list.innerHTML = html;
+}
+
 async function updateOwnerStats() {
     const { count: userCount } = await supabaseClient.from('profiles').select('*', { count: 'exact', head: true });
     const { count: projectCount } = await supabaseClient.from('projects').select('*', { count: 'exact', head: true });
     const { data: payments } = await supabaseClient.from('payments').select('amount').eq('status', 'paid');
-    const { count: pendingCount } = await supabaseClient.from('upgrade_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending');
+    const { data: teams } = await supabaseClient.from('team_members').select('owner_id').eq('status', 'active');
+    const uniqueOwners = new Set((teams || []).map(function(t) { return t.owner_id; }));
     const revenue = (payments || []).reduce(function(s, p) { return s + Number(p.amount || 0); }, 0);
     document.getElementById('owner-stat-users').textContent = userCount || '—';
     document.getElementById('owner-stat-projects').textContent = projectCount || '—';
     document.getElementById('owner-stat-revenue').textContent = '$' + revenue.toFixed(2);
-    document.getElementById('owner-stat-pending').textContent = pendingCount || '—';
+    document.getElementById('owner-stat-teams').textContent = uniqueOwners.size || '—';
 }
 
 function switchOwnerTab(tab) {
-    const panels = { users: 'owner-users-panel', projects: 'owner-projects-panel', payments: 'owner-payments-panel', requests: 'owner-requests-panel' };
-    const tabs = { users: 'owner-tab-users', projects: 'owner-tab-projects', payments: 'owner-tab-payments', requests: 'owner-tab-requests' };
+    const panels = { users: 'owner-users-panel', projects: 'owner-projects-panel', payments: 'owner-payments-panel', requests: 'owner-requests-panel', teams: 'owner-teams-panel' };
+    const tabs = { users: 'owner-tab-users', projects: 'owner-tab-projects', payments: 'owner-tab-payments', requests: 'owner-tab-requests', teams: 'owner-tab-teams' };
     Object.keys(panels).forEach(function(k) {
         const panel = document.getElementById(panels[k]);
         const tabEl = document.getElementById(tabs[k]);
+        if (!panel || !tabEl) return;
         if (k === tab) {
             panel.classList.remove('hidden');
-            tabEl.style.color = 'var(--text)';
-            tabEl.style.borderBottom = '2px solid var(--accent)';
+            tabEl.style.color = 'var(--text)'; tabEl.style.borderBottom = '2px solid var(--accent)';
         } else {
             panel.classList.add('hidden');
-            tabEl.style.color = 'var(--text-muted)';
-            tabEl.style.borderBottom = 'none';
+            tabEl.style.color = 'var(--text-muted)'; tabEl.style.borderBottom = 'none';
         }
     });
 }
@@ -1711,8 +1895,7 @@ function switchOwnerTab(tab) {
 async function updateUserRole(userId, newRole) {
     if (userId === currentUser.id && currentProfile.role === 'owner' && newRole !== 'owner') {
         showToast("Can't demote yourself as owner", 'error');
-        await loadAllUsers();
-        return;
+        await loadAllUsers(); return;
     }
     const { error } = await supabaseClient.from('profiles').update({ role: newRole }).eq('id', userId);
     if (error) { showToast('Failed: ' + error.message, 'error'); await loadAllUsers(); return; }
