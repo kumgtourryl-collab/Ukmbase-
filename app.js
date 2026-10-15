@@ -1,8 +1,8 @@
-// UKMBASE APP.JS — v501
-// If you don't see this version number in DevTools Sources, the browser is caching an old copy.
+// UKMBASE APP.JS — v503
+// Bump this version + the script src version in index.html on every update
 
 // ============================================
-// UKMBASE APP LOGIC — SESSION 1 (ROLES)
+// CONFIG & CLIENT
 // ============================================
 
 const SUPABASE_URL = 'https://dwjyzqsrzdgnpwibnyjn.supabase.co';
@@ -141,10 +141,8 @@ async function showDashboardView(user) {
     if (user && user.email) userEmailDisplay.textContent = user.email;
     currentUser = user;
 
-    // Load profile FIRST so role badge renders immediately
     await loadProfile();
 
-    // Then the rest in parallel
     loadProjects().then(() => {
         loadPayments();
         loadPlans();
@@ -179,32 +177,22 @@ function switchView(view) {
 // ============================================
 
 function renderRoleBadge(role) {
-    console.log('[Ukmbase] renderRoleBadge called with role:', role);
-
     const badge = document.getElementById('role-badge');
-    if (!badge) {
-        console.warn('[Ukmbase] #role-badge element not found');
-        return;
-    }
+    if (!badge) return;
 
-    // Reset all role classes
     badge.classList.remove('role-owner', 'role-admin', 'role-support', 'hidden');
 
-    // Hide for normal users
     if (!role || role === 'user') {
         badge.classList.add('hidden');
         return;
     }
 
-    // Show with role-specific styling
     badge.classList.add('role-' + role);
     badge.textContent = role.charAt(0).toUpperCase() + role.slice(1);
-    console.log('[Ukmbase] Badge shown as:', role);
 }
 
 async function loadProfile() {
     if (!currentUser) return;
-    console.log('[Ukmbase] Loading profile for:', currentUser.id);
 
     const { data, error } = await supabaseClient
         .from('profiles')
@@ -217,13 +205,9 @@ async function loadProfile() {
         return;
     }
 
-    console.log('[Ukmbase] Profile loaded:', data);
     currentProfile = data;
-
-    // Render the role badge immediately
     renderRoleBadge(data.role);
 
-    // Update last_login_at (fire and forget)
     supabaseClient.from('profiles')
         .update({ last_login_at: new Date().toISOString() })
         .eq('id', currentUser.id)
@@ -359,6 +343,25 @@ async function handleSignup() {
     if (error) { errEl.textContent = error.message; errEl.classList.remove('hidden'); }
     else if (data.session) { showDashboardView(data.user); }
     else { succEl.textContent = 'Account created! Check your email to confirm.'; succEl.classList.remove('hidden'); }
+}
+
+async function signInWithProvider(provider) {
+    const errEl = document.getElementById('auth-error');
+    const succEl = document.getElementById('auth-success');
+    errEl.classList.add('hidden'); succEl.classList.add('hidden');
+
+    const { error } = await supabaseClient.auth.signInWithOAuth({
+        provider,
+        options: {
+            redirectTo: window.location.origin + window.location.pathname
+        }
+    });
+
+    if (error) {
+        errEl.textContent = error.message;
+        errEl.classList.remove('hidden');
+    }
+    // On success, browser redirects to Google/GitHub consent screen
 }
 
 async function handleLogout() {
