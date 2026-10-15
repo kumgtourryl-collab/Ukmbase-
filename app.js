@@ -1,4 +1,4 @@
-// UKMBASE APP.JS — v504 (Owner Console)
+// UKMBASE APP.JS — v505 (Billing)
 
 const SUPABASE_URL = 'https://dwjyzqsrzdgnpwibnyjn.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_4vcPyg62OqmfwNaHxx0CGA_a7O0_NJV';
@@ -13,6 +13,13 @@ const PLAN_LIMITS = {
 };
 
 const STAFF_ROLES = ['owner', 'admin', 'support'];
+
+const PLAN_PRICES = {
+    free: { usd: 0, label: '$0/mo' },
+    pro: { usd: 19, label: '$19/mo', africa: '$5/mo' },
+    team: { usd: 79, label: '$79/mo' },
+    enterprise: { usd: null, label: 'Custom' },
+};
 
 const landingView = document.getElementById('landing-view');
 const authView = document.getElementById('auth-view');
@@ -29,6 +36,7 @@ let activeConnection = null;
 let activeTable = null;
 let activeSchema = null;
 let authMode = 'login';
+let currentUpgradePlan = null;
 
 // ============================================
 // HEADERS HELPER
@@ -67,12 +75,10 @@ function canCreateConnection() {
 function setAuthMode(mode) {
     authMode = mode;
     const isSignup = mode === 'signup';
-
     document.getElementById('field-fullname').classList.toggle('hidden', !isSignup);
     document.getElementById('field-confirm').classList.toggle('hidden', !isSignup);
     document.getElementById('strength-meter').classList.toggle('hidden', !isSignup);
     document.getElementById('auth-submit').textContent = isSignup ? 'Create Account' : 'Sign In';
-
     document.getElementById('tab-login').classList.toggle('active', !isSignup);
     document.getElementById('tab-signup').classList.toggle('active', isSignup);
     document.getElementById('auth-error').classList.add('hidden');
@@ -98,10 +104,8 @@ function updateStrength() {
     if (/\d/.test(pwd)) score++;
     if (/[^A-Za-z0-9]/.test(pwd)) score++;
     if (pwd.length >= 12) score++;
-
     const colors = ['#EF4444', '#EF4444', '#F59E0B', '#06B6D4', '#10B981', '#10B981'];
     const labels = ['Too short', 'Weak', 'Fair', 'Good', 'Strong', 'Excellent'];
-
     for (let i = 1; i <= 5; i++) {
         const bar = document.getElementById('sb-' + i);
         bar.style.background = i <= score ? colors[score] : '#2A3347';
@@ -136,20 +140,18 @@ async function showDashboardView(user) {
     dashboardView.classList.remove('hidden');
     if (user && user.email) userEmailDisplay.textContent = user.email;
     currentUser = user;
-
     await loadProfile();
-
     loadProjects().then(() => {
         loadPayments();
         loadPlans();
         loadConnections();
+        loadMyUpgradeRequests();
     });
-
     switchView('overview');
 }
 
 function switchView(view) {
-    const views = ['overview', 'ukmai', 'ukmtables', 'ukmpay', 'settings', 'owner'];
+    const views = ['overview', 'ukmai', 'ukmtables', 'ukmpay', 'billing', 'settings', 'owner'];
     views.forEach(v => {
         const el = document.getElementById('view-' + v);
         const nav = document.getElementById('nav-' + v);
@@ -161,10 +163,10 @@ function switchView(view) {
             if (nav) { nav.classList.remove('sidebar-active', 'text-white'); nav.classList.add('text-[#94A3B8]'); }
         }
     });
-
     if (view === 'ukmpay') { loadPayments(); loadPlans(); }
     if (view === 'ukmtables') { loadConnections(); }
     if (view === 'settings') { renderSettings(); }
+    if (view === 'billing') { renderBilling(); }
     if (view === 'owner') { loadOwnerConsole(); }
     document.getElementById('sidebar').classList.add('-translate-x-full');
 }
@@ -177,50 +179,31 @@ function renderRoleBadge(role) {
     const badge = document.getElementById('role-badge');
     const navOwnerWrap = document.getElementById('nav-owner-wrap');
     if (!badge) return;
-
     badge.classList.remove('role-owner', 'role-admin', 'role-support', 'hidden');
-
     const isStaff = STAFF_ROLES.includes(role);
-
     if (!role || role === 'user') {
         badge.classList.add('hidden');
     } else {
         badge.classList.add('role-' + role);
         badge.textContent = role.charAt(0).toUpperCase() + role.slice(1);
     }
-
-    // Show/hide Owner Console sidebar item
-    if (navOwnerWrap) {
-        navOwnerWrap.classList.toggle('hidden', !isStaff);
-    }
+    if (navOwnerWrap) navOwnerWrap.classList.toggle('hidden', !isStaff);
 }
 
 async function loadProfile() {
     if (!currentUser) return;
-
     const { data, error } = await supabaseClient
-        .from('profiles')
-        .select('*')
-        .eq('id', currentUser.id)
-        .single();
-
-    if (error) {
-        console.error('[Ukmbase] Profile load error:', error.message);
-        return;
-    }
-
+        .from('profiles').select('*').eq('id', currentUser.id).single();
+    if (error) { console.error('[Ukmbase] Profile load error:', error.message); return; }
     currentProfile = data;
     renderRoleBadge(data.role);
-
     supabaseClient.from('profiles')
         .update({ last_login_at: new Date().toISOString() })
-        .eq('id', currentUser.id)
-        .then(() => {});
+        .eq('id', currentUser.id).then(() => {});
 }
 
 function renderSettings() {
     if (!currentProfile) return;
-
     const initial = (currentProfile.full_name || currentProfile.username || 'U').charAt(0).toUpperCase();
     document.getElementById('settings-initial').textContent = initial;
     document.getElementById('settings-display-name').textContent = currentProfile.full_name || currentProfile.username || 'User';
@@ -237,16 +220,13 @@ function renderSettings() {
         roleTag.classList.add('role-' + role);
         roleTag.textContent = role.charAt(0).toUpperCase() + role.slice(1);
     }
-
     document.getElementById('settings-fullname').value = currentProfile.full_name || '';
     document.getElementById('settings-username').value = currentProfile.username || '';
     document.getElementById('settings-phone').value = currentProfile.phone || '';
     document.getElementById('settings-country').value = currentProfile.country || '';
 
     const limits = getLimits();
-    const displayPlan = STAFF_ROLES.includes(currentProfile.role)
-        ? currentProfile.role
-        : (currentProfile.plan || 'free');
+    const displayPlan = STAFF_ROLES.includes(currentProfile.role) ? currentProfile.role : (currentProfile.plan || 'free');
     document.getElementById('settings-plan-2').textContent = displayPlan;
     document.getElementById('settings-limit-projects').textContent =
         `${projectsCache.length} / ${limits.projects >= 999 ? '∞' : limits.projects}`;
@@ -268,23 +248,16 @@ async function saveProfile() {
         errEl.textContent = 'Full name and username are required.';
         errEl.classList.remove('hidden'); return;
     }
-
     btn.textContent = 'Saving...'; btn.disabled = true;
-
     const { error } = await supabaseClient
         .from('profiles')
         .update({ full_name, username, phone: phone || null, country: country || null })
         .eq('id', currentUser.id);
-
     btn.textContent = 'Save Changes'; btn.disabled = false;
-
     if (error) {
-        errEl.textContent = error.message.includes('duplicate')
-            ? 'That username is taken.'
-            : error.message;
+        errEl.textContent = error.message.includes('duplicate') ? 'That username is taken.' : error.message;
         errEl.classList.remove('hidden'); return;
     }
-
     succEl.textContent = 'Profile saved.';
     succEl.classList.remove('hidden');
     await loadProfile();
@@ -306,12 +279,10 @@ async function handleLogin() {
     const errEl = document.getElementById('auth-error');
     const succEl = document.getElementById('auth-success');
     errEl.classList.add('hidden'); succEl.classList.add('hidden');
-
     if (!email || !password) {
         errEl.textContent = 'Please fill in all fields.';
         errEl.classList.remove('hidden'); return;
     }
-
     const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
     if (error) { errEl.textContent = error.message; errEl.classList.remove('hidden'); }
     else { showDashboardView(data.user); }
@@ -338,12 +309,10 @@ async function handleSignup() {
         errEl.textContent = 'Password must be at least 8 characters.';
         errEl.classList.remove('hidden'); return;
     }
-
     const { data, error } = await supabaseClient.auth.signUp({
         email, password,
         options: { data: { full_name: fullName } }
     });
-
     if (error) { errEl.textContent = error.message; errEl.classList.remove('hidden'); }
     else if (data.session) { showDashboardView(data.user); }
     else { succEl.textContent = 'Account created! Check your email to confirm.'; succEl.classList.remove('hidden'); }
@@ -353,18 +322,11 @@ async function signInWithProvider(provider) {
     const errEl = document.getElementById('auth-error');
     const succEl = document.getElementById('auth-success');
     errEl.classList.add('hidden'); succEl.classList.add('hidden');
-
     const { error } = await supabaseClient.auth.signInWithOAuth({
         provider,
-        options: {
-            redirectTo: window.location.origin + window.location.pathname
-        }
+        options: { redirectTo: window.location.origin + window.location.pathname }
     });
-
-    if (error) {
-        errEl.textContent = error.message;
-        errEl.classList.remove('hidden');
-    }
+    if (error) { errEl.textContent = error.message; errEl.classList.remove('hidden'); }
 }
 
 async function handleLogout() {
@@ -387,7 +349,6 @@ async function joinWaitlist() {
     if (!email) return alert('Please enter your email.');
     submitBtn.innerText = 'Joining...';
     submitBtn.disabled = true;
-
     const { error } = await supabaseClient.from('waitlist').insert([{ email }]);
     if (error) {
         alert('Error: ' + error.message);
@@ -413,7 +374,9 @@ function toggleSidebar() {
 
 function openProjectModal() {
     if (!canCreateProject()) {
-        alert(`You've reached your plan limit. Upgrade to add more.`);
+        if (confirm(`You've reached your plan limit (${getLimits().projects} projects). Upgrade to add more?`)) {
+            switchView('billing');
+        }
         return;
     }
     document.getElementById('project-modal').classList.remove('hidden');
@@ -444,7 +407,6 @@ async function loadProjects() {
 function renderProjects(projects) {
     const emptyState = document.getElementById('empty-state');
     let grid = document.getElementById('projects-grid');
-
     if (!projects || projects.length === 0) {
         emptyState.classList.remove('hidden');
         if (grid) grid.classList.add('hidden');
@@ -491,20 +453,15 @@ async function createProject() {
     const description = document.getElementById('project-description').value.trim();
     const errEl = document.getElementById('modal-error');
     const btn = document.getElementById('create-project-btn');
-
     errEl.classList.add('hidden');
     if (!name || !slug) { errEl.textContent = 'Project name is required.'; errEl.classList.remove('hidden'); return; }
     if (!canCreateProject()) { errEl.textContent = 'Plan limit reached.'; errEl.classList.remove('hidden'); return; }
-
     btn.innerText = 'Forging...'; btn.disabled = true;
-
     const { error } = await supabaseClient.from('projects').insert([{
         owner_id: currentUser.id, name, slug,
         description: description || null, status: 'active'
     }]);
-
     btn.innerText = 'Forge Project'; btn.disabled = false;
-
     if (error) {
         errEl.textContent = error.message.includes('duplicate') ? 'That slug is already taken.' : error.message;
         errEl.classList.remove('hidden'); return;
@@ -531,19 +488,14 @@ async function sendChat() {
     const sendBtn = document.getElementById('chat-send');
     const prompt = input.value.trim();
     if (!prompt) return;
-
     input.value = ''; input.style.height = 'auto'; sendBtn.disabled = true;
     appendMessage('user', prompt);
     const typingId = appendTypingIndicator();
-
     try {
         const { data: { session } } = await supabaseClient.auth.getSession();
         const res = await fetch(`${SUPABASE_URL}/functions/v1/ukmai`, {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${session.access_token}`,
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Authorization': `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({ prompt })
         });
         const data = await res.json();
@@ -567,7 +519,6 @@ function appendMessage(role, content) {
     if (container.querySelector('.text-center')) container.innerHTML = '';
     const wrapper = document.createElement('div');
     wrapper.className = 'flex gap-3 max-w-3xl mx-auto';
-
     if (role === 'user') {
         wrapper.className += ' flex-row-reverse';
         wrapper.innerHTML = `
@@ -635,7 +586,6 @@ function switchPayTab(tab) {
     const payPanel = document.getElementById('pay-payments-panel');
     const plansTab = document.getElementById('pay-tab-plans');
     const payTab = document.getElementById('pay-tab-payments');
-
     if (tab === 'plans') {
         plansPanel.classList.remove('hidden'); payPanel.classList.add('hidden');
         plansTab.classList.add('text-white', 'border-b-2', 'border-[#4F46E5]');
@@ -673,17 +623,14 @@ async function loadPlans() {
     if (!currentUser) return;
     const { data, error } = await supabaseClient.from('plans').select('*').order('created_at', { ascending: false });
     if (error) { console.error(error.message); return; }
-
     const empty = document.getElementById('pay-empty-plans');
     let grid = document.getElementById('pay-plans-grid');
-
     if (!data || data.length === 0) {
         empty.classList.remove('hidden');
         if (grid) grid.classList.add('hidden');
         document.getElementById('pay-plans-count').textContent = '0';
         return;
     }
-
     empty.classList.add('hidden');
     if (!grid) {
         grid = document.createElement('div');
@@ -703,9 +650,7 @@ async function loadPlans() {
             ${pl.checkout_url ? `<button onclick="copyCheckout('${escapeHtml(pl.checkout_url)}')" class="w-full bg-[#4F46E5]/10 border border-[#4F46E5]/30 hover:border-[#4F46E5] text-[#06B6D4] text-xs font-bold py-2 rounded-lg transition-colors">Copy Checkout Link</button>` : `<p class="text-[#64748B] text-xs">No checkout link set</p>`}
         </div>
     `).join('');
-
     document.getElementById('pay-plans-count').textContent = data.length;
-
     const payPlanSelect = document.getElementById('pay-plan');
     payPlanSelect.innerHTML = '<option value="">— none —</option>' + data.map(pl =>
         `<option value="${pl.id}">${escapeHtml(pl.name)} (${escapeHtml(pl.currency)} ${pl.price_amount})</option>`
@@ -725,25 +670,20 @@ async function createPlan() {
     const interval = document.getElementById('plan-interval').value;
     const provider = document.getElementById('plan-provider').value;
     const checkout_url = document.getElementById('plan-url').value.trim();
-
     const errEl = document.getElementById('plan-error');
     const btn = document.getElementById('create-plan-btn');
     errEl.classList.add('hidden');
-
     if (!project_id || !name || isNaN(price_amount)) {
         errEl.textContent = 'Project, name, and price are required.';
         errEl.classList.remove('hidden'); return;
     }
-
     btn.innerText = 'Creating...'; btn.disabled = true;
     const { error } = await supabaseClient.from('plans').insert([{
         project_id, name, price_amount, currency, interval, provider,
         checkout_url: checkout_url || null, active: true
     }]);
     btn.innerText = 'Create Plan'; btn.disabled = false;
-
     if (error) { errEl.textContent = error.message; errEl.classList.remove('hidden'); return; }
-
     closePlanModal();
     await loadPlans();
 }
@@ -766,22 +706,18 @@ async function loadPayments() {
     if (!currentUser) return;
     const { data, error } = await supabaseClient.from('payments').select('*').order('paid_at', { ascending: false });
     if (error) { console.error(error.message); return; }
-
     const total = (data || []).filter(p => p.status === 'paid').reduce((s, p) => s + Number(p.amount), 0);
     const now = new Date();
     const monthly = (data || []).filter(p => {
         const d = new Date(p.paid_at);
         return p.status === 'paid' && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
     }).reduce((s, p) => s + Number(p.amount), 0);
-
     document.getElementById('pay-total').textContent = '$' + total.toFixed(2);
     document.getElementById('pay-month').textContent = '$' + monthly.toFixed(2);
     const statRev = document.getElementById('stat-revenue');
     if (statRev) statRev.textContent = '$' + total.toFixed(2);
-
     const empty = document.getElementById('pay-empty-payments');
     const list = document.getElementById('pay-payments-list');
-
     if (!data || data.length === 0) {
         empty.classList.remove('hidden');
         if (list) list.classList.add('hidden');
@@ -816,16 +752,13 @@ async function createPayment() {
     const amount = parseFloat(document.getElementById('pay-amount').value);
     const currency = document.getElementById('pay-currency').value;
     const provider = document.getElementById('pay-provider').value;
-
     const errEl = document.getElementById('payment-error');
     const btn = document.getElementById('create-payment-btn');
     errEl.classList.add('hidden');
-
     if (!project_id || isNaN(amount)) {
         errEl.textContent = 'Project and amount are required.';
         errEl.classList.remove('hidden'); return;
     }
-
     btn.innerText = 'Logging...'; btn.disabled = true;
     const { error } = await supabaseClient.from('payments').insert([{
         project_id, plan_id: plan_id || null,
@@ -833,9 +766,7 @@ async function createPayment() {
         amount, currency, provider, status: 'paid', paid_at: new Date().toISOString()
     }]);
     btn.innerText = 'Log Payment'; btn.disabled = false;
-
     if (error) { errEl.textContent = error.message; errEl.classList.remove('hidden'); return; }
-
     closePaymentModal();
     await loadPayments();
 }
@@ -846,7 +777,9 @@ async function createPayment() {
 
 function openConnectModal() {
     if (!canCreateConnection()) {
-        alert(`You've reached your plan limit. Upgrade to add more.`);
+        if (confirm(`You've reached your plan limit (${getLimits().connections} connections). Upgrade to add more?`)) {
+            switchView('billing');
+        }
         return;
     }
     document.getElementById('connect-modal').classList.remove('hidden');
@@ -859,10 +792,7 @@ function closeConnectModal() { document.getElementById('connect-modal').classLis
 async function loadConnections() {
     if (!currentUser) return;
     const { data, error } = await supabaseClient
-        .from('connected_databases')
-        .select('*')
-        .order('created_at', { ascending: false });
-
+        .from('connected_databases').select('*').order('created_at', { ascending: false });
     if (error) { console.error(error.message); return; }
     connectionsCache = data || [];
     renderConnections(connectionsCache);
@@ -875,22 +805,18 @@ function renderConnections(connections) {
     const subtitle = document.getElementById('ukmtables-subtitle');
     const actionBtn = document.getElementById('ukmtables-action');
     const backBtn = document.getElementById('ukmtables-back');
-
     title.textContent = 'UkmTables';
     subtitle.textContent = 'Connect any Supabase database';
     actionBtn.innerText = '+ Connect';
     actionBtn.onclick = openConnectModal;
     backBtn.classList.add('hidden');
-
     document.getElementById('ukmtables-connections-view').classList.remove('hidden');
     document.getElementById('ukmtables-browser').classList.add('hidden');
-
     if (!connections || connections.length === 0) {
         empty.classList.remove('hidden');
         list.classList.add('hidden');
         return;
     }
-
     empty.classList.add('hidden');
     list.classList.remove('hidden');
     list.innerHTML = connections.map(c => `
@@ -920,7 +846,6 @@ async function createConnection() {
     const key = document.getElementById('connect-key').value.trim();
     const errEl = document.getElementById('connect-error');
     const btn = document.getElementById('create-connect-btn');
-
     errEl.classList.add('hidden');
     if (!name || !url || !key) {
         errEl.textContent = 'All fields are required.';
@@ -930,13 +855,9 @@ async function createConnection() {
         errEl.textContent = 'Plan limit reached.';
         errEl.classList.remove('hidden'); return;
     }
-
     btn.innerText = 'Testing connection...'; btn.disabled = true;
-
     try {
-        const testRes = await fetch(`${url}/rest/v1/profiles?select=id&limit=1`, {
-            headers: getHeaders(key)
-        });
+        const testRes = await fetch(`${url}/rest/v1/profiles?select=id&limit=1`, { headers: getHeaders(key) });
         if (testRes.status >= 500) throw new Error(`Connection failed (${testRes.status}).`);
         if (testRes.status === 404) throw new Error('Endpoint not reachable. Check the URL.');
     } catch (err) {
@@ -944,16 +865,12 @@ async function createConnection() {
         errEl.textContent = err.message;
         errEl.classList.remove('hidden'); return;
     }
-
     const { error } = await supabaseClient.from('connected_databases').insert([{
         owner_id: currentUser.id, name,
         supabase_url: url, supabase_anon_key: key
     }]);
-
     btn.innerText = 'Connect'; btn.disabled = false;
-
     if (error) { errEl.textContent = error.message; errEl.classList.remove('hidden'); return; }
-
     closeConnectModal();
     await loadConnections();
 }
@@ -975,67 +892,52 @@ async function openConnection(id) {
     activeConnection = conn;
     activeTable = null;
     activeSchema = null;
-
     const title = document.getElementById('ukmtables-title');
     const subtitle = document.getElementById('ukmtables-subtitle');
     const actionBtn = document.getElementById('ukmtables-action');
     const backBtn = document.getElementById('ukmtables-back');
-
     title.textContent = conn.name;
     subtitle.textContent = 'Reading schema...';
     actionBtn.innerText = '+ Refresh';
     actionBtn.onclick = () => openConnection(id);
     backBtn.classList.remove('hidden');
-
     document.getElementById('ukmtables-connections-view').classList.add('hidden');
     document.getElementById('ukmtables-browser').classList.remove('hidden');
     document.getElementById('ukmtables-rows').classList.add('hidden');
     document.getElementById('ukmtables-rows-empty').classList.add('hidden');
     document.getElementById('ukmtables-rows-loading').classList.remove('hidden');
     document.getElementById('ukmtables-pills').innerHTML = '';
-
     try {
-        const res = await fetch(`${conn.supabase_url}/rest/v1/`, {
-            headers: getHeaders(conn.supabase_anon_key)
-        });
-
+        const res = await fetch(`${conn.supabase_url}/rest/v1/`, { headers: getHeaders(conn.supabase_anon_key) });
         let spec = null;
         if (res.ok) { try { spec = await res.json(); } catch (_) { spec = null; } }
-
         let tables = [];
         if (spec) {
             tables = Object.keys(spec.definitions || spec.components?.schemas || {}).sort();
         }
-
         if (tables.length === 0) {
-            const candidates = ['profiles', 'projects', 'plans', 'payments', 'subscriptions', 'usage_metrics', 'waitlist', 'connected_databases'];
+            const candidates = ['profiles', 'projects', 'plans', 'payments', 'subscriptions', 'usage_metrics', 'waitlist', 'connected_databases', 'upgrade_requests'];
             for (const t of candidates) {
                 try {
-                    const r = await fetch(`${conn.supabase_url}/rest/v1/${t}?select=*&limit=1`, {
-                        headers: getHeaders(conn.supabase_anon_key)
-                    });
+                    const r = await fetch(`${conn.supabase_url}/rest/v1/${t}?select=*&limit=1`, { headers: getHeaders(conn.supabase_anon_key) });
                     if (r.status === 200 || r.status === 206) tables.push(t);
                 } catch (_) {}
             }
         }
-
         activeSchema = spec;
         subtitle.textContent = `${tables.length} tables`;
-
         if (tables.length === 0) {
             document.getElementById('ukmtables-rows-loading').classList.add('hidden');
             document.getElementById('ukmtables-rows-empty').classList.remove('hidden');
             document.getElementById('ukmtables-rows-empty').innerHTML = `
-                <p class="text-[#94A3B8] text-sm">No tables found. Either the database is empty, RLS is blocking all reads, or the URL/key is wrong.</p>`;
+                <p class="text-[#94A3B8] text-sm">No tables found.</p>`;
             return;
         }
-
         document.getElementById('ukmtables-pills').innerHTML = tables.map(t => `
             <button onclick="selectTable('${t}')" data-table="${t}" class="table-pill bg-[#1C2333] border border-[#2A3347] text-[#94A3B8] text-xs px-3 py-1.5 rounded-lg mono">
                 ${escapeHtml(t)}
             </button>
         `).join('');
-
         await selectTable(tables[0]);
     } catch (err) {
         subtitle.textContent = 'Error loading schema';
@@ -1058,34 +960,26 @@ function exitTableBrowser() {
 async function selectTable(tableName) {
     if (!activeConnection) return;
     activeTable = tableName;
-
     document.querySelectorAll('.table-pill').forEach(p => {
         if (p.dataset.table === tableName) p.classList.add('active');
         else p.classList.remove('active');
     });
-
     document.getElementById('ukmtables-rows').classList.add('hidden');
     document.getElementById('ukmtables-rows-empty').classList.add('hidden');
     document.getElementById('ukmtables-rows-loading').classList.remove('hidden');
-
     try {
         const res = await fetch(`${activeConnection.supabase_url}/rest/v1/${tableName}?select=*&limit=50`, {
             headers: getHeaders(activeConnection.supabase_anon_key)
         });
-
         document.getElementById('ukmtables-rows-loading').classList.add('hidden');
-
         if (!res.ok) throw new Error(`Failed to load rows (${res.status})`);
-
         const rows = await res.json();
-
         if (!rows || rows.length === 0) {
             document.getElementById('ukmtables-rows-empty').classList.remove('hidden');
             document.getElementById('ukmtables-rows-empty').innerHTML = `
-                <p class="text-[#94A3B8] text-sm">No rows visible (or RLS is blocking reads on this table).</p>`;
+                <p class="text-[#94A3B8] text-sm">No rows visible.</p>`;
             return;
         }
-
         renderRows(rows);
     } catch (err) {
         document.getElementById('ukmtables-rows-loading').classList.add('hidden');
@@ -1098,7 +992,6 @@ async function selectTable(tableName) {
 function renderRows(rows) {
     const container = document.getElementById('ukmtables-rows');
     container.classList.remove('hidden');
-
     container.innerHTML = rows.map((row, idx) => {
         const fields = Object.entries(row).map(([k, v]) => {
             let display;
@@ -1107,9 +1000,7 @@ function renderRows(rows) {
             else display = escapeHtml(String(v));
             return `<div class="flex gap-2 py-1 text-xs"><span class="field-key mono flex-shrink-0">${escapeHtml(k)}:</span><span class="field-val mono flex-1">${display}</span></div>`;
         }).join('');
-
         const jsonStr = JSON.stringify(row).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
-
         return `
             <div class="bg-[#1C2333] border border-[#2A3347] rounded-xl p-4">
                 <div class="flex items-center justify-between mb-2 pb-2 border-b border-[#2A3347]">
@@ -1129,6 +1020,129 @@ function copyRow(jsonStr) {
 }
 
 // ============================================
+// BILLING
+// ============================================
+
+function renderBilling() {
+    if (!currentProfile) return;
+    const plan = STAFF_ROLES.includes(currentProfile.role) ? currentProfile.role : (currentProfile.plan || 'free');
+    const price = PLAN_PRICES[plan] || PLAN_PRICES.free;
+
+    document.getElementById('billing-plan-name').textContent = plan;
+    document.getElementById('billing-plan-price').textContent = price.label;
+
+    const roleTag = document.getElementById('billing-role-tag');
+    if (STAFF_ROLES.includes(currentProfile.role)) {
+        roleTag.classList.remove('hidden');
+        roleTag.classList.add('role-' + currentProfile.role);
+        roleTag.textContent = currentProfile.role;
+    } else {
+        roleTag.classList.add('hidden');
+    }
+
+    const limits = getLimits();
+
+    // Projects
+    const projPct = limits.projects >= 999 ? 5 : Math.min(100, (projectsCache.length / limits.projects) * 100);
+    document.getElementById('billing-projects-label').textContent =
+        `${projectsCache.length} / ${limits.projects >= 999 ? '∞' : limits.projects}`;
+    document.getElementById('billing-projects-bar').style.width = projPct + '%';
+
+    // Connections
+    const connPct = limits.connections >= 999 ? 5 : Math.min(100, (connectionsCache.length / limits.connections) * 100);
+    document.getElementById('billing-connections-label').textContent =
+        `${connectionsCache.length} / ${limits.connections >= 999 ? '∞' : limits.connections}`;
+    document.getElementById('billing-connections-bar').style.width = connPct + '%';
+
+    // AI tokens (from projects cache sum)
+    const tokensUsed = projectsCache.reduce((s, p) => s + (Number(p.ai_tokens_used) || 0), 0);
+    const tokenLimit = STAFF_ROLES.includes(currentProfile.role) ? 999999 : (currentProfile.plan === 'pro' ? 500000 : currentProfile.plan === 'team' ? 2000000 : 100000);
+    const tokenPct = Math.min(100, (tokensUsed / tokenLimit) * 100);
+    document.getElementById('billing-tokens-label').textContent =
+        `${tokensUsed.toLocaleString()} / ${tokenLimit >= 999999 ? '∞' : (tokenLimit / 1000) + 'k'}`;
+    document.getElementById('billing-tokens-bar').style.width = tokenPct + '%';
+}
+
+function openUpgradeModal(plan, price) {
+    currentUpgradePlan = { plan, price };
+    document.getElementById('upgrade-plan-name').textContent = plan.charAt(0).toUpperCase() + plan.slice(1);
+    document.getElementById('upgrade-plan-detail').textContent = price ? `$${price}/mo billed monthly` : 'Custom pricing — talk to us';
+    document.getElementById('upgrade-error').classList.add('hidden');
+    document.getElementById('upgrade-name').value = currentProfile?.full_name || '';
+    document.getElementById('upgrade-contact').value = currentProfile?.phone || currentProfile?.email || currentUser?.email || '';
+    document.getElementById('upgrade-notes').value = '';
+    document.getElementById('upgrade-modal').classList.remove('hidden');
+}
+
+function closeUpgradeModal() {
+    document.getElementById('upgrade-modal').classList.add('hidden');
+    currentUpgradePlan = null;
+}
+
+async function submitUpgradeRequest() {
+    const name = document.getElementById('upgrade-name').value.trim();
+    const contact = document.getElementById('upgrade-contact').value.trim();
+    const notes = document.getElementById('upgrade-notes').value.trim();
+    const errEl = document.getElementById('upgrade-error');
+    const btn = document.getElementById('submit-upgrade-btn');
+
+    errEl.classList.add('hidden');
+    if (!name || !contact) {
+        errEl.textContent = 'Name and contact are required.';
+        errEl.classList.remove('hidden'); return;
+    }
+    if (!currentUpgradePlan) return;
+
+    btn.textContent = 'Sending...'; btn.disabled = true;
+
+    const { error } = await supabaseClient.from('upgrade_requests').insert([{
+        user_id: currentUser.id,
+        requested_plan: currentUpgradePlan.plan,
+        amount: currentUpgradePlan.price,
+        currency: 'USD',
+        contact_method: 'whatsapp',
+        contact_value: contact,
+        notes: `Name: ${name}${notes ? ' | ' + notes : ''}`,
+        status: 'pending'
+    }]);
+
+    btn.textContent = 'Send Request'; btn.disabled = false;
+
+    if (error) {
+        errEl.textContent = error.message;
+        errEl.classList.remove('hidden'); return;
+    }
+
+    closeUpgradeModal();
+    alert("Request sent! We'll reach out on WhatsApp within 24 hours to arrange payment.");
+    await loadMyUpgradeRequests();
+}
+
+async function loadMyUpgradeRequests() {
+    if (!currentUser) return;
+    const wrap = document.getElementById('billing-my-requests');
+    const list = document.getElementById('billing-requests-list');
+    const { data, error } = await supabaseClient
+        .from('upgrade_requests')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .order('created_at', { ascending: false });
+
+    if (error) { console.error(error.message); return; }
+    if (!data || data.length === 0) { wrap.classList.add('hidden'); return; }
+    wrap.classList.remove('hidden');
+    list.innerHTML = data.map(r => `
+        <div class="bg-[#0B1020] border border-[#2A3347] rounded-lg p-3 flex items-center justify-between">
+            <div>
+                <p class="text-white text-sm font-medium capitalize">${escapeHtml(r.requested_plan)}</p>
+                <p class="text-[#64748B] text-xs mono">${new Date(r.created_at).toLocaleDateString()}</p>
+            </div>
+            <span class="text-[10px] uppercase font-bold ${r.status === 'approved' ? 'text-green-400' : r.status === 'pending' ? 'text-yellow-400' : 'text-red-400'}">${r.status}</span>
+        </div>
+    `).join('');
+}
+
+// ============================================
 // OWNER CONSOLE
 // ============================================
 
@@ -1138,7 +1152,7 @@ async function loadOwnerConsole() {
         switchView('overview');
         return;
     }
-    await Promise.all([loadAllUsers(), loadAllProjectsForOwner(), loadAllPaymentsForOwner()]);
+    await Promise.all([loadAllUsers(), loadAllProjectsForOwner(), loadAllPaymentsForOwner(), loadAllRequestsForOwner()]);
     updateOwnerStats();
 }
 
@@ -1147,34 +1161,24 @@ async function loadAllUsers() {
     const usersList = document.getElementById('owner-users-list');
     usersLoading.classList.remove('hidden');
     usersList.classList.add('hidden');
-
-    const { data, error } = await supabaseClient
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
-
+    const { data, error } = await supabaseClient.from('profiles').select('*').order('created_at', { ascending: false });
     usersLoading.classList.add('hidden');
-
     if (error) {
         usersList.classList.remove('hidden');
         usersList.innerHTML = `<div class="bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-4 rounded-xl">Failed to load users: ${escapeHtml(error.message)}</div>`;
         return;
     }
-
     allUsersCache = data || [];
     usersList.classList.remove('hidden');
-
     if (allUsersCache.length === 0) {
         usersList.innerHTML = `<div class="bg-[#1C2333] border border-dashed border-[#2A3347] rounded-xl p-8 text-center text-[#94A3B8] text-sm">No users yet.</div>`;
         return;
     }
-
     usersList.innerHTML = allUsersCache.map(u => {
         const role = u.role || 'user';
         const roleClass = role === 'user' ? '' : 'role-' + role;
         const initial = (u.full_name || u.username || u.email || 'U').charAt(0).toUpperCase();
         const joined = u.created_at ? new Date(u.created_at).toLocaleDateString() : '—';
-
         return `
             <div class="bg-[#1C2333] border border-[#2A3347] rounded-xl p-4">
                 <div class="flex items-start justify-between mb-3">
@@ -1221,29 +1225,19 @@ async function loadAllProjectsForOwner() {
     const list = document.getElementById('owner-projects-list');
     loading.classList.remove('hidden');
     list.classList.add('hidden');
-
-    const { data, error } = await supabaseClient
-        .from('projects')
-        .select('*')
-        .order('created_at', { ascending: false });
-
+    const { data, error } = await supabaseClient.from('projects').select('*').order('created_at', { ascending: false });
     loading.classList.add('hidden');
     list.classList.remove('hidden');
-
     if (error) {
         list.innerHTML = `<div class="bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-4 rounded-xl">Failed to load: ${escapeHtml(error.message)}</div>`;
         return;
     }
-
     if (!data || data.length === 0) {
         list.innerHTML = `<div class="bg-[#1C2333] border border-dashed border-[#2A3347] rounded-xl p-8 text-center text-[#94A3B8] text-sm">No projects on the platform yet.</div>`;
         return;
     }
-
-    // Map user email
     const userMap = {};
     allUsersCache.forEach(u => { userMap[u.id] = u.email || u.username || 'unknown'; });
-
     list.innerHTML = data.map(p => `
         <div class="bg-[#1C2333] border border-[#2A3347] p-4 rounded-xl">
             <div class="flex items-start justify-between mb-2">
@@ -1268,25 +1262,17 @@ async function loadAllPaymentsForOwner() {
     const list = document.getElementById('owner-payments-list');
     loading.classList.remove('hidden');
     list.classList.add('hidden');
-
-    const { data, error } = await supabaseClient
-        .from('payments')
-        .select('*')
-        .order('paid_at', { ascending: false });
-
+    const { data, error } = await supabaseClient.from('payments').select('*').order('paid_at', { ascending: false });
     loading.classList.add('hidden');
     list.classList.remove('hidden');
-
     if (error) {
         list.innerHTML = `<div class="bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-4 rounded-xl">Failed to load: ${escapeHtml(error.message)}</div>`;
         return;
     }
-
     if (!data || data.length === 0) {
         list.innerHTML = `<div class="bg-[#1C2333] border border-dashed border-[#2A3347] rounded-xl p-8 text-center text-[#94A3B8] text-sm">No payments on the platform yet.</div>`;
         return;
     }
-
     list.innerHTML = data.map(p => `
         <div class="bg-[#1C2333] border border-[#2A3347] p-4 rounded-xl flex items-center justify-between">
             <div class="flex items-center gap-3 min-w-0">
@@ -1306,23 +1292,73 @@ async function loadAllPaymentsForOwner() {
     `).join('');
 }
 
+async function loadAllRequestsForOwner() {
+    const loading = document.getElementById('owner-requests-loading');
+    const list = document.getElementById('owner-requests-list');
+    loading.classList.remove('hidden');
+    list.classList.add('hidden');
+    const { data, error } = await supabaseClient
+        .from('upgrade_requests').select('*').order('created_at', { ascending: false });
+    loading.classList.add('hidden');
+    list.classList.remove('hidden');
+    if (error) {
+        list.innerHTML = `<div class="bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-4 rounded-xl">Failed to load: ${escapeHtml(error.message)}</div>`;
+        return;
+    }
+    if (!data || data.length === 0) {
+        list.innerHTML = `<div class="bg-[#1C2333] border border-dashed border-[#2A3347] rounded-xl p-8 text-center text-[#94A3B8] text-sm">No upgrade requests yet.</div>`;
+        return;
+    }
+    const userMap = {};
+    allUsersCache.forEach(u => { userMap[u.id] = u; });
+    list.innerHTML = data.map(r => {
+        const u = userMap[r.user_id] || {};
+        return `
+            <div class="bg-[#1C2333] border border-[#2A3347] rounded-xl p-4">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="min-w-0">
+                        <p class="text-white font-bold truncate">${escapeHtml(u.full_name || u.username || 'Unknown user')}</p>
+                        <p class="text-[#64748B] text-xs mono truncate">${escapeHtml(u.email || '—')}</p>
+                    </div>
+                    <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded flex-shrink-0 ${
+                        r.status === 'approved' ? 'text-green-400 bg-green-400/10' :
+                        r.status === 'pending' ? 'text-yellow-400 bg-yellow-400/10' :
+                        'text-red-400 bg-red-400/10'
+                    }">${r.status}</span>
+                </div>
+                <div class="bg-[#0B1020] border border-[#2A3347] rounded-lg p-3 mb-3">
+                    <p class="text-white text-sm font-bold capitalize mb-1">Wants: ${escapeHtml(r.requested_plan)}${r.amount ? ' — $' + r.amount + '/mo' : ''}</p>
+                    ${r.contact_value ? `<p class="text-[#94A3B8] text-xs">Contact: <span class="mono">${escapeHtml(r.contact_value)}</span></p>` : ''}
+                    ${r.notes ? `<p class="text-[#94A3B8] text-xs mt-1">${escapeHtml(r.notes)}</p>` : ''}
+                    <p class="text-[#64748B] text-[10px] mt-2">${new Date(r.created_at).toLocaleString()}</p>
+                </div>
+                ${r.status === 'pending' ? `
+                    <div class="flex gap-2">
+                        <button onclick="approveUpgrade('${r.id}', '${r.user_id}', '${r.requested_plan}')" class="flex-1 bg-green-500/20 hover:bg-green-500/30 border border-green-500/40 text-green-400 font-bold py-2 rounded-lg text-xs transition-colors">Approve & Upgrade</button>
+                        <button onclick="rejectUpgrade('${r.id}')" class="flex-1 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 font-bold py-2 rounded-lg text-xs transition-colors">Reject</button>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }).join('');
+}
+
 async function updateOwnerStats() {
     const { count: userCount } = await supabaseClient.from('profiles').select('*', { count: 'exact', head: true });
     const { count: projectCount } = await supabaseClient.from('projects').select('*', { count: 'exact', head: true });
-    const { count: connCount } = await supabaseClient.from('connected_databases').select('*', { count: 'exact', head: true });
     const { data: payments } = await supabaseClient.from('payments').select('amount').eq('status', 'paid');
+    const { count: pendingCount } = await supabaseClient.from('upgrade_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending');
     const revenue = (payments || []).reduce((s, p) => s + Number(p.amount || 0), 0);
 
     document.getElementById('owner-stat-users').textContent = userCount ?? '—';
     document.getElementById('owner-stat-projects').textContent = projectCount ?? '—';
-    document.getElementById('owner-stat-connections').textContent = connCount ?? '—';
     document.getElementById('owner-stat-revenue').textContent = '$' + revenue.toFixed(2);
+    document.getElementById('owner-stat-pending').textContent = pendingCount ?? '—';
 }
 
 function switchOwnerTab(tab) {
-    const panels = { users: 'owner-users-panel', projects: 'owner-projects-panel', payments: 'owner-payments-panel' };
-    const tabs = { users: 'owner-tab-users', projects: 'owner-tab-projects', payments: 'owner-tab-payments' };
-
+    const panels = { users: 'owner-users-panel', projects: 'owner-projects-panel', payments: 'owner-payments-panel', requests: 'owner-requests-panel' };
+    const tabs = { users: 'owner-tab-users', projects: 'owner-tab-projects', payments: 'owner-tab-payments', requests: 'owner-tab-requests' };
     Object.keys(panels).forEach(k => {
         const panel = document.getElementById(panels[k]);
         const tabEl = document.getElementById(tabs[k]);
@@ -1339,40 +1375,38 @@ function switchOwnerTab(tab) {
 }
 
 async function updateUserRole(userId, newRole) {
-    // Prevent owner from demoting themselves
     if (userId === currentUser.id && currentProfile.role === 'owner' && newRole !== 'owner') {
         alert("You can't demote yourself as owner. Transfer ownership first.");
         await loadAllUsers();
         return;
     }
-
-    const { error } = await supabaseClient
-        .from('profiles')
-        .update({ role: newRole })
-        .eq('id', userId);
-
-    if (error) {
-        alert('Failed to update role: ' + error.message);
-        await loadAllUsers();
-        return;
-    }
-
+    const { error } = await supabaseClient.from('profiles').update({ role: newRole }).eq('id', userId);
+    if (error) { alert('Failed to update role: ' + error.message); await loadAllUsers(); return; }
     await loadAllUsers();
 }
 
 async function updateUserPlan(userId, newPlan) {
-    const { error } = await supabaseClient
-        .from('profiles')
-        .update({ plan: newPlan })
-        .eq('id', userId);
-
-    if (error) {
-        alert('Failed to update plan: ' + error.message);
-        await loadAllUsers();
-        return;
-    }
-
+    const { error } = await supabaseClient.from('profiles').update({ plan: newPlan }).eq('id', userId);
+    if (error) { alert('Failed to update plan: ' + error.message); await loadAllUsers(); return; }
     await loadAllUsers();
+}
+
+async function approveUpgrade(requestId, userId, plan) {
+    if (!confirm(`Approve this upgrade? User will be moved to ${plan}.`)) return;
+    const { error: planError } = await supabaseClient.from('profiles').update({ plan }).eq('id', userId);
+    if (planError) { alert('Failed to update plan: ' + planError.message); return; }
+    const { error: reqError } = await supabaseClient.from('upgrade_requests')
+        .update({ status: 'approved', resolved_at: new Date().toISOString() }).eq('id', requestId);
+    if (reqError) { alert('Failed to update request: ' + reqError.message); return; }
+    await loadOwnerConsole();
+}
+
+async function rejectUpgrade(requestId) {
+    if (!confirm('Reject this upgrade request?')) return;
+    const { error } = await supabaseClient.from('upgrade_requests')
+        .update({ status: 'rejected', resolved_at: new Date().toISOString() }).eq('id', requestId);
+    if (error) { alert('Failed to update request: ' + error.message); return; }
+    await loadOwnerConsole();
 }
 
 // ============================================
