@@ -45,6 +45,7 @@
         .plan-card:hover { transform: translateY(-4px); border-color: #4F46E5; }
         .plan-card.featured { border-color: #4F46E5; box-shadow: 0 0 40px -10px rgba(79, 70, 229, 0.5); }
         .usage-bar { transition: width 0.5s ease; }
+        .sql-output pre { margin: 0; }
     </style>
 </head>
 <body class="min-h-screen">
@@ -191,6 +192,10 @@
                         <svg class="w-5 h-5 text-[#F59E0B]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path></svg>
                         UkmAI Copilot
                     </a>
+                    <a href="#" onclick="switchView('ukmquery')" id="nav-ukmquery" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#94A3B8] hover:text-white hover:bg-white/5 text-sm font-medium transition-colors">
+                        <svg class="w-5 h-5 text-[#10B981]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                        UkmQuery
+                    </a>
                     <a href="#" onclick="switchView('ukmtables')" id="nav-ukmtables" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#94A3B8] hover:text-white hover:bg-white/5 text-sm font-medium transition-colors">
                         <svg class="w-5 h-5 text-[#06B6D4]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
                         UkmTables
@@ -304,6 +309,72 @@
                     </div>
                 </div>
 
+                <!-- UKMQUERY -->
+                <div id="view-ukmquery" class="hidden flex-1 overflow-y-auto p-4 md:p-8">
+                    <div class="max-w-4xl mx-auto">
+
+                        <div class="mb-6">
+                            <h1 class="text-2xl font-bold text-white mb-1">UkmQuery</h1>
+                            <p class="text-[#94A3B8] text-sm">Describe a database change in plain English. Get the SQL.</p>
+                        </div>
+
+                        <!-- Connection selector -->
+                        <div class="bg-[#1C2333] border border-[#2A3347] rounded-xl p-4 mb-4">
+                            <label class="block text-xs font-medium text-[#94A3B8] mb-2">Database (optional — for context)</label>
+                            <select id="query-connection" class="w-full bg-[#0B1020] border border-[#2A3347] rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#4F46E5] text-sm">
+                                <option value="">— no database selected —</option>
+                            </select>
+                            <p class="text-[10px] text-[#64748B] mt-2">UkmQuery never runs SQL automatically. You copy the output into your own Supabase.</p>
+                        </div>
+
+                        <!-- Prompt box -->
+                        <div class="bg-[#1C2333] border border-[#2A3347] rounded-xl p-4 mb-4">
+                            <label class="block text-xs font-medium text-[#94A3B8] mb-2">What do you want to do?</label>
+                            <textarea id="query-prompt" rows="3" placeholder="Add a phone_number column to customers, and an index on it" class="w-full bg-[#0B1020] border border-[#2A3347] rounded-lg px-4 py-3 text-white placeholder-[#64748B] focus:outline-none focus:border-[#4F46E5] resize-none text-sm"></textarea>
+
+                            <div class="flex flex-wrap gap-2 mt-3">
+                                <button onclick="setQueryPrompt('Add a phone_number text column to the customers table, and create an index on it')" class="bg-[#0B1020] border border-[#2A3347] hover:border-[#4F46E5] text-[#94A3B8] hover:text-white text-[11px] px-3 py-1.5 rounded-lg transition-colors">+ phone column</button>
+                                <button onclick="setQueryPrompt('Create a table for invoices with id, customer_id, amount, currency, status, and due_date')" class="bg-[#0B1020] border border-[#2A3347] hover:border-[#4F46E5] text-[#94A3B8] hover:text-white text-[11px] px-3 py-1.5 rounded-lg transition-colors">+ invoices table</button>
+                                <button onclick="setQueryPrompt('Add a full-text search index on the products.name column')" class="bg-[#0B1020] border border-[#2A3347] hover:border-[#4F46E5] text-[#94A3B8] hover:text-white text-[11px] px-3 py-1.5 rounded-lg transition-colors">+ search index</button>
+                                <button onclick="setQueryPrompt('Show me all users who signed up in the last 30 days, ordered by created_at descending')" class="bg-[#0B1020] border border-[#2A3347] hover:border-[#4F46E5] text-[#94A3B8] hover:text-white text-[11px] px-3 py-1.5 rounded-lg transition-colors">+ recent users</button>
+                            </div>
+
+                            <button id="query-submit" onclick="generateSQL()" class="w-full mt-4 bg-[#4F46E5] hover:bg-[#4338CA] text-white font-bold py-3 rounded-lg transition-colors glow disabled:opacity-50 flex items-center justify-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                                Generate SQL
+                            </button>
+                        </div>
+
+                        <!-- Output -->
+                        <div id="query-output-wrap" class="hidden bg-[#1C2333] border border-[#2A3347] rounded-xl p-4 mb-6">
+                            <div class="flex items-center justify-between mb-3">
+                                <h3 class="text-white font-bold text-sm">Generated SQL</h3>
+                                <button onclick="copyGeneratedSQL()" id="query-copy-btn" class="text-xs text-[#06B6D4] hover:text-white flex items-center gap-1">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                                    Copy
+                                </button>
+                            </div>
+                            <div id="query-output" class="sql-output"></div>
+                            <div id="query-warning" class="hidden mt-3 bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-3 rounded-lg">
+                                ⚠️ This looks like a destructive operation. Review carefully before running.
+                            </div>
+                        </div>
+
+                        <!-- Loading state -->
+                        <div id="query-loading" class="hidden bg-[#1C2333] border border-[#2A3347] rounded-xl p-8 text-center mb-6">
+                            <div class="inline-block w-6 h-6 border-2 border-[#4F46E5] border-t-transparent rounded-full animate-spin"></div>
+                            <p class="text-[#94A3B8] text-xs mt-3">Generating SQL...</p>
+                        </div>
+
+                        <!-- History -->
+                        <div id="query-history-wrap" class="hidden">
+                            <h3 class="text-white font-bold text-sm mb-3">Recent Queries</h3>
+                            <div id="query-history-list" class="space-y-2"></div>
+                        </div>
+
+                    </div>
+                </div>
+
                 <!-- UKMTABLES -->
                 <div id="view-ukmtables" class="hidden flex-1 overflow-hidden flex flex-col">
                     <div class="border-b border-[#2A3347] px-4 py-3 flex items-center justify-between bg-[#0B1020]">
@@ -406,13 +477,10 @@
                 <!-- BILLING -->
                 <div id="view-billing" class="hidden flex-1 overflow-y-auto p-4 md:p-8">
                     <div class="max-w-6xl mx-auto">
-
                         <div class="mb-8">
                             <h1 class="text-2xl font-bold text-white mb-1">Billing</h1>
                             <p class="text-[#94A3B8] text-sm">Manage your Ukmbase plan and usage.</p>
                         </div>
-
-                        <!-- Current plan -->
                         <div class="bg-[#1C2333] border border-[#2A3347] rounded-xl p-6 mb-6">
                             <div class="flex items-center justify-between mb-6 flex-wrap gap-4">
                                 <div>
@@ -424,8 +492,6 @@
                                 </div>
                                 <span id="billing-role-tag" class="hidden text-white text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded">Staff</span>
                             </div>
-
-                            <!-- Usage meters -->
                             <div class="space-y-4">
                                 <div>
                                     <div class="flex items-center justify-between mb-1">
@@ -456,13 +522,8 @@
                                 </div>
                             </div>
                         </div>
-
-                        <!-- Plans grid -->
                         <h2 class="text-lg font-bold text-white mb-4">Upgrade your plan</h2>
-
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-
-                            <!-- Pro -->
                             <div class="plan-card featured bg-[#1C2333] border-2 border-[#4F46E5] rounded-xl p-6 flex flex-col">
                                 <div class="flex items-center justify-between mb-4">
                                     <h3 class="text-xl font-extrabold text-white">Pro</h3>
@@ -482,8 +543,6 @@
                                 <button onclick="openUpgradeModal('pro', 19)" class="w-full bg-[#4F46E5] hover:bg-[#4338CA] text-white font-bold py-3 rounded-lg transition-colors glow">Upgrade to Pro</button>
                                 <p class="text-[10px] text-center text-[#64748B] mt-2">Africa pricing: $5/mo</p>
                             </div>
-
-                            <!-- Team -->
                             <div class="plan-card bg-[#1C2333] border-2 border-[#2A3347] rounded-xl p-6 flex flex-col">
                                 <div class="flex items-center justify-between mb-4">
                                     <h3 class="text-xl font-extrabold text-white">Team</h3>
@@ -501,8 +560,6 @@
                                 </ul>
                                 <button onclick="openUpgradeModal('team', 79)" class="w-full bg-transparent border border-[#2A3347] hover:border-[#4F46E5] text-white font-bold py-3 rounded-lg transition-colors">Upgrade to Team</button>
                             </div>
-
-                            <!-- Enterprise -->
                             <div class="plan-card bg-[#1C2333] border-2 border-[#2A3347] rounded-xl p-6 flex flex-col">
                                 <div class="flex items-center justify-between mb-4">
                                     <h3 class="text-xl font-extrabold text-white">Enterprise</h3>
@@ -519,22 +576,17 @@
                                 </ul>
                                 <button onclick="openUpgradeModal('enterprise', null)" class="w-full bg-transparent border border-[#2A3347] hover:border-[#4F46E5] text-white font-bold py-3 rounded-lg transition-colors">Contact us</button>
                             </div>
-
                         </div>
-
-                        <!-- My requests -->
                         <div id="billing-my-requests" class="hidden bg-[#1C2333] border border-[#2A3347] rounded-xl p-6 mt-6">
                             <h3 class="text-white font-bold mb-4">My Upgrade Requests</h3>
                             <div id="billing-requests-list" class="space-y-3"></div>
                         </div>
-
                     </div>
                 </div>
 
                 <!-- OWNER CONSOLE -->
                 <div id="view-owner" class="hidden flex-1 overflow-y-auto p-4 md:p-8">
                     <div class="max-w-6xl mx-auto">
-
                         <div class="mb-6">
                             <div class="flex items-center gap-2 mb-1">
                                 <h1 class="text-2xl font-bold text-white">Owner Console</h1>
@@ -542,7 +594,6 @@
                             </div>
                             <p class="text-[#94A3B8] text-sm">Full platform visibility and control.</p>
                         </div>
-
                         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
                             <div class="bg-[#1C2333] border border-[#2A3347] p-4 rounded-xl">
                                 <span class="text-[#94A3B8] text-[10px] font-medium uppercase tracking-wider">Total Users</span>
@@ -561,14 +612,12 @@
                                 <div id="owner-stat-pending" class="text-xl font-bold text-white mono mt-1">—</div>
                             </div>
                         </div>
-
                         <div class="flex gap-2 mb-4 border-b border-[#2A3347] overflow-x-auto no-scrollbar">
                             <button onclick="switchOwnerTab('users')" id="owner-tab-users" class="px-4 py-2 text-sm font-medium text-white border-b-2 border-[#4F46E5] -mb-px whitespace-nowrap">Users</button>
                             <button onclick="switchOwnerTab('projects')" id="owner-tab-projects" class="px-4 py-2 text-sm font-medium text-[#94A3B8] hover:text-white -mb-px whitespace-nowrap">Projects</button>
                             <button onclick="switchOwnerTab('payments')" id="owner-tab-payments" class="px-4 py-2 text-sm font-medium text-[#94A3B8] hover:text-white -mb-px whitespace-nowrap">Payments</button>
                             <button onclick="switchOwnerTab('requests')" id="owner-tab-requests" class="px-4 py-2 text-sm font-medium text-[#94A3B8] hover:text-white -mb-px whitespace-nowrap">Upgrade Requests</button>
                         </div>
-
                         <div id="owner-users-panel">
                             <div id="owner-users-loading" class="text-center py-12">
                                 <div class="inline-block w-6 h-6 border-2 border-[#4F46E5] border-t-transparent rounded-full animate-spin"></div>
@@ -576,7 +625,6 @@
                             </div>
                             <div id="owner-users-list" class="hidden space-y-3"></div>
                         </div>
-
                         <div id="owner-projects-panel" class="hidden">
                             <div id="owner-projects-loading" class="text-center py-12">
                                 <div class="inline-block w-6 h-6 border-2 border-[#4F46E5] border-t-transparent rounded-full animate-spin"></div>
@@ -584,7 +632,6 @@
                             </div>
                             <div id="owner-projects-list" class="hidden space-y-3"></div>
                         </div>
-
                         <div id="owner-payments-panel" class="hidden">
                             <div id="owner-payments-loading" class="text-center py-12">
                                 <div class="inline-block w-6 h-6 border-2 border-[#4F46E5] border-t-transparent rounded-full animate-spin"></div>
@@ -592,7 +639,6 @@
                             </div>
                             <div id="owner-payments-list" class="hidden space-y-3"></div>
                         </div>
-
                         <div id="owner-requests-panel" class="hidden">
                             <div id="owner-requests-loading" class="text-center py-12">
                                 <div class="inline-block w-6 h-6 border-2 border-[#4F46E5] border-t-transparent rounded-full animate-spin"></div>
@@ -600,7 +646,6 @@
                             </div>
                             <div id="owner-requests-list" class="hidden space-y-3"></div>
                         </div>
-
                     </div>
                 </div>
 
@@ -862,14 +907,11 @@
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
             </div>
-
             <div class="bg-[#4F46E5]/5 border border-[#4F46E5]/20 rounded-lg p-4 mb-5">
                 <p class="text-white text-sm font-bold mb-1">How payment works right now</p>
                 <p class="text-[#94A3B8] text-xs leading-relaxed">Ukmbase is in early access. Payments are handled personally so we can support EcoCash, Paynow, bank transfer, and regional pricing. Fill in the form and the founder will reach out within 24 hours.</p>
             </div>
-
             <div id="upgrade-error" class="hidden bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-3 rounded-lg mb-4"></div>
-
             <div class="space-y-4">
                 <div>
                     <label class="block text-xs font-medium text-[#94A3B8] mb-1">Your name</label>
@@ -892,6 +934,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-    <script src="app.js?v=505"></script>
+    <script src="app.js?v=506"></script>
 </body>
 </html>
