@@ -895,3 +895,509 @@ function renderConnections(connections) {
     list.classList.remove('hidden');
     list.innerHTML = connections.map(c => `
         <div class="bg-[#1C2333] border border-[#2A3347] p-4 rounded-xl flex items-center justify-between">
+            <div class="flex items-center gap-3 min-w-0 cursor-pointer flex-1" onclick="openConnection('${c.id}')">
+                <div class="w-9 h-9 rounded-lg bg-[#06B6D4]/10 border border-[#06B6D4]/30 flex items-center justify-center flex-shrink-0">
+                    <svg class="w-4 h-4 text-[#06B6D4]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
+                </div>
+                <div class="min-w-0">
+                    <p class="text-white text-sm font-medium truncate">${escapeHtml(c.name)}</p>
+                    <p class="text-[#64748B] text-xs mono truncate">${escapeHtml(c.supabase_url.replace('https://', ''))}</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 flex-shrink-0">
+                <button onclick="deleteConnection('${c.id}')" class="text-[#94A3B8] hover:text-red-400 p-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22"></path></svg>
+                </button>
+                <svg class="w-4 h-4 text-[#4F46E5]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function createConnection() {
+    const name = document.getElementById('connect-name').value.trim();
+    const url = document.getElementById('connect-url').value.trim().replace(/\/$/, '');
+    const key = document.getElementById('connect-key').value.trim();
+    const errEl = document.getElementById('connect-error');
+    const btn = document.getElementById('create-connect-btn');
+
+    errEl.classList.add('hidden');
+    if (!name || !url || !key) {
+        errEl.textContent = 'All fields are required.';
+        errEl.classList.remove('hidden'); return;
+    }
+    if (!canCreateConnection()) {
+        errEl.textContent = 'Plan limit reached.';
+        errEl.classList.remove('hidden'); return;
+    }
+
+    btn.innerText = 'Testing connection...'; btn.disabled = true;
+
+    try {
+        const testRes = await fetch(`${url}/rest/v1/profiles?select=id&limit=1`, {
+            headers: getHeaders(key)
+        });
+        if (testRes.status >= 500) throw new Error(`Connection failed (${testRes.status}).`);
+        if (testRes.status === 404) throw new Error('Endpoint not reachable. Check the URL.');
+    } catch (err) {
+        btn.innerText = 'Connect'; btn.disabled = false;
+        errEl.textContent = err.message;
+        errEl.classList.remove('hidden'); return;
+    }
+
+    const { error } = await supabaseClient.from('connected_databases').insert([{
+        owner_id: currentUser.id, name,
+        supabase_url: url, supabase_anon_key: key
+    }]);
+
+    btn.innerText = 'Connect'; btn.disabled = false;
+
+    if (error) { errEl.textContent = error.message; errEl.classList.remove('hidden'); return; }
+
+    closeConnectModal();
+    await loadConnections();
+}
+
+async function deleteConnection(id) {
+    if (!confirm('Delete this connection?')) return;
+    const { error } = await supabaseClient.from('connected_databases').delete().eq('id', id);
+    if (error) { alert(error.message); return; }
+    await loadConnections();
+}
+
+// ============================================
+// UKMTABLES — BROWSER
+// ============================================
+
+async function openConnection(id) {
+    const conn = connectionsCache.find(c => c.id === id);
+    if (!conn) return;
+    activeConnection = conn;
+    activeTable = null;
+    activeSchema = null;
+
+    const title = document.getElementById('ukmtables-title');
+    const subtitle = document.getElementById('ukmtables-subtitle');
+    const actionBtn = document.getElementById('ukmtables-action');
+    const backBtn = document.getElementById('ukmtables-back');
+
+    title.textContent = conn.name;
+    subtitle.textContent = 'Reading schema...';
+    actionBtn.innerText = '+ Refresh';
+    actionBtn.onclick = () => openConnection(id);
+    backBtn.classList.remove('hidden');
+
+    document.getElementById('ukmtables-connections-view').classList.add('hidden');
+    document.getElementById('ukmtables-browser').classList.remove('hidden');
+    document.getElementById('ukmtables-rows').classList.add('hidden');
+    document.getElementById('ukmtables-rows-empty').classList.add('hidden');
+    document.getElementById('ukmtables-rows-loading').classList.remove('hidden');
+    document.getElementById('ukmtables-pills').innerHTML = '';
+
+    try {
+        const res = await fetch(`${conn.supabase_url}/rest/v1/`, {
+            headers: getHeaders(conn.supabase_anon_key)
+        });
+
+        let spec = null;
+        if (res.ok) { try { spec = await res.json(); } catch (_) { spec = null; } }
+
+        let tables = [];
+        if (spec) {
+            tables = Object.keys(spec.definitions || spec.components?.schemas || {}).sort();
+        }
+
+        if (tables.length === 0) {
+            const candidates = ['profiles', 'projects', 'plans', 'payments', 'subscriptions', 'usage_metrics', 'waitlist', 'connected_databases'];
+            for (const t of candidates) {
+                try {
+                    const r = await fetch(`${conn.supabase_url}/rest/v1/${t}?select=*&limit=1`, {
+                        headers: getHeaders(conn.supabase_anon_key)
+                    });
+                    if (r.status === 200 || r.status === 206) tables.push(t);
+                } catch (_) {}
+            }
+        }
+
+        activeSchema = spec;
+        subtitle.textContent = `${tables.length} tables`;
+
+        if (tables.length === 0) {
+            document.getElementById('ukmtables-rows-loading').classList.add('hidden');
+            document.getElementById('ukmtables-rows-empty').classList.remove('hidden');
+            document.getElementById('ukmtables-rows-empty').innerHTML = `
+                <p class="text-[#94A3B8] text-sm">No tables found. Either the database is empty, RLS is blocking all reads, or the URL/key is wrong.</p>`;
+            return;
+        }
+
+        document.getElementById('ukmtables-pills').innerHTML = tables.map(t => `
+            <button onclick="selectTable('${t}')" data-table="${t}" class="table-pill bg-[#1C2333] border border-[#2A3347] text-[#94A3B8] text-xs px-3 py-1.5 rounded-lg mono">
+                ${escapeHtml(t)}
+            </button>
+        `).join('');
+
+        await selectTable(tables[0]);
+    } catch (err) {
+        subtitle.textContent = 'Error loading schema';
+        document.getElementById('ukmtables-rows-loading').classList.add('hidden');
+        document.getElementById('ukmtables-rows-empty').classList.remove('hidden');
+        document.getElementById('ukmtables-rows-empty').innerHTML = `
+            <p class="text-red-400 text-sm">${escapeHtml(err.message)}</p>`;
+    }
+}
+
+function exitTableBrowser() {
+    activeConnection = null;
+    activeTable = null;
+    activeSchema = null;
+    document.getElementById('ukmtables-connections-view').classList.remove('hidden');
+    document.getElementById('ukmtables-browser').classList.add('hidden');
+    renderConnections(connectionsCache);
+}
+
+async function selectTable(tableName) {
+    if (!activeConnection) return;
+    activeTable = tableName;
+
+    document.querySelectorAll('.table-pill').forEach(p => {
+        if (p.dataset.table === tableName) p.classList.add('active');
+        else p.classList.remove('active');
+    });
+
+    document.getElementById('ukmtables-rows').classList.add('hidden');
+    document.getElementById('ukmtables-rows-empty').classList.add('hidden');
+    document.getElementById('ukmtables-rows-loading').classList.remove('hidden');
+
+    try {
+        const res = await fetch(`${activeConnection.supabase_url}/rest/v1/${tableName}?select=*&limit=50`, {
+            headers: getHeaders(activeConnection.supabase_anon_key)
+        });
+
+        document.getElementById('ukmtables-rows-loading').classList.add('hidden');
+
+        if (!res.ok) throw new Error(`Failed to load rows (${res.status})`);
+
+        const rows = await res.json();
+
+        if (!rows || rows.length === 0) {
+            document.getElementById('ukmtables-rows-empty').classList.remove('hidden');
+            document.getElementById('ukmtables-rows-empty').innerHTML = `
+                <p class="text-[#94A3B8] text-sm">No rows visible (or RLS is blocking reads on this table).</p>`;
+            return;
+        }
+
+        renderRows(rows);
+    } catch (err) {
+        document.getElementById('ukmtables-rows-loading').classList.add('hidden');
+        document.getElementById('ukmtables-rows-empty').classList.remove('hidden');
+        document.getElementById('ukmtables-rows-empty').innerHTML = `
+            <p class="text-red-400 text-sm">${escapeHtml(err.message)}</p>`;
+    }
+}
+
+function renderRows(rows) {
+    const container = document.getElementById('ukmtables-rows');
+    container.classList.remove('hidden');
+
+    container.innerHTML = rows.map((row, idx) => {
+        const fields = Object.entries(row).map(([k, v]) => {
+            let display;
+            if (v === null || v === undefined) display = '<span class="text-[#64748B] italic">null</span>';
+            else if (typeof v === 'object') display = escapeHtml(JSON.stringify(v));
+            else display = escapeHtml(String(v));
+            return `<div class="flex gap-2 py-1 text-xs"><span class="field-key mono flex-shrink-0">${escapeHtml(k)}:</span><span class="field-val mono flex-1">${display}</span></div>`;
+        }).join('');
+
+        const jsonStr = JSON.stringify(row).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+
+        return `
+            <div class="bg-[#1C2333] border border-[#2A3347] rounded-xl p-4">
+                <div class="flex items-center justify-between mb-2 pb-2 border-b border-[#2A3347]">
+                    <span class="text-[10px] uppercase font-bold text-[#4F46E5] mono">Row ${idx + 1}</span>
+                    <button onclick="copyRow('${jsonStr}')" class="text-[10px] text-[#06B6D4] hover:text-white">Copy JSON</button>
+                </div>
+                <div class="space-y-0.5">${fields}</div>
+            </div>
+        `;
+    }).join('');
+}
+
+function copyRow(jsonStr) {
+    const clean = jsonStr.replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+    navigator.clipboard.writeText(clean);
+    alert('Row copied as JSON!');
+}
+
+// ============================================
+// OWNER CONSOLE
+// ============================================
+
+async function loadOwnerConsole() {
+    if (!STAFF_ROLES.includes(currentProfile?.role)) {
+        alert('Access denied.');
+        switchView('overview');
+        return;
+    }
+    await Promise.all([loadAllUsers(), loadAllProjectsForOwner(), loadAllPaymentsForOwner()]);
+    updateOwnerStats();
+}
+
+async function loadAllUsers() {
+    const usersLoading = document.getElementById('owner-users-loading');
+    const usersList = document.getElementById('owner-users-list');
+    usersLoading.classList.remove('hidden');
+    usersList.classList.add('hidden');
+
+    const { data, error } = await supabaseClient
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+    usersLoading.classList.add('hidden');
+
+    if (error) {
+        usersList.classList.remove('hidden');
+        usersList.innerHTML = `<div class="bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-4 rounded-xl">Failed to load users: ${escapeHtml(error.message)}</div>`;
+        return;
+    }
+
+    allUsersCache = data || [];
+    usersList.classList.remove('hidden');
+
+    if (allUsersCache.length === 0) {
+        usersList.innerHTML = `<div class="bg-[#1C2333] border border-dashed border-[#2A3347] rounded-xl p-8 text-center text-[#94A3B8] text-sm">No users yet.</div>`;
+        return;
+    }
+
+    usersList.innerHTML = allUsersCache.map(u => {
+        const role = u.role || 'user';
+        const roleClass = role === 'user' ? '' : 'role-' + role;
+        const initial = (u.full_name || u.username || u.email || 'U').charAt(0).toUpperCase();
+        const joined = u.created_at ? new Date(u.created_at).toLocaleDateString() : '—';
+
+        return `
+            <div class="bg-[#1C2333] border border-[#2A3347] rounded-xl p-4">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="w-10 h-10 rounded-full bg-[#4F46E5]/20 border border-[#4F46E5]/40 flex items-center justify-center text-sm font-bold text-[#4F46E5] flex-shrink-0">${escapeHtml(initial)}</div>
+                        <div class="min-w-0">
+                            <p class="text-white font-bold truncate">${escapeHtml(u.full_name || u.username || 'Unnamed')}</p>
+                            <p class="text-[#64748B] text-xs mono truncate">${escapeHtml(u.email || '—')}</p>
+                        </div>
+                    </div>
+                    ${role !== 'user' ? `<span class="${roleClass} text-white text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded flex-shrink-0">${escapeHtml(role)}</span>` : ''}
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] text-[#64748B] uppercase font-bold mb-1">Role</label>
+                        <select onchange="updateUserRole('${u.id}', this.value)" class="w-full bg-[#0B1020] border border-[#2A3347] rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-[#4F46E5]">
+                            <option value="user" ${role === 'user' ? 'selected' : ''}>user</option>
+                            <option value="support" ${role === 'support' ? 'selected' : ''}>support</option>
+                            <option value="admin" ${role === 'admin' ? 'selected' : ''}>admin</option>
+                            <option value="owner" ${role === 'owner' ? 'selected' : ''}>owner</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-[#64748B] uppercase font-bold mb-1">Plan</label>
+                        <select onchange="updateUserPlan('${u.id}', this.value)" class="w-full bg-[#0B1020] border border-[#2A3347] rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-[#4F46E5]">
+                            <option value="free" ${u.plan === 'free' ? 'selected' : ''}>free</option>
+                            <option value="pro" ${u.plan === 'pro' ? 'selected' : ''}>pro</option>
+                            <option value="team" ${u.plan === 'team' ? 'selected' : ''}>team</option>
+                            <option value="enterprise" ${u.plan === 'enterprise' ? 'selected' : ''}>enterprise</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mt-3 flex items-center gap-3 text-[10px] text-[#64748B]">
+                    <span>Joined: ${joined}</span>
+                    ${u.country ? `<span>· ${escapeHtml(u.country)}</span>` : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+async function loadAllProjectsForOwner() {
+    const loading = document.getElementById('owner-projects-loading');
+    const list = document.getElementById('owner-projects-list');
+    loading.classList.remove('hidden');
+    list.classList.add('hidden');
+
+    const { data, error } = await supabaseClient
+        .from('projects')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+    loading.classList.add('hidden');
+    list.classList.remove('hidden');
+
+    if (error) {
+        list.innerHTML = `<div class="bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-4 rounded-xl">Failed to load: ${escapeHtml(error.message)}</div>`;
+        return;
+    }
+
+    if (!data || data.length === 0) {
+        list.innerHTML = `<div class="bg-[#1C2333] border border-dashed border-[#2A3347] rounded-xl p-8 text-center text-[#94A3B8] text-sm">No projects on the platform yet.</div>`;
+        return;
+    }
+
+    // Map user email
+    const userMap = {};
+    allUsersCache.forEach(u => { userMap[u.id] = u.email || u.username || 'unknown'; });
+
+    list.innerHTML = data.map(p => `
+        <div class="bg-[#1C2333] border border-[#2A3347] p-4 rounded-xl">
+            <div class="flex items-start justify-between mb-2">
+                <div class="min-w-0">
+                    <p class="text-white font-bold truncate">${escapeHtml(p.name)}</p>
+                    <p class="text-[#64748B] text-xs mono truncate">${escapeHtml(p.slug)}</p>
+                </div>
+                <span class="text-[10px] font-bold uppercase tracking-wider text-[#06B6D4] bg-[#06B6D4]/10 px-2 py-1 rounded flex-shrink-0">${escapeHtml(p.status || 'active')}</span>
+            </div>
+            <p class="text-[#94A3B8] text-xs mb-2 truncate">Owner: <span class="mono">${escapeHtml(userMap[p.owner_id] || p.owner_id)}</span></p>
+            ${p.description ? `<p class="text-[#94A3B8] text-xs line-clamp-2 mb-2">${escapeHtml(p.description)}</p>` : ''}
+            <div class="flex items-center gap-3 text-[10px] text-[#64748B]">
+                <span>${new Date(p.created_at).toLocaleDateString()}</span>
+                <span class="mono">${(Number(p.ai_tokens_used) || 0).toLocaleString()} tokens</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function loadAllPaymentsForOwner() {
+    const loading = document.getElementById('owner-payments-loading');
+    const list = document.getElementById('owner-payments-list');
+    loading.classList.remove('hidden');
+    list.classList.add('hidden');
+
+    const { data, error } = await supabaseClient
+        .from('payments')
+        .select('*')
+        .order('paid_at', { ascending: false });
+
+    loading.classList.add('hidden');
+    list.classList.remove('hidden');
+
+    if (error) {
+        list.innerHTML = `<div class="bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-4 rounded-xl">Failed to load: ${escapeHtml(error.message)}</div>`;
+        return;
+    }
+
+    if (!data || data.length === 0) {
+        list.innerHTML = `<div class="bg-[#1C2333] border border-dashed border-[#2A3347] rounded-xl p-8 text-center text-[#94A3B8] text-sm">No payments on the platform yet.</div>`;
+        return;
+    }
+
+    list.innerHTML = data.map(p => `
+        <div class="bg-[#1C2333] border border-[#2A3347] p-4 rounded-xl flex items-center justify-between">
+            <div class="flex items-center gap-3 min-w-0">
+                <div class="w-9 h-9 rounded-lg bg-[#06B6D4]/10 border border-[#06B6D4]/30 flex items-center justify-center flex-shrink-0">
+                    <svg class="w-4 h-4 text-[#06B6D4]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                </div>
+                <div class="min-w-0">
+                    <p class="text-white text-sm font-medium truncate">${escapeHtml(p.customer_email || 'Anonymous')}</p>
+                    <p class="text-[#64748B] text-xs mono">${new Date(p.paid_at).toLocaleDateString()} · ${escapeHtml(p.provider || 'manual')}</p>
+                </div>
+            </div>
+            <div class="text-right flex-shrink-0">
+                <div class="text-white font-bold mono">${escapeHtml(p.currency)} ${Number(p.amount).toFixed(2)}</div>
+                <span class="text-[10px] uppercase font-bold ${p.status === 'paid' ? 'text-green-400' : p.status === 'pending' ? 'text-yellow-400' : 'text-red-400'}">${p.status}</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function updateOwnerStats() {
+    const { count: userCount } = await supabaseClient.from('profiles').select('*', { count: 'exact', head: true });
+    const { count: projectCount } = await supabaseClient.from('projects').select('*', { count: 'exact', head: true });
+    const { count: connCount } = await supabaseClient.from('connected_databases').select('*', { count: 'exact', head: true });
+    const { data: payments } = await supabaseClient.from('payments').select('amount').eq('status', 'paid');
+    const revenue = (payments || []).reduce((s, p) => s + Number(p.amount || 0), 0);
+
+    document.getElementById('owner-stat-users').textContent = userCount ?? '—';
+    document.getElementById('owner-stat-projects').textContent = projectCount ?? '—';
+    document.getElementById('owner-stat-connections').textContent = connCount ?? '—';
+    document.getElementById('owner-stat-revenue').textContent = '$' + revenue.toFixed(2);
+}
+
+function switchOwnerTab(tab) {
+    const panels = { users: 'owner-users-panel', projects: 'owner-projects-panel', payments: 'owner-payments-panel' };
+    const tabs = { users: 'owner-tab-users', projects: 'owner-tab-projects', payments: 'owner-tab-payments' };
+
+    Object.keys(panels).forEach(k => {
+        const panel = document.getElementById(panels[k]);
+        const tabEl = document.getElementById(tabs[k]);
+        if (k === tab) {
+            panel.classList.remove('hidden');
+            tabEl.classList.add('text-white', 'border-b-2', 'border-[#4F46E5]');
+            tabEl.classList.remove('text-[#94A3B8]');
+        } else {
+            panel.classList.add('hidden');
+            tabEl.classList.remove('text-white', 'border-b-2', 'border-[#4F46E5]');
+            tabEl.classList.add('text-[#94A3B8]');
+        }
+    });
+}
+
+async function updateUserRole(userId, newRole) {
+    // Prevent owner from demoting themselves
+    if (userId === currentUser.id && currentProfile.role === 'owner' && newRole !== 'owner') {
+        alert("You can't demote yourself as owner. Transfer ownership first.");
+        await loadAllUsers();
+        return;
+    }
+
+    const { error } = await supabaseClient
+        .from('profiles')
+        .update({ role: newRole })
+        .eq('id', userId);
+
+    if (error) {
+        alert('Failed to update role: ' + error.message);
+        await loadAllUsers();
+        return;
+    }
+
+    await loadAllUsers();
+}
+
+async function updateUserPlan(userId, newPlan) {
+    const { error } = await supabaseClient
+        .from('profiles')
+        .update({ plan: newPlan })
+        .eq('id', userId);
+
+    if (error) {
+        alert('Failed to update plan: ' + error.message);
+        await loadAllUsers();
+        return;
+    }
+
+    await loadAllUsers();
+}
+
+// ============================================
+// UTIL
+// ============================================
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+}
+
+// ============================================
+// INIT
+// ============================================
+
+async function init() {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (session) showDashboardView(session.user);
+    else showLandingView();
+}
+
+supabaseClient.auth.onAuthStateChange((event, session) => {
+    if (session) showDashboardView(session.user);
+    else showLandingView();
+});
+
+init();
