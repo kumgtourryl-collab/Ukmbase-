@@ -1,15 +1,15 @@
-// UKMBASE APP.JS — v506 (UkmQuery)
+// UKMBASE APP.JS — v507 (Theme, Toasts, Project CRUD, GitHub linking)
 
 const SUPABASE_URL = 'https://dwjyzqsrzdgnpwibnyjn.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_4vcPyg62OqmfwNaHxx0CGA_a7O0_NJV';
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const PLAN_LIMITS = {
-    free:       { projects: 2,   connections: 3   },
-    pro:        { projects: 20,  connections: 20  },
-    team:       { projects: 100, connections: 100 },
-    enterprise: { projects: 999, connections: 999 },
-    staff:      { projects: 999, connections: 999 },
+    free:       { projects: 2,   connections: 3,   repos: 1   },
+    pro:        { projects: 20,  connections: 20,  repos: 10  },
+    team:       { projects: 100, connections: 100, repos: 50  },
+    enterprise: { projects: 999, connections: 999, repos: 999 },
+    staff:      { projects: 999, connections: 999, repos: 999 },
 };
 
 const STAFF_ROLES = ['owner', 'admin', 'support'];
@@ -38,6 +38,68 @@ let activeSchema = null;
 let authMode = 'login';
 let currentUpgradePlan = null;
 let lastGeneratedSQL = '';
+let editingProjectId = null;
+let viewingProjectId = null;
+let linkingProjectId = null;
+
+// ============================================
+// THEME
+// ============================================
+
+function initTheme() {
+    const saved = localStorage.getItem('ukmbase-theme') || 'dark';
+    applyTheme(saved);
+}
+
+function applyTheme(theme) {
+    if (theme === 'light') {
+        document.documentElement.setAttribute('data-theme', 'light');
+    } else {
+        document.documentElement.removeAttribute('data-theme');
+    }
+    localStorage.setItem('ukmbase-theme', theme);
+
+    const sunIcon = document.getElementById('theme-icon-sun');
+    const moonIcon = document.getElementById('theme-icon-moon');
+    if (sunIcon && moonIcon) {
+        if (theme === 'light') {
+            sunIcon.classList.remove('hidden');
+            moonIcon.classList.add('hidden');
+        } else {
+            sunIcon.classList.add('hidden');
+            moonIcon.classList.remove('hidden');
+        }
+    }
+
+    const label = document.getElementById('settings-theme-label');
+    if (label) label.textContent = theme === 'light' ? 'Light' : 'Dark';
+}
+
+function toggleTheme() {
+    const current = localStorage.getItem('ukmbase-theme') || 'dark';
+    const next = current === 'dark' ? 'light' : 'dark';
+    applyTheme(next);
+    showToast(`Switched to ${next} theme`, 'success');
+}
+
+// ============================================
+// TOAST
+// ============================================
+
+function showToast(message, type = 'success', duration = 3000) {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+    const toast = document.createElement('div');
+    toast.className = 'toast ' + type;
+    toast.textContent = message;
+    container.appendChild(toast);
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(-20px)';
+        toast.style.transition = 'all 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+    }, duration);
+}
 
 // ============================================
 // HEADERS HELPER
@@ -69,6 +131,11 @@ function canCreateConnection() {
     return connectionsCache.length < getLimits().connections;
 }
 
+function canLinkRepo() {
+    const linked = projectsCache.filter(p => p.github_repo).length;
+    return linked < getLimits().repos;
+}
+
 // ============================================
 // AUTH MODE TOGGLE
 // ============================================
@@ -94,7 +161,7 @@ function togglePassword(id, btn) {
     const input = document.getElementById(id);
     const isPassword = input.type === 'password';
     input.type = isPassword ? 'text' : 'password';
-    btn.classList.toggle('text-[#4F46E5]', isPassword);
+    btn.style.color = isPassword ? 'var(--accent)' : 'var(--text-dim)';
 }
 
 function updateStrength() {
@@ -109,12 +176,12 @@ function updateStrength() {
     const labels = ['Too short', 'Weak', 'Fair', 'Good', 'Strong', 'Excellent'];
     for (let i = 1; i <= 5; i++) {
         const bar = document.getElementById('sb-' + i);
-        bar.style.background = i <= score ? colors[score] : '#2A3347';
+        bar.style.background = i <= score ? colors[score] : 'var(--border)';
     }
     const labelEl = document.getElementById('strength-label');
     if (labelEl) {
         labelEl.textContent = pwd ? labels[score] : 'Password strength';
-        labelEl.style.color = pwd ? colors[score] : '#64748B';
+        labelEl.style.color = pwd ? colors[score] : 'var(--text-dim)';
     }
 }
 
@@ -159,10 +226,10 @@ function switchView(view) {
         const nav = document.getElementById('nav-' + v);
         if (v === view) {
             el.classList.remove('hidden');
-            if (nav) { nav.classList.add('sidebar-active', 'text-white'); nav.classList.remove('text-[#94A3B8]'); }
+            if (nav) { nav.classList.add('sidebar-active'); nav.style.color = 'var(--text)'; }
         } else {
             el.classList.add('hidden');
-            if (nav) { nav.classList.remove('sidebar-active', 'text-white'); nav.classList.add('text-[#94A3B8]'); }
+            if (nav) { nav.classList.remove('sidebar-active'); nav.style.color = 'var(--text-muted)'; }
         }
     });
     if (view === 'ukmpay') { loadPayments(); loadPlans(); }
@@ -197,7 +264,7 @@ async function loadProfile() {
     if (!currentUser) return;
     const { data, error } = await supabaseClient
         .from('profiles').select('*').eq('id', currentUser.id).single();
-    if (error) { console.error('[Ukmbase] Profile load error:', error.message); return; }
+    if (error) { console.error('Profile load:', error.message); return; }
     currentProfile = data;
     renderRoleBadge(data.role);
     supabaseClient.from('profiles')
@@ -233,6 +300,12 @@ function renderSettings() {
         `${projectsCache.length} / ${limits.projects >= 999 ? '∞' : limits.projects}`;
     document.getElementById('settings-limit-connections').textContent =
         `${connectionsCache.length} / ${limits.connections >= 999 ? '∞' : limits.connections}`;
+    const reposLinked = projectsCache.filter(p => p.github_repo).length;
+    document.getElementById('settings-limit-repos').textContent =
+        `${reposLinked} / ${limits.repos >= 999 ? '∞' : limits.repos}`;
+
+    const themeLabel = document.getElementById('settings-theme-label');
+    if (themeLabel) themeLabel.textContent = (localStorage.getItem('ukmbase-theme') || 'dark') === 'light' ? 'Light' : 'Dark';
 }
 
 async function saveProfile() {
@@ -262,6 +335,7 @@ async function saveProfile() {
     succEl.classList.remove('hidden');
     await loadProfile();
     renderSettings();
+    showToast('Profile saved', 'success');
 }
 
 // ============================================
@@ -333,6 +407,7 @@ async function handleLogout() {
     currentUser = null;
     currentProfile = null;
     showLandingView();
+    showToast('Signed out', 'success');
 }
 
 // ============================================
@@ -345,12 +420,12 @@ async function joinWaitlist() {
     const formContainer = document.getElementById('waitlist-form');
     const successMessage = document.getElementById('waitlist-success');
     const email = emailInput.value;
-    if (!email) return alert('Please enter your email.');
+    if (!email) return showToast('Please enter your email', 'error');
     submitBtn.innerText = 'Joining...';
     submitBtn.disabled = true;
     const { error } = await supabaseClient.from('waitlist').insert([{ email }]);
     if (error) {
-        alert('Error: ' + error.message);
+        showToast('Error: ' + error.message, 'error');
         submitBtn.innerText = 'Join Waitlist';
         submitBtn.disabled = false;
     } else {
@@ -373,9 +448,7 @@ function toggleSidebar() {
 
 function openProjectModal() {
     if (!canCreateProject()) {
-        if (confirm(`You've reached your plan limit (${getLimits().projects} projects). Upgrade to add more?`)) {
-            switchView('billing');
-        }
+        if (confirm(`You've reached your plan limit (${getLimits().projects} projects). Upgrade?`)) switchView('billing');
         return;
     }
     document.getElementById('project-modal').classList.remove('hidden');
@@ -395,8 +468,16 @@ function autoSlug() {
 
 async function loadProjects() {
     if (!currentUser) return;
+    const loadingEl = document.getElementById('projects-loading');
+    const gridEl = document.getElementById('projects-grid');
+    const emptyEl = document.getElementById('empty-state');
+    if (loadingEl) loadingEl.classList.remove('hidden');
+    if (gridEl) gridEl.classList.add('hidden');
+    if (emptyEl) emptyEl.classList.add('hidden');
+
     const { data, error } = await supabaseClient.from('projects').select('*').order('created_at', { ascending: false });
-    if (error) { console.error(error.message); return; }
+    if (loadingEl) loadingEl.classList.add('hidden');
+    if (error) { console.error(error.message); showToast('Failed to load projects', 'error'); return; }
     projectsCache = data || [];
     renderProjects(projectsCache);
     updateStats(projectsCache);
@@ -415,26 +496,31 @@ function renderProjects(projects) {
     if (!grid) {
         grid = document.createElement('div');
         grid.id = 'projects-grid';
-        grid.className = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4';
+        grid.className = 'hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4';
         emptyState.parentNode.insertBefore(grid, emptyState.nextSibling);
     }
     grid.classList.remove('hidden');
-    grid.innerHTML = projects.map(p => `
-        <div class="feature-card bg-[#1C2333] border border-[#2A3347] p-5 rounded-xl">
+    grid.innerHTML = projects.map(p => {
+        const paused = p.status === 'paused';
+        const statusColor = paused ? 'text-yellow-400 bg-yellow-400/10' : (p.status === 'archived' ? 'text-[#64748B] bg-[#64748B]/10' : 'text-[#06B6D4] bg-[#06B6D4]/10');
+        return `
+        <div class="feature-card rounded-xl p-5" style="background: var(--surface); border: 1px solid var(--border); ${paused ? 'opacity: 0.7;' : ''}" onclick="openProjectDetail('${p.id}')">
             <div class="flex items-start justify-between mb-3">
-                <div class="w-10 h-10 rounded-lg bg-[#4F46E5]/10 border border-[#4F46E5]/30 flex items-center justify-center">
-                    <svg class="w-5 h-5 text-[#4F46E5]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background: rgba(79,70,229,0.1); border: 1px solid rgba(79,70,229,0.3);">
+                    <svg class="w-5 h-5" style="color: var(--accent);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
                 </div>
-                <span class="text-[10px] font-bold uppercase tracking-wider text-[#06B6D4] bg-[#06B6D4]/10 px-2 py-1 rounded">${p.status || 'active'}</span>
+                <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded ${statusColor}">${p.status || 'active'}</span>
             </div>
-            <h3 class="font-bold text-white mb-1 truncate">${escapeHtml(p.name)}</h3>
-            <p class="text-[#94A3B8] text-xs mono mb-3 truncate">${escapeHtml(p.slug)}</p>
-            <p class="text-[#94A3B8] text-sm line-clamp-2 mb-4">${escapeHtml(p.description || 'No description yet.')}</p>
-            <div class="flex items-center justify-between text-[10px] text-[#64748B]">
+            <h3 class="font-bold mb-1 truncate" style="color: var(--text);">${escapeHtml(p.name)}</h3>
+            <p class="text-xs mono mb-3 truncate" style="color: var(--text-muted);">${escapeHtml(p.slug)}</p>
+            <p class="text-sm line-clamp-2 mb-4" style="color: var(--text-muted);">${escapeHtml(p.description || 'No description yet.')}</p>
+            <div class="flex items-center justify-between text-[10px]" style="color: var(--text-dim);">
                 <span>${new Date(p.created_at).toLocaleDateString()}</span>
+                ${p.github_repo ? `<span class="mono flex items-center gap-1"><svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>${escapeHtml(p.github_repo.split('/')[1] || p.github_repo)}</span>` : ''}
             </div>
         </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 function updateStats(projects) {
@@ -442,7 +528,7 @@ function updateStats(projects) {
     const syncs = projects.reduce((s, p) => s + (Number(p.sync_ops_used) || 0), 0);
     const tEl = document.getElementById('stat-tokens');
     const sEl = document.getElementById('stat-syncs');
-    if (tEl) tEl.innerHTML = `${tokens.toLocaleString()} <span class="text-xs text-[#64748B] font-normal">/ 100k</span>`;
+    if (tEl) tEl.innerHTML = `${tokens.toLocaleString()} <span class="text-xs font-normal" style="color: var(--text-dim);">/ 100k</span>`;
     if (sEl) sEl.textContent = syncs.toLocaleString();
 }
 
@@ -467,6 +553,224 @@ async function createProject() {
     }
     closeProjectModal();
     await loadProjects();
+    showToast('Project forged', 'success');
+}
+
+// ============================================
+// PROJECT DETAIL / EDIT / PAUSE / DELETE / GITHUB
+// ============================================
+
+async function openProjectDetail(id) {
+    const p = projectsCache.find(x => x.id === id);
+    if (!p) return;
+    viewingProjectId = id;
+    document.getElementById('pd-title').textContent = p.name;
+    const body = document.getElementById('pd-body');
+
+    const paused = p.status === 'paused';
+    const statusColor = paused ? 'text-yellow-400' : 'text-[#06B6D4]';
+
+    body.innerHTML = `
+        <div class="flex items-center gap-3">
+            <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded ${paused ? 'text-yellow-400 bg-yellow-400/10' : 'text-[#06B6D4] bg-[#06B6D4]/10'}">${p.status || 'active'}</span>
+            <span class="text-xs mono" style="color: var(--text-dim);">${escapeHtml(p.slug)}</span>
+        </div>
+        <p class="text-sm" style="color: var(--text-muted);">${escapeHtml(p.description || 'No description yet.')}</p>
+        <div class="rounded-lg p-3 text-xs space-y-1" style="background: var(--bg); border: 1px solid var(--border);">
+            <div class="flex justify-between"><span style="color: var(--text-dim);">Created</span><span class="mono" style="color: var(--text-muted);">${new Date(p.created_at).toLocaleDateString()}</span></div>
+            <div class="flex justify-between"><span style="color: var(--text-dim);">AI Tokens</span><span class="mono" style="color: var(--text-muted);">${(Number(p.ai_tokens_used) || 0).toLocaleString()}</span></div>
+        </div>
+        ${p.github_repo ? `
+            <div id="pd-repo-info" class="rounded-lg p-3 text-xs" style="background: var(--bg); border: 1px solid var(--border);">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="mono flex items-center gap-1" style="color: var(--text-muted);">
+                        <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+                        ${escapeHtml(p.github_repo)}
+                    </span>
+                    <button onclick="refreshRepoInfo('${p.github_repo}')" class="text-[10px]" style="color: var(--cyan);">Refresh</button>
+                </div>
+                <div id="pd-repo-stats" style="color: var(--text-dim);">Loading repo info...</div>
+            </div>
+        ` : ''}
+
+        <div class="space-y-2 pt-2">
+            <button onclick="openGithubModal('${p.id}')" class="w-full text-sm font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-colors" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+                ${p.github_repo ? 'Change Repository' : 'Link GitHub Repo'}
+            </button>
+            <button onclick="openProjectEdit('${p.id}')" class="w-full text-sm font-bold py-3 rounded-lg transition-colors text-white" style="background: var(--accent);">Edit Project</button>
+            <button onclick="toggleProjectPause('${p.id}')" class="w-full text-sm font-bold py-3 rounded-lg transition-colors" style="background: var(--bg); border: 1px solid var(--border); color: ${paused ? 'var(--green)' : 'var(--amber)'};">
+                ${paused ? '▶ Resume Project' : '⏸ Pause Project'}
+            </button>
+            <button onclick="deleteProject('${p.id}')" class="w-full text-sm font-bold py-3 rounded-lg bg-red-500/20 border border-red-500/40 text-red-400 hover:bg-red-500/30 transition-colors">Delete Project</button>
+        </div>
+    `;
+
+    document.getElementById('project-detail-modal').classList.remove('hidden');
+
+    if (p.github_repo) {
+        refreshRepoInfo(p.github_repo);
+    }
+}
+
+function closeProjectDetail() {
+    document.getElementById('project-detail-modal').classList.add('hidden');
+    viewingProjectId = null;
+}
+
+async function refreshRepoInfo(repo) {
+    const el = document.getElementById('pd-repo-stats');
+    if (!el) return;
+    try {
+        const res = await fetch(`https://api.github.com/repos/${repo}`);
+        if (!res.ok) throw new Error(`Repo not found (${res.status})`);
+        const data = await res.json();
+        el.innerHTML = `
+            <div class="flex justify-between"><span>Stars</span><span class="mono">${data.stargazers_count ?? 0}</span></div>
+            <div class="flex justify-between"><span>Language</span><span class="mono">${escapeHtml(data.language || '—')}</span></div>
+            <div class="flex justify-between"><span>Last push</span><span class="mono">${data.pushed_at ? new Date(data.pushed_at).toLocaleDateString() : '—'}</span></div>
+            <div class="flex justify-between"><span>Visibility</span><span class="mono">${data.private ? 'private' : 'public'}</span></div>
+        `;
+    } catch (err) {
+        el.innerHTML = `<span style="color: var(--red);">${escapeHtml(err.message)}</span>`;
+    }
+}
+
+function openProjectEdit(id) {
+    const p = projectsCache.find(x => x.id === id);
+    if (!p) return;
+    editingProjectId = id;
+    document.getElementById('edit-project-name').value = p.name || '';
+    document.getElementById('edit-project-slug').value = p.slug || '';
+    document.getElementById('edit-project-description').value = p.description || '';
+    document.getElementById('edit-error').classList.add('hidden');
+    document.getElementById('project-edit-modal').classList.remove('hidden');
+}
+
+function closeProjectEdit() {
+    document.getElementById('project-edit-modal').classList.add('hidden');
+    editingProjectId = null;
+}
+
+async function saveProjectEdit() {
+    if (!editingProjectId) return;
+    const name = document.getElementById('edit-project-name').value.trim();
+    const slug = document.getElementById('edit-project-slug').value.trim();
+    const description = document.getElementById('edit-project-description').value.trim();
+    const errEl = document.getElementById('edit-error');
+    const btn = document.getElementById('save-project-btn');
+
+    errEl.classList.add('hidden');
+    if (!name || !slug) { errEl.textContent = 'Name and slug required.'; errEl.classList.remove('hidden'); return; }
+
+    btn.textContent = 'Saving...'; btn.disabled = true;
+    const { error } = await supabaseClient.from('projects')
+        .update({ name, slug, description: description || null })
+        .eq('id', editingProjectId);
+    btn.textContent = 'Save Changes'; btn.disabled = false;
+
+    if (error) {
+        errEl.textContent = error.message.includes('duplicate') ? 'That slug is taken.' : error.message;
+        errEl.classList.remove('hidden'); return;
+    }
+    closeProjectEdit();
+    closeProjectDetail();
+    await loadProjects();
+    showToast('Project updated', 'success');
+}
+
+async function toggleProjectPause(id) {
+    const p = projectsCache.find(x => x.id === id);
+    if (!p) return;
+    const newStatus = p.status === 'paused' ? 'active' : 'paused';
+    const { error } = await supabaseClient.from('projects')
+        .update({ status: newStatus })
+        .eq('id', id);
+    if (error) { showToast('Failed: ' + error.message, 'error'); return; }
+    closeProjectDetail();
+    await loadProjects();
+    showToast(newStatus === 'paused' ? 'Project paused' : 'Project resumed', 'success');
+}
+
+async function deleteProject(id) {
+    const p = projectsCache.find(x => x.id === id);
+    if (!p) return;
+    if (!confirm(`Permanently delete "${p.name}"? This cannot be undone.`)) return;
+    const { error } = await supabaseClient.from('projects').delete().eq('id', id);
+    if (error) { showToast('Failed: ' + error.message, 'error'); return; }
+    closeProjectDetail();
+    await loadProjects();
+    showToast('Project deleted', 'success');
+}
+
+// ============================================
+// GITHUB LINKING
+// ============================================
+
+function openGithubModal(id) {
+    const p = projectsCache.find(x => x.id === id);
+    if (!p) return;
+    if (!p.github_repo && !canLinkRepo()) {
+        if (confirm(`You've reached your plan limit (${getLimits().repos} repos). Upgrade?`)) {
+            closeProjectDetail();
+            switchView('billing');
+        }
+        return;
+    }
+    linkingProjectId = id;
+    document.getElementById('gh-repo').value = p.github_repo || '';
+    document.getElementById('gh-branch').value = p.github_branch || 'main';
+    document.getElementById('gh-error').classList.add('hidden');
+    document.getElementById('github-modal').classList.remove('hidden');
+}
+
+function closeGithubModal() {
+    document.getElementById('github-modal').classList.add('hidden');
+    linkingProjectId = null;
+}
+
+async function saveGithubLink() {
+    if (!linkingProjectId) return;
+    let repo = document.getElementById('gh-repo').value.trim();
+    const branch = document.getElementById('gh-branch').value.trim() || 'main';
+    const errEl = document.getElementById('gh-error');
+    const btn = document.getElementById('save-gh-btn');
+
+    errEl.classList.add('hidden');
+
+    // Normalize: strip URL if pasted
+    repo = repo.replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '').replace(/\/$/, '');
+
+    if (!repo || !repo.includes('/')) {
+        errEl.textContent = 'Use format: owner/repo';
+        errEl.classList.remove('hidden'); return;
+    }
+
+    btn.textContent = 'Verifying repo...'; btn.disabled = true;
+
+    try {
+        const res = await fetch(`https://api.github.com/repos/${repo}`);
+        if (!res.ok) throw new Error(res.status === 404 ? 'Repository not found.' : `GitHub error ${res.status}`);
+    } catch (err) {
+        btn.textContent = 'Link Repository'; btn.disabled = false;
+        errEl.textContent = err.message;
+        errEl.classList.remove('hidden'); return;
+    }
+
+    const { error } = await supabaseClient.from('projects').update({
+        github_repo: repo,
+        github_branch: branch,
+        repo_connected_at: new Date().toISOString()
+    }).eq('id', linkingProjectId);
+
+    btn.textContent = 'Link Repository'; btn.disabled = false;
+
+    if (error) { errEl.textContent = error.message; errEl.classList.remove('hidden'); return; }
+
+    closeGithubModal();
+    closeProjectDetail();
+    await loadProjects();
+    showToast('GitHub repo linked', 'success');
 }
 
 // ============================================
@@ -521,16 +825,16 @@ function appendMessage(role, content) {
     if (role === 'user') {
         wrapper.className += ' flex-row-reverse';
         wrapper.innerHTML = `
-            <div class="w-8 h-8 rounded-lg bg-[#4F46E5]/20 border border-[#4F46E5]/40 flex items-center justify-center flex-shrink-0">
-                <svg class="w-4 h-4 text-[#4F46E5]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background: rgba(79,70,229,0.2); border: 1px solid rgba(79,70,229,0.4);">
+                <svg class="w-4 h-4" style="color: var(--accent);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
             </div>
-            <div class="bg-[#4F46E5] text-white rounded-2xl rounded-tr-sm px-4 py-2.5 max-w-[80%] text-sm">${escapeHtml(content)}</div>`;
+            <div class="rounded-2xl rounded-tr-sm px-4 py-2.5 max-w-[80%] text-sm text-white" style="background: var(--accent);">${escapeHtml(content)}</div>`;
     } else {
         wrapper.innerHTML = `
-            <div class="w-8 h-8 rounded-lg bg-[#F59E0B]/20 border border-[#F59E0B]/40 flex items-center justify-center flex-shrink-0">
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background: rgba(245,158,11,0.2); border: 1px solid rgba(245,158,11,0.4);">
                 <svg class="w-4 h-4 text-[#F59E0B]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path></svg>
             </div>
-            <div class="bg-[#1C2333] border border-[#2A3347] text-[#F8FAFC] rounded-2xl rounded-tl-sm px-4 py-3 max-w-[85%] text-sm chat-message">${marked.parse(content)}</div>`;
+            <div class="rounded-2xl rounded-tl-sm px-4 py-3 max-w-[85%] text-sm chat-message" style="background: var(--surface); border: 1px solid var(--border); color: var(--text);">${marked.parse(content)}</div>`;
     }
     container.appendChild(wrapper);
     wrapper.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b));
@@ -553,13 +857,13 @@ function appendTypingIndicator() {
     const wrapper = document.createElement('div');
     wrapper.id = id; wrapper.className = 'flex gap-3 max-w-3xl mx-auto';
     wrapper.innerHTML = `
-        <div class="w-8 h-8 rounded-lg bg-[#F59E0B]/20 border border-[#F59E0B]/40 flex items-center justify-center flex-shrink-0">
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background: rgba(245,158,11,0.2); border: 1px solid rgba(245,158,11,0.4);">
             <svg class="w-4 h-4 text-[#F59E0B]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path></svg>
         </div>
-        <div class="bg-[#1C2333] border border-[#2A3347] rounded-2xl rounded-tl-sm px-4 py-3 flex items-center gap-1">
-            <span class="typing-dot w-2 h-2 bg-[#94A3B8] rounded-full"></span>
-            <span class="typing-dot w-2 h-2 bg-[#94A3B8] rounded-full"></span>
-            <span class="typing-dot w-2 h-2 bg-[#94A3B8] rounded-full"></span>
+        <div class="rounded-2xl rounded-tl-sm px-4 py-3 flex items-center gap-1" style="background: var(--surface); border: 1px solid var(--border);">
+            <span class="typing-dot w-2 h-2 rounded-full" style="background: var(--text-muted);"></span>
+            <span class="typing-dot w-2 h-2 rounded-full" style="background: var(--text-muted);"></span>
+            <span class="typing-dot w-2 h-2 rounded-full" style="background: var(--text-muted);"></span>
         </div>`;
     container.appendChild(wrapper); container.scrollTop = container.scrollHeight;
     return id;
@@ -570,8 +874,8 @@ function removeTypingIndicator(id) { const el = document.getElementById(id); if 
 function clearChat() {
     document.getElementById('chat-messages').innerHTML = `
         <div class="text-center py-8">
-            <h3 class="text-white font-bold mb-1">Chat cleared</h3>
-            <p class="text-[#94A3B8] text-xs">Describe your next app.</p>
+            <h3 class="font-bold mb-1" style="color: var(--text);">Chat cleared</h3>
+            <p class="text-xs" style="color: var(--text-muted);">Describe your next app.</p>
         </div>`;
     chatHistory = [];
 }
@@ -602,23 +906,17 @@ async function generateSQL() {
     const loadingEl = document.getElementById('query-loading');
     const warningEl = document.getElementById('query-warning');
 
-    if (!prompt) {
-        alert('Describe what you want to do first.');
-        return;
-    }
+    if (!prompt) { showToast('Describe what you want first', 'error'); return; }
 
-    // Optionally add connection context
     const connId = document.getElementById('query-connection').value;
     let contextPrompt = prompt;
     if (connId) {
         const conn = connectionsCache.find(c => c.id === connId);
-        if (conn) {
-            contextPrompt = `Database: ${conn.name} (${conn.supabase_url.replace('https://', '')})\n\nTask: ${prompt}`;
-        }
+        if (conn) contextPrompt = `Database: ${conn.name} (${conn.supabase_url.replace('https://', '')})\n\nTask: ${prompt}`;
     }
 
     submitBtn.disabled = true;
-    submitBtn.innerHTML = '<span class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span> Generating...';
+    submitBtn.innerHTML = 'Generating...';
     outputWrap.classList.add('hidden');
     loadingEl.classList.remove('hidden');
     warningEl.classList.add('hidden');
@@ -631,35 +929,27 @@ async function generateSQL() {
             body: JSON.stringify({ prompt: contextPrompt, mode: 'sql' })
         });
         const data = await res.json();
-
         loadingEl.classList.add('hidden');
         submitBtn.disabled = false;
-        submitBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> Generate SQL';
+        submitBtn.innerHTML = 'Generate SQL';
 
         if (data.error) {
             outputWrap.classList.remove('hidden');
-            outputEl.innerHTML = `<p class="text-red-400 text-sm">${escapeHtml(data.error)}</p>`;
+            outputEl.innerHTML = `<p style="color: var(--red);" class="text-sm">${escapeHtml(data.error)}</p>`;
             return;
         }
 
-        // Extract SQL from markdown code block
         const raw = data.content || '';
         const match = raw.match(/```(?:sql)?\s*([\s\S]*?)```/i);
         const sql = match ? match[1].trim() : raw.trim();
         lastGeneratedSQL = sql;
 
         outputWrap.classList.remove('hidden');
-
-        // Destructive warning
         if (/^\s*--\s*WARNING: destructive/i.test(sql) || /\b(DROP|DELETE|TRUNCATE)\b/i.test(sql)) {
             warningEl.classList.remove('hidden');
         }
-
-        // Render with syntax highlighting
         outputEl.innerHTML = `<pre><code class="language-sql">${escapeHtml(sql)}</code></pre>`;
         outputEl.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b));
-
-        // Add copy button to the pre
         const pre = outputEl.querySelector('pre');
         if (pre) {
             pre.style.position = 'relative';
@@ -673,28 +963,20 @@ async function generateSQL() {
             };
             pre.appendChild(btn);
         }
-
-        // Save to history
         await saveQueryToHistory(connId || null, prompt, sql);
-
     } catch (err) {
         loadingEl.classList.add('hidden');
         submitBtn.disabled = false;
-        submitBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> Generate SQL';
+        submitBtn.innerHTML = 'Generate SQL';
         outputWrap.classList.remove('hidden');
-        outputEl.innerHTML = `<p class="text-red-400 text-sm">Network error: ${escapeHtml(err.message)}</p>`;
+        outputEl.innerHTML = `<p style="color: var(--red);" class="text-sm">Network error: ${escapeHtml(err.message)}</p>`;
     }
 }
 
 function copyGeneratedSQL() {
     if (!lastGeneratedSQL) return;
     navigator.clipboard.writeText(lastGeneratedSQL);
-    const btn = document.getElementById('query-copy-btn');
-    if (btn) {
-        const original = btn.innerHTML;
-        btn.innerHTML = '✓ Copied!';
-        setTimeout(() => btn.innerHTML = original, 1500);
-    }
+    showToast('SQL copied', 'success');
 }
 
 async function saveQueryToHistory(connectionId, prompt, sql) {
@@ -714,51 +996,39 @@ async function loadQueryHistory() {
     const wrap = document.getElementById('query-history-wrap');
     const list = document.getElementById('query-history-list');
     if (!wrap || !list) return;
-
     const { data, error } = await supabaseClient
-        .from('query_history')
-        .select('*')
+        .from('query_history').select('*')
         .eq('user_id', currentUser.id)
-        .order('created_at', { ascending: false })
-        .limit(10);
-
+        .order('created_at', { ascending: false }).limit(10);
     if (error) { console.error(error.message); return; }
     if (!data || data.length === 0) { wrap.classList.add('hidden'); return; }
-
     wrap.classList.remove('hidden');
     list.innerHTML = data.map(h => `
-        <div class="bg-[#1C2333] border border-[#2A3347] rounded-xl p-3 cursor-pointer hover:border-[#4F46E5] transition-colors" onclick="loadHistoryItem('${h.id}')">
+        <div class="rounded-xl p-3 cursor-pointer transition-colors" style="background: var(--surface); border: 1px solid var(--border);" onclick="loadHistoryItem('${h.id}')">
             <div class="flex items-start justify-between mb-1">
-                <p class="text-white text-xs font-medium flex-1 pr-2 line-clamp-2">${escapeHtml(h.prompt)}</p>
-                <span class="text-[10px] text-[#64748B] flex-shrink-0 mono">${new Date(h.created_at).toLocaleDateString()}</span>
+                <p class="text-xs font-medium flex-1 pr-2 line-clamp-2" style="color: var(--text);">${escapeHtml(h.prompt)}</p>
+                <span class="text-[10px] flex-shrink-0 mono" style="color: var(--text-dim);">${new Date(h.created_at).toLocaleDateString()}</span>
             </div>
-            <p class="text-[#06B6D4] text-[10px] mono truncate">${escapeHtml(h.generated_sql.split('\n')[0])}</p>
+            <p class="text-[10px] mono truncate" style="color: var(--cyan);">${escapeHtml(h.generated_sql.split('\n')[0])}</p>
         </div>
     `).join('');
 }
 
 async function loadHistoryItem(id) {
-    const { data, error } = await supabaseClient
-        .from('query_history').select('*').eq('id', id).single();
+    const { data, error } = await supabaseClient.from('query_history').select('*').eq('id', id).single();
     if (error || !data) return;
-
     document.getElementById('query-prompt').value = data.prompt;
     lastGeneratedSQL = data.generated_sql;
-
     const outputWrap = document.getElementById('query-output-wrap');
     const outputEl = document.getElementById('query-output');
     const warningEl = document.getElementById('query-warning');
-
     outputWrap.classList.remove('hidden');
     warningEl.classList.add('hidden');
-
     if (/^\s*--\s*WARNING: destructive/i.test(data.generated_sql) || /\b(DROP|DELETE|TRUNCATE)\b/i.test(data.generated_sql)) {
         warningEl.classList.remove('hidden');
     }
-
     outputEl.innerHTML = `<pre><code class="language-sql">${escapeHtml(data.generated_sql)}</code></pre>`;
     outputEl.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b));
-
     const pre = outputEl.querySelector('pre');
     if (pre) {
         pre.style.position = 'relative';
@@ -772,8 +1042,6 @@ async function loadHistoryItem(id) {
         };
         pre.appendChild(btn);
     }
-
-    // Scroll to output
     outputWrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
@@ -788,21 +1056,17 @@ function switchPayTab(tab) {
     const payTab = document.getElementById('pay-tab-payments');
     if (tab === 'plans') {
         plansPanel.classList.remove('hidden'); payPanel.classList.add('hidden');
-        plansTab.classList.add('text-white', 'border-b-2', 'border-[#4F46E5]');
-        plansTab.classList.remove('text-[#94A3B8]');
-        payTab.classList.remove('text-white', 'border-b-2', 'border-[#4F46E5]');
-        payTab.classList.add('text-[#94A3B8]');
+        plansTab.style.color = 'var(--text)'; plansTab.style.borderBottom = '2px solid var(--accent)';
+        payTab.style.color = 'var(--text-muted)'; payTab.style.borderBottom = 'none';
     } else {
         plansPanel.classList.add('hidden'); payPanel.classList.remove('hidden');
-        payTab.classList.add('text-white', 'border-b-2', 'border-[#4F46E5]');
-        payTab.classList.remove('text-[#94A3B8]');
-        plansTab.classList.remove('text-white', 'border-b-2', 'border-[#4F46E5]');
-        plansTab.classList.add('text-[#94A3B8]');
+        payTab.style.color = 'var(--text)'; payTab.style.borderBottom = '2px solid var(--accent)';
+        plansTab.style.color = 'var(--text-muted)'; plansTab.style.borderBottom = 'none';
     }
 }
 
 function openPlanModal() {
-    if (projectsCache.length === 0) { alert('Create a project first — plans belong to projects.'); return; }
+    if (projectsCache.length === 0) { showToast('Create a project first', 'error'); return; }
     document.getElementById('plan-modal').classList.remove('hidden');
     document.getElementById('plan-error').classList.add('hidden');
     populateProjectSelects();
@@ -835,19 +1099,19 @@ async function loadPlans() {
     if (!grid) {
         grid = document.createElement('div');
         grid.id = 'pay-plans-grid';
-        grid.className = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4';
+        grid.className = 'hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4';
         empty.parentNode.insertBefore(grid, empty.nextSibling);
     }
     grid.classList.remove('hidden');
     grid.innerHTML = data.map(pl => `
-        <div class="bg-[#1C2333] border border-[#2A3347] p-5 rounded-xl">
+        <div class="rounded-xl p-5" style="background: var(--surface); border: 1px solid var(--border);">
             <div class="flex items-start justify-between mb-3">
-                <span class="text-[10px] font-bold uppercase tracking-wider text-[#4F46E5] bg-[#4F46E5]/10 px-2 py-1 rounded">${escapeHtml(pl.provider)}</span>
-                <span class="text-[10px] text-[#64748B]">${escapeHtml(pl.interval)}</span>
+                <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded" style="background: rgba(79,70,229,0.1); color: var(--accent);">${escapeHtml(pl.provider)}</span>
+                <span class="text-[10px]" style="color: var(--text-dim);">${escapeHtml(pl.interval)}</span>
             </div>
-            <h3 class="font-bold text-white mb-1">${escapeHtml(pl.name)}</h3>
-            <div class="text-2xl font-extrabold text-white mono mb-3">${escapeHtml(pl.currency)} ${Number(pl.price_amount).toFixed(2)}</div>
-            ${pl.checkout_url ? `<button onclick="copyCheckout('${escapeHtml(pl.checkout_url)}')" class="w-full bg-[#4F46E5]/10 border border-[#4F46E5]/30 hover:border-[#4F46E5] text-[#06B6D4] text-xs font-bold py-2 rounded-lg transition-colors">Copy Checkout Link</button>` : `<p class="text-[#64748B] text-xs">No checkout link set</p>`}
+            <h3 class="font-bold mb-1" style="color: var(--text);">${escapeHtml(pl.name)}</h3>
+            <div class="text-2xl font-extrabold mono mb-3" style="color: var(--text);">${escapeHtml(pl.currency)} ${Number(pl.price_amount).toFixed(2)}</div>
+            ${pl.checkout_url ? `<button onclick="copyCheckout('${escapeHtml(pl.checkout_url)}')" class="w-full text-xs font-bold py-2 rounded-lg transition-colors" style="background: rgba(79,70,229,0.1); border: 1px solid rgba(79,70,229,0.3); color: var(--cyan);">Copy Checkout Link</button>` : `<p class="text-xs" style="color: var(--text-dim);">No checkout link set</p>`}
         </div>
     `).join('');
     document.getElementById('pay-plans-count').textContent = data.length;
@@ -859,7 +1123,7 @@ async function loadPlans() {
 
 function copyCheckout(url) {
     navigator.clipboard.writeText(url);
-    alert('Checkout link copied!');
+    showToast('Checkout link copied', 'success');
 }
 
 async function createPlan() {
@@ -886,6 +1150,7 @@ async function createPlan() {
     if (error) { errEl.textContent = error.message; errEl.classList.remove('hidden'); return; }
     closePlanModal();
     await loadPlans();
+    showToast('Plan created', 'success');
 }
 
 // ============================================
@@ -893,7 +1158,7 @@ async function createPlan() {
 // ============================================
 
 function openPaymentModal() {
-    if (projectsCache.length === 0) { alert('Create a project first.'); return; }
+    if (projectsCache.length === 0) { showToast('Create a project first', 'error'); return; }
     document.getElementById('payment-modal').classList.remove('hidden');
     document.getElementById('payment-error').classList.add('hidden');
     populateProjectSelects();
@@ -927,18 +1192,18 @@ async function loadPayments() {
     if (!list) return;
     list.classList.remove('hidden');
     list.innerHTML = data.map(p => `
-        <div class="bg-[#1C2333] border border-[#2A3347] p-4 rounded-xl flex items-center justify-between">
+        <div class="rounded-xl p-4 flex items-center justify-between" style="background: var(--surface); border: 1px solid var(--border);">
             <div class="flex items-center gap-3 min-w-0">
-                <div class="w-9 h-9 rounded-lg bg-[#06B6D4]/10 border border-[#06B6D4]/30 flex items-center justify-center flex-shrink-0">
-                    <svg class="w-4 h-4 text-[#06B6D4]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style="background: rgba(6,182,212,0.1); border: 1px solid rgba(6,182,212,0.3);">
+                    <svg class="w-4 h-4" style="color: var(--cyan);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                 </div>
                 <div class="min-w-0">
-                    <p class="text-white text-sm font-medium truncate">${escapeHtml(p.customer_email || 'Anonymous')}</p>
-                    <p class="text-[#64748B] text-xs mono">${new Date(p.paid_at).toLocaleDateString()} · ${escapeHtml(p.provider || 'manual')}</p>
+                    <p class="text-sm font-medium truncate" style="color: var(--text);">${escapeHtml(p.customer_email || 'Anonymous')}</p>
+                    <p class="text-xs mono" style="color: var(--text-dim);">${new Date(p.paid_at).toLocaleDateString()} · ${escapeHtml(p.provider || 'manual')}</p>
                 </div>
             </div>
             <div class="text-right flex-shrink-0">
-                <div class="text-white font-bold mono">${escapeHtml(p.currency)} ${Number(p.amount).toFixed(2)}</div>
+                <div class="font-bold mono" style="color: var(--text);">${escapeHtml(p.currency)} ${Number(p.amount).toFixed(2)}</div>
                 <span class="text-[10px] uppercase font-bold ${p.status === 'paid' ? 'text-green-400' : p.status === 'pending' ? 'text-yellow-400' : 'text-red-400'}">${p.status}</span>
             </div>
         </div>
@@ -969,6 +1234,7 @@ async function createPayment() {
     if (error) { errEl.textContent = error.message; errEl.classList.remove('hidden'); return; }
     closePaymentModal();
     await loadPayments();
+    showToast('Payment logged', 'success');
 }
 
 // ============================================
@@ -977,9 +1243,7 @@ async function createPayment() {
 
 function openConnectModal() {
     if (!canCreateConnection()) {
-        if (confirm(`You've reached your plan limit (${getLimits().connections} connections). Upgrade to add more?`)) {
-            switchView('billing');
-        }
+        if (confirm(`You've reached your plan limit (${getLimits().connections} connections). Upgrade?`)) switchView('billing');
         return;
     }
     document.getElementById('connect-modal').classList.remove('hidden');
@@ -1021,21 +1285,21 @@ function renderConnections(connections) {
     empty.classList.add('hidden');
     list.classList.remove('hidden');
     list.innerHTML = connections.map(c => `
-        <div class="bg-[#1C2333] border border-[#2A3347] p-4 rounded-xl flex items-center justify-between">
+        <div class="rounded-xl p-4 flex items-center justify-between" style="background: var(--surface); border: 1px solid var(--border);">
             <div class="flex items-center gap-3 min-w-0 cursor-pointer flex-1" onclick="openConnection('${c.id}')">
-                <div class="w-9 h-9 rounded-lg bg-[#06B6D4]/10 border border-[#06B6D4]/30 flex items-center justify-center flex-shrink-0">
-                    <svg class="w-4 h-4 text-[#06B6D4]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
+                <div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style="background: rgba(6,182,212,0.1); border: 1px solid rgba(6,182,212,0.3);">
+                    <svg class="w-4 h-4" style="color: var(--cyan);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
                 </div>
                 <div class="min-w-0">
-                    <p class="text-white text-sm font-medium truncate">${escapeHtml(c.name)}</p>
-                    <p class="text-[#64748B] text-xs mono truncate">${escapeHtml(c.supabase_url.replace('https://', ''))}</p>
+                    <p class="text-sm font-medium truncate" style="color: var(--text);">${escapeHtml(c.name)}</p>
+                    <p class="text-xs mono truncate" style="color: var(--text-dim);">${escapeHtml(c.supabase_url.replace('https://', ''))}</p>
                 </div>
             </div>
             <div class="flex items-center gap-2 flex-shrink-0">
-                <button onclick="deleteConnection('${c.id}')" class="text-[#94A3B8] hover:text-red-400 p-2">
+                <button onclick="deleteConnection('${c.id}')" class="p-2" style="color: var(--text-muted);">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22"></path></svg>
                 </button>
-                <svg class="w-4 h-4 text-[#4F46E5]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                <svg class="w-4 h-4" style="color: var(--accent);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
             </div>
         </div>
     `).join('');
@@ -1075,14 +1339,16 @@ async function createConnection() {
     closeConnectModal();
     await loadConnections();
     populateQueryConnections();
+    showToast('Database connected', 'success');
 }
 
 async function deleteConnection(id) {
     if (!confirm('Delete this connection?')) return;
     const { error } = await supabaseClient.from('connected_databases').delete().eq('id', id);
-    if (error) { alert(error.message); return; }
+    if (error) { showToast('Failed: ' + error.message, 'error'); return; }
     await loadConnections();
     populateQueryConnections();
+    showToast('Connection deleted', 'success');
 }
 
 // ============================================
@@ -1115,9 +1381,7 @@ async function openConnection(id) {
         let spec = null;
         if (res.ok) { try { spec = await res.json(); } catch (_) { spec = null; } }
         let tables = [];
-        if (spec) {
-            tables = Object.keys(spec.definitions || spec.components?.schemas || {}).sort();
-        }
+        if (spec) tables = Object.keys(spec.definitions || spec.components?.schemas || {}).sort();
         if (tables.length === 0) {
             const candidates = ['profiles', 'projects', 'plans', 'payments', 'subscriptions', 'usage_metrics', 'waitlist', 'connected_databases', 'upgrade_requests', 'query_history'];
             for (const t of candidates) {
@@ -1132,20 +1396,20 @@ async function openConnection(id) {
         if (tables.length === 0) {
             document.getElementById('ukmtables-rows-loading').classList.add('hidden');
             document.getElementById('ukmtables-rows-empty').classList.remove('hidden');
-            document.getElementById('ukmtables-rows-empty').innerHTML = `<p class="text-[#94A3B8] text-sm">No tables found.</p>`;
+            document.getElementById('ukmtables-rows-empty').innerHTML = `<p class="text-sm" style="color: var(--text-muted);">No tables found.</p>`;
             return;
         }
         document.getElementById('ukmtables-pills').innerHTML = tables.map(t => `
-            <button onclick="selectTable('${t}')" data-table="${t}" class="table-pill bg-[#1C2333] border border-[#2A3347] text-[#94A3B8] text-xs px-3 py-1.5 rounded-lg mono">
+            <button onclick="selectTable('${t}')" data-table="${t}" class="table-pill text-xs px-3 py-1.5 rounded-lg mono" style="background: var(--surface); border: 1px solid var(--border); color: var(--text-muted);">
                 ${escapeHtml(t)}
             </button>
         `).join('');
         await selectTable(tables[0]);
     } catch (err) {
-        subtitle.textContent = 'Error loading schema';
+        subtitle.textContent = 'Error';
         document.getElementById('ukmtables-rows-loading').classList.add('hidden');
         document.getElementById('ukmtables-rows-empty').classList.remove('hidden');
-        document.getElementById('ukmtables-rows-empty').innerHTML = `<p class="text-red-400 text-sm">${escapeHtml(err.message)}</p>`;
+        document.getElementById('ukmtables-rows-empty').innerHTML = `<p class="text-sm" style="color: var(--red);">${escapeHtml(err.message)}</p>`;
     }
 }
 
@@ -1177,14 +1441,14 @@ async function selectTable(tableName) {
         const rows = await res.json();
         if (!rows || rows.length === 0) {
             document.getElementById('ukmtables-rows-empty').classList.remove('hidden');
-            document.getElementById('ukmtables-rows-empty').innerHTML = `<p class="text-[#94A3B8] text-sm">No rows visible.</p>`;
+            document.getElementById('ukmtables-rows-empty').innerHTML = `<p class="text-sm" style="color: var(--text-muted);">No rows visible.</p>`;
             return;
         }
         renderRows(rows);
     } catch (err) {
         document.getElementById('ukmtables-rows-loading').classList.add('hidden');
         document.getElementById('ukmtables-rows-empty').classList.remove('hidden');
-        document.getElementById('ukmtables-rows-empty').innerHTML = `<p class="text-red-400 text-sm">${escapeHtml(err.message)}</p>`;
+        document.getElementById('ukmtables-rows-empty').innerHTML = `<p class="text-sm" style="color: var(--red);">${escapeHtml(err.message)}</p>`;
     }
 }
 
@@ -1194,17 +1458,17 @@ function renderRows(rows) {
     container.innerHTML = rows.map((row, idx) => {
         const fields = Object.entries(row).map(([k, v]) => {
             let display;
-            if (v === null || v === undefined) display = '<span class="text-[#64748B] italic">null</span>';
+            if (v === null || v === undefined) display = '<span style="color: var(--text-dim);" class="italic">null</span>';
             else if (typeof v === 'object') display = escapeHtml(JSON.stringify(v));
             else display = escapeHtml(String(v));
             return `<div class="flex gap-2 py-1 text-xs"><span class="field-key mono flex-shrink-0">${escapeHtml(k)}:</span><span class="field-val mono flex-1">${display}</span></div>`;
         }).join('');
         const jsonStr = JSON.stringify(row).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
         return `
-            <div class="bg-[#1C2333] border border-[#2A3347] rounded-xl p-4">
-                <div class="flex items-center justify-between mb-2 pb-2 border-b border-[#2A3347]">
-                    <span class="text-[10px] uppercase font-bold text-[#4F46E5] mono">Row ${idx + 1}</span>
-                    <button onclick="copyRow('${jsonStr}')" class="text-[10px] text-[#06B6D4] hover:text-white">Copy JSON</button>
+            <div class="rounded-xl p-4" style="background: var(--surface); border: 1px solid var(--border);">
+                <div class="flex items-center justify-between mb-2 pb-2" style="border-bottom: 1px solid var(--border);">
+                    <span class="text-[10px] uppercase font-bold mono" style="color: var(--accent);">Row ${idx + 1}</span>
+                    <button onclick="copyRow('${jsonStr}')" class="text-[10px]" style="color: var(--cyan);">Copy JSON</button>
                 </div>
                 <div class="space-y-0.5">${fields}</div>
             </div>
@@ -1215,7 +1479,7 @@ function renderRows(rows) {
 function copyRow(jsonStr) {
     const clean = jsonStr.replace(/&quot;/g, '"').replace(/&#39;/g, "'");
     navigator.clipboard.writeText(clean);
-    alert('Row copied as JSON!');
+    showToast('Row copied', 'success');
 }
 
 // ============================================
@@ -1238,18 +1502,21 @@ function renderBilling() {
     }
     const limits = getLimits();
     const projPct = limits.projects >= 999 ? 5 : Math.min(100, (projectsCache.length / limits.projects) * 100);
-    document.getElementById('billing-projects-label').textContent =
-        `${projectsCache.length} / ${limits.projects >= 999 ? '∞' : limits.projects}`;
+    document.getElementById('billing-projects-label').textContent = `${projectsCache.length} / ${limits.projects >= 999 ? '∞' : limits.projects}`;
     document.getElementById('billing-projects-bar').style.width = projPct + '%';
     const connPct = limits.connections >= 999 ? 5 : Math.min(100, (connectionsCache.length / limits.connections) * 100);
-    document.getElementById('billing-connections-label').textContent =
-        `${connectionsCache.length} / ${limits.connections >= 999 ? '∞' : limits.connections}`;
+    document.getElementById('billing-connections-label').textContent = `${connectionsCache.length} / ${limits.connections >= 999 ? '∞' : limits.connections}`;
     document.getElementById('billing-connections-bar').style.width = connPct + '%';
+    const reposLinked = projectsCache.filter(p => p.github_repo).length;
+    const repoPct = limits.repos >= 999 ? 5 : Math.min(100, (reposLinked / limits.repos) * 100);
+    const repoSettings = document.getElementById('billing-repos-label');
+    if (repoSettings) repoSettings.textContent = `${reposLinked} / ${limits.repos >= 999 ? '∞' : limits.repos}`;
+    const repoBar = document.getElementById('billing-repos-bar');
+    if (repoBar) repoBar.style.width = repoPct + '%';
     const tokensUsed = projectsCache.reduce((s, p) => s + (Number(p.ai_tokens_used) || 0), 0);
     const tokenLimit = STAFF_ROLES.includes(currentProfile.role) ? 999999 : (currentProfile.plan === 'pro' ? 500000 : currentProfile.plan === 'team' ? 2000000 : 100000);
     const tokenPct = Math.min(100, (tokensUsed / tokenLimit) * 100);
-    document.getElementById('billing-tokens-label').textContent =
-        `${tokensUsed.toLocaleString()} / ${tokenLimit >= 999999 ? '∞' : (tokenLimit / 1000) + 'k'}`;
+    document.getElementById('billing-tokens-label').textContent = `${tokensUsed.toLocaleString()} / ${tokenLimit >= 999999 ? '∞' : (tokenLimit / 1000) + 'k'}`;
     document.getElementById('billing-tokens-bar').style.width = tokenPct + '%';
 }
 
@@ -1276,10 +1543,7 @@ async function submitUpgradeRequest() {
     const errEl = document.getElementById('upgrade-error');
     const btn = document.getElementById('submit-upgrade-btn');
     errEl.classList.add('hidden');
-    if (!name || !contact) {
-        errEl.textContent = 'Name and contact are required.';
-        errEl.classList.remove('hidden'); return;
-    }
+    if (!name || !contact) { errEl.textContent = 'Name and contact are required.'; errEl.classList.remove('hidden'); return; }
     if (!currentUpgradePlan) return;
     btn.textContent = 'Sending...'; btn.disabled = true;
     const { error } = await supabaseClient.from('upgrade_requests').insert([{
@@ -1293,12 +1557,9 @@ async function submitUpgradeRequest() {
         status: 'pending'
     }]);
     btn.textContent = 'Send Request'; btn.disabled = false;
-    if (error) {
-        errEl.textContent = error.message;
-        errEl.classList.remove('hidden'); return;
-    }
+    if (error) { errEl.textContent = error.message; errEl.classList.remove('hidden'); return; }
     closeUpgradeModal();
-    alert("Request sent! We'll reach out on WhatsApp within 24 hours to arrange payment.");
+    showToast("Request sent! We'll reach out within 24 hours", 'success', 5000);
     await loadMyUpgradeRequests();
 }
 
@@ -1308,18 +1569,16 @@ async function loadMyUpgradeRequests() {
     const list = document.getElementById('billing-requests-list');
     if (!wrap) return;
     const { data, error } = await supabaseClient
-        .from('upgrade_requests')
-        .select('*')
-        .eq('user_id', currentUser.id)
-        .order('created_at', { ascending: false });
+        .from('upgrade_requests').select('*')
+        .eq('user_id', currentUser.id).order('created_at', { ascending: false });
     if (error) { console.error(error.message); return; }
     if (!data || data.length === 0) { wrap.classList.add('hidden'); return; }
     wrap.classList.remove('hidden');
     list.innerHTML = data.map(r => `
-        <div class="bg-[#0B1020] border border-[#2A3347] rounded-lg p-3 flex items-center justify-between">
+        <div class="rounded-lg p-3 flex items-center justify-between" style="background: var(--bg); border: 1px solid var(--border);">
             <div>
-                <p class="text-white text-sm font-medium capitalize">${escapeHtml(r.requested_plan)}</p>
-                <p class="text-[#64748B] text-xs mono">${new Date(r.created_at).toLocaleDateString()}</p>
+                <p class="text-sm font-medium capitalize" style="color: var(--text);">${escapeHtml(r.requested_plan)}</p>
+                <p class="text-xs mono" style="color: var(--text-dim);">${new Date(r.created_at).toLocaleDateString()}</p>
             </div>
             <span class="text-[10px] uppercase font-bold ${r.status === 'approved' ? 'text-green-400' : r.status === 'pending' ? 'text-yellow-400' : 'text-red-400'}">${r.status}</span>
         </div>
@@ -1332,7 +1591,7 @@ async function loadMyUpgradeRequests() {
 
 async function loadOwnerConsole() {
     if (!STAFF_ROLES.includes(currentProfile?.role)) {
-        alert('Access denied.');
+        showToast('Access denied', 'error');
         switchView('overview');
         return;
     }
@@ -1341,53 +1600,39 @@ async function loadOwnerConsole() {
 }
 
 async function loadAllUsers() {
-    const usersLoading = document.getElementById('owner-users-loading');
     const usersList = document.getElementById('owner-users-list');
-    usersLoading.classList.remove('hidden');
-    usersList.classList.add('hidden');
     const { data, error } = await supabaseClient.from('profiles').select('*').order('created_at', { ascending: false });
-    usersLoading.classList.add('hidden');
-    if (error) {
-        usersList.classList.remove('hidden');
-        usersList.innerHTML = `<div class="bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-4 rounded-xl">Failed to load users: ${escapeHtml(error.message)}</div>`;
-        return;
-    }
+    if (error) { usersList.classList.remove('hidden'); usersList.innerHTML = `<div class="bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-4 rounded-xl">${escapeHtml(error.message)}</div>`; return; }
     allUsersCache = data || [];
     usersList.classList.remove('hidden');
-    if (allUsersCache.length === 0) {
-        usersList.innerHTML = `<div class="bg-[#1C2333] border border-dashed border-[#2A3347] rounded-xl p-8 text-center text-[#94A3B8] text-sm">No users yet.</div>`;
-        return;
-    }
+    if (allUsersCache.length === 0) { usersList.innerHTML = `<p class="text-sm text-center py-8" style="color: var(--text-muted);">No users yet.</p>`; return; }
     usersList.innerHTML = allUsersCache.map(u => {
         const role = u.role || 'user';
         const roleClass = role === 'user' ? '' : 'role-' + role;
         const initial = (u.full_name || u.username || u.email || 'U').charAt(0).toUpperCase();
-        const joined = u.created_at ? new Date(u.created_at).toLocaleDateString() : '—';
         return `
-            <div class="bg-[#1C2333] border border-[#2A3347] rounded-xl p-4">
+            <div class="rounded-xl p-4" style="background: var(--surface); border: 1px solid var(--border);">
                 <div class="flex items-start justify-between mb-3">
                     <div class="flex items-center gap-3 min-w-0">
-                        <div class="w-10 h-10 rounded-full bg-[#4F46E5]/20 border border-[#4F46E5]/40 flex items-center justify-center text-sm font-bold text-[#4F46E5] flex-shrink-0">${escapeHtml(initial)}</div>
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0" style="background: rgba(79,70,229,0.2); border: 1px solid rgba(79,70,229,0.4); color: var(--accent);">${escapeHtml(initial)}</div>
                         <div class="min-w-0">
-                            <p class="text-white font-bold truncate">${escapeHtml(u.full_name || u.username || 'Unnamed')}</p>
-                            <p class="text-[#64748B] text-xs mono truncate">${escapeHtml(u.email || '—')}</p>
+                            <p class="font-bold truncate" style="color: var(--text);">${escapeHtml(u.full_name || u.username || 'Unnamed')}</p>
+                            <p class="text-xs mono truncate" style="color: var(--text-dim);">${escapeHtml(u.email || '—')}</p>
                         </div>
                     </div>
-                    ${role !== 'user' ? `<span class="${roleClass} text-white text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded flex-shrink-0">${escapeHtml(role)}</span>` : ''}
+                    ${role !== 'user' ? `<span class="${roleClass} text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded flex-shrink-0">${escapeHtml(role)}</span>` : ''}
                 </div>
                 <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-[10px] text-[#64748B] uppercase font-bold mb-1">Role</label>
-                        <select onchange="updateUserRole('${u.id}', this.value)" class="w-full bg-[#0B1020] border border-[#2A3347] rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-[#4F46E5]">
+                    <div><label class="block text-[10px] uppercase font-bold mb-1" style="color: var(--text-dim);">Role</label>
+                        <select onchange="updateUserRole('${u.id}', this.value)" class="w-full rounded-lg px-3 py-2 text-xs focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
                             <option value="user" ${role === 'user' ? 'selected' : ''}>user</option>
                             <option value="support" ${role === 'support' ? 'selected' : ''}>support</option>
                             <option value="admin" ${role === 'admin' ? 'selected' : ''}>admin</option>
                             <option value="owner" ${role === 'owner' ? 'selected' : ''}>owner</option>
                         </select>
                     </div>
-                    <div>
-                        <label class="block text-[10px] text-[#64748B] uppercase font-bold mb-1">Plan</label>
-                        <select onchange="updateUserPlan('${u.id}', this.value)" class="w-full bg-[#0B1020] border border-[#2A3347] rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-[#4F46E5]">
+                    <div><label class="block text-[10px] uppercase font-bold mb-1" style="color: var(--text-dim);">Plan</label>
+                        <select onchange="updateUserPlan('${u.id}', this.value)" class="w-full rounded-lg px-3 py-2 text-xs focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
                             <option value="free" ${u.plan === 'free' ? 'selected' : ''}>free</option>
                             <option value="pro" ${u.plan === 'pro' ? 'selected' : ''}>pro</option>
                             <option value="team" ${u.plan === 'team' ? 'selected' : ''}>team</option>
@@ -1395,45 +1640,30 @@ async function loadAllUsers() {
                         </select>
                     </div>
                 </div>
-                <div class="mt-3 flex items-center gap-3 text-[10px] text-[#64748B]">
-                    <span>Joined: ${joined}</span>
-                    ${u.country ? `<span>· ${escapeHtml(u.country)}</span>` : ''}
-                </div>
-            </div>
-        `;
+                <div class="mt-3 text-[10px]" style="color: var(--text-dim);">Joined: ${u.created_at ? new Date(u.created_at).toLocaleDateString() : '—'}${u.country ? ' · ' + escapeHtml(u.country) : ''}</div>
+            </div>`;
     }).join('');
 }
 
 async function loadAllProjectsForOwner() {
-    const loading = document.getElementById('owner-projects-loading');
     const list = document.getElementById('owner-projects-list');
-    loading.classList.remove('hidden');
-    list.classList.add('hidden');
     const { data, error } = await supabaseClient.from('projects').select('*').order('created_at', { ascending: false });
-    loading.classList.add('hidden');
     list.classList.remove('hidden');
-    if (error) {
-        list.innerHTML = `<div class="bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-4 rounded-xl">Failed to load: ${escapeHtml(error.message)}</div>`;
-        return;
-    }
-    if (!data || data.length === 0) {
-        list.innerHTML = `<div class="bg-[#1C2333] border border-dashed border-[#2A3347] rounded-xl p-8 text-center text-[#94A3B8] text-sm">No projects on the platform yet.</div>`;
-        return;
-    }
+    if (error) { list.innerHTML = `<div class="bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-4 rounded-xl">${escapeHtml(error.message)}</div>`; return; }
+    if (!data || data.length === 0) { list.innerHTML = `<p class="text-sm text-center py-8" style="color: var(--text-muted);">No projects yet.</p>`; return; }
     const userMap = {};
     allUsersCache.forEach(u => { userMap[u.id] = u.email || u.username || 'unknown'; });
     list.innerHTML = data.map(p => `
-        <div class="bg-[#1C2333] border border-[#2A3347] p-4 rounded-xl">
+        <div class="rounded-xl p-4" style="background: var(--surface); border: 1px solid var(--border);">
             <div class="flex items-start justify-between mb-2">
                 <div class="min-w-0">
-                    <p class="text-white font-bold truncate">${escapeHtml(p.name)}</p>
-                    <p class="text-[#64748B] text-xs mono truncate">${escapeHtml(p.slug)}</p>
+                    <p class="font-bold truncate" style="color: var(--text);">${escapeHtml(p.name)}</p>
+                    <p class="text-xs mono truncate" style="color: var(--text-dim);">${escapeHtml(p.slug)}</p>
                 </div>
-                <span class="text-[10px] font-bold uppercase tracking-wider text-[#06B6D4] bg-[#06B6D4]/10 px-2 py-1 rounded flex-shrink-0">${escapeHtml(p.status || 'active')}</span>
+                <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded flex-shrink-0" style="background: rgba(6,182,212,0.1); color: var(--cyan);">${escapeHtml(p.status || 'active')}</span>
             </div>
-            <p class="text-[#94A3B8] text-xs mb-2 truncate">Owner: <span class="mono">${escapeHtml(userMap[p.owner_id] || p.owner_id)}</span></p>
-            ${p.description ? `<p class="text-[#94A3B8] text-xs line-clamp-2 mb-2">${escapeHtml(p.description)}</p>` : ''}
-            <div class="flex items-center gap-3 text-[10px] text-[#64748B]">
+            <p class="text-xs mb-2 truncate" style="color: var(--text-muted);">Owner: <span class="mono">${escapeHtml(userMap[p.owner_id] || p.owner_id)}</span></p>
+            <div class="text-[10px] flex gap-3" style="color: var(--text-dim);">
                 <span>${new Date(p.created_at).toLocaleDateString()}</span>
                 <span class="mono">${(Number(p.ai_tokens_used) || 0).toLocaleString()} tokens</span>
             </div>
@@ -1442,88 +1672,57 @@ async function loadAllProjectsForOwner() {
 }
 
 async function loadAllPaymentsForOwner() {
-    const loading = document.getElementById('owner-payments-loading');
     const list = document.getElementById('owner-payments-list');
-    loading.classList.remove('hidden');
-    list.classList.add('hidden');
     const { data, error } = await supabaseClient.from('payments').select('*').order('paid_at', { ascending: false });
-    loading.classList.add('hidden');
     list.classList.remove('hidden');
-    if (error) {
-        list.innerHTML = `<div class="bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-4 rounded-xl">Failed to load: ${escapeHtml(error.message)}</div>`;
-        return;
-    }
-    if (!data || data.length === 0) {
-        list.innerHTML = `<div class="bg-[#1C2333] border border-dashed border-[#2A3347] rounded-xl p-8 text-center text-[#94A3B8] text-sm">No payments on the platform yet.</div>`;
-        return;
-    }
+    if (error) { list.innerHTML = `<div class="bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-4 rounded-xl">${escapeHtml(error.message)}</div>`; return; }
+    if (!data || data.length === 0) { list.innerHTML = `<p class="text-sm text-center py-8" style="color: var(--text-muted);">No payments yet.</p>`; return; }
     list.innerHTML = data.map(p => `
-        <div class="bg-[#1C2333] border border-[#2A3347] p-4 rounded-xl flex items-center justify-between">
-            <div class="flex items-center gap-3 min-w-0">
-                <div class="w-9 h-9 rounded-lg bg-[#06B6D4]/10 border border-[#06B6D4]/30 flex items-center justify-center flex-shrink-0">
-                    <svg class="w-4 h-4 text-[#06B6D4]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                </div>
-                <div class="min-w-0">
-                    <p class="text-white text-sm font-medium truncate">${escapeHtml(p.customer_email || 'Anonymous')}</p>
-                    <p class="text-[#64748B] text-xs mono">${new Date(p.paid_at).toLocaleDateString()} · ${escapeHtml(p.provider || 'manual')}</p>
-                </div>
+        <div class="rounded-xl p-4 flex items-center justify-between" style="background: var(--surface); border: 1px solid var(--border);">
+            <div class="min-w-0">
+                <p class="text-sm font-medium truncate" style="color: var(--text);">${escapeHtml(p.customer_email || 'Anonymous')}</p>
+                <p class="text-xs mono" style="color: var(--text-dim);">${new Date(p.paid_at).toLocaleDateString()} · ${escapeHtml(p.provider || 'manual')}</p>
             </div>
             <div class="text-right flex-shrink-0">
-                <div class="text-white font-bold mono">${escapeHtml(p.currency)} ${Number(p.amount).toFixed(2)}</div>
-                <span class="text-[10px] uppercase font-bold ${p.status === 'paid' ? 'text-green-400' : p.status === 'pending' ? 'text-yellow-400' : 'text-red-400'}">${p.status}</span>
+                <div class="font-bold mono" style="color: var(--text);">${escapeHtml(p.currency)} ${Number(p.amount).toFixed(2)}</div>
+                <span class="text-[10px] uppercase font-bold ${p.status === 'paid' ? 'text-green-400' : 'text-yellow-400'}">${p.status}</span>
             </div>
         </div>
     `).join('');
 }
 
 async function loadAllRequestsForOwner() {
-    const loading = document.getElementById('owner-requests-loading');
     const list = document.getElementById('owner-requests-list');
-    loading.classList.remove('hidden');
-    list.classList.add('hidden');
-    const { data, error } = await supabaseClient
-        .from('upgrade_requests').select('*').order('created_at', { ascending: false });
-    loading.classList.add('hidden');
+    const { data, error } = await supabaseClient.from('upgrade_requests').select('*').order('created_at', { ascending: false });
     list.classList.remove('hidden');
-    if (error) {
-        list.innerHTML = `<div class="bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-4 rounded-xl">Failed to load: ${escapeHtml(error.message)}</div>`;
-        return;
-    }
-    if (!data || data.length === 0) {
-        list.innerHTML = `<div class="bg-[#1C2333] border border-dashed border-[#2A3347] rounded-xl p-8 text-center text-[#94A3B8] text-sm">No upgrade requests yet.</div>`;
-        return;
-    }
+    if (error) { list.innerHTML = `<div class="bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-4 rounded-xl">${escapeHtml(error.message)}</div>`; return; }
+    if (!data || data.length === 0) { list.innerHTML = `<p class="text-sm text-center py-8" style="color: var(--text-muted);">No upgrade requests yet.</p>`; return; }
     const userMap = {};
     allUsersCache.forEach(u => { userMap[u.id] = u; });
     list.innerHTML = data.map(r => {
         const u = userMap[r.user_id] || {};
         return `
-            <div class="bg-[#1C2333] border border-[#2A3347] rounded-xl p-4">
+            <div class="rounded-xl p-4" style="background: var(--surface); border: 1px solid var(--border);">
                 <div class="flex items-start justify-between mb-3">
                     <div class="min-w-0">
-                        <p class="text-white font-bold truncate">${escapeHtml(u.full_name || u.username || 'Unknown user')}</p>
-                        <p class="text-[#64748B] text-xs mono truncate">${escapeHtml(u.email || '—')}</p>
+                        <p class="font-bold truncate" style="color: var(--text);">${escapeHtml(u.full_name || u.username || 'Unknown user')}</p>
+                        <p class="text-xs mono truncate" style="color: var(--text-dim);">${escapeHtml(u.email || '—')}</p>
                     </div>
-                    <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded flex-shrink-0 ${
-                        r.status === 'approved' ? 'text-green-400 bg-green-400/10' :
-                        r.status === 'pending' ? 'text-yellow-400 bg-yellow-400/10' :
-                        'text-red-400 bg-red-400/10'
-                    }">${r.status}</span>
+                    <span class="text-[10px] font-bold uppercase px-2 py-1 rounded flex-shrink-0 ${r.status === 'approved' ? 'text-green-400 bg-green-400/10' : r.status === 'pending' ? 'text-yellow-400 bg-yellow-400/10' : 'text-red-400 bg-red-400/10'}">${r.status}</span>
                 </div>
-                <div class="bg-[#0B1020] border border-[#2A3347] rounded-lg p-3 mb-3">
-                    <p class="text-white text-sm font-bold capitalize mb-1">Wants: ${escapeHtml(r.requested_plan)}${r.amount ? ' — $' + r.amount + '/mo' : ''}</p>
-                    ${r.contact_value ? `<p class="text-[#94A3B8] text-xs">Contact: <span class="mono">${escapeHtml(r.contact_value)}</span></p>` : ''}
-                    ${r.notes ? `<p class="text-[#94A3B8] text-xs mt-1">${escapeHtml(r.notes)}</p>` : ''}
-                    <p class="text-[#64748B] text-[10px] mt-2">${new Date(r.created_at).toLocaleString()}</p>
+                <div class="rounded-lg p-3 mb-3 text-xs" style="background: var(--bg); border: 1px solid var(--border);">
+                    <p class="font-bold capitalize mb-1" style="color: var(--text);">Wants: ${escapeHtml(r.requested_plan)}${r.amount ? ' — $' + r.amount + '/mo' : ''}</p>
+                    ${r.contact_value ? `<p style="color: var(--text-muted);">Contact: <span class="mono">${escapeHtml(r.contact_value)}</span></p>` : ''}
+                    ${r.notes ? `<p class="mt-1" style="color: var(--text-muted);">${escapeHtml(r.notes)}</p>` : ''}
+                    <p class="text-[10px] mt-2" style="color: var(--text-dim);">${new Date(r.created_at).toLocaleString()}</p>
                 </div>
                 ${r.status === 'pending' ? `
                     <div class="flex gap-2">
-                        <button onclick="approveUpgrade('${r.id}', '${r.user_id}', '${r.requested_plan}')" class="flex-1 bg-green-500/20 hover:bg-green-500/30 border border-green-500/40 text-green-400 font-bold py-2 rounded-lg text-xs transition-colors">Approve & Upgrade</button>
-                        <button onclick="rejectUpgrade('${r.id}')" class="flex-1 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 font-bold py-2 rounded-lg text-xs transition-colors">Reject</button>
+                        <button onclick="approveUpgrade('${r.id}', '${r.user_id}', '${r.requested_plan}')" class="flex-1 bg-green-500/20 hover:bg-green-500/30 border border-green-500/40 text-green-400 font-bold py-2 rounded-lg text-xs">Approve</button>
+                        <button onclick="rejectUpgrade('${r.id}')" class="flex-1 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 font-bold py-2 rounded-lg text-xs">Reject</button>
                     </div>
                 ` : ''}
-            </div>
-        `;
+            </div>`;
     }).join('');
 }
 
@@ -1547,49 +1746,53 @@ function switchOwnerTab(tab) {
         const tabEl = document.getElementById(tabs[k]);
         if (k === tab) {
             panel.classList.remove('hidden');
-            tabEl.classList.add('text-white', 'border-b-2', 'border-[#4F46E5]');
-            tabEl.classList.remove('text-[#94A3B8]');
+            tabEl.style.color = 'var(--text)';
+            tabEl.style.borderBottom = '2px solid var(--accent)';
         } else {
             panel.classList.add('hidden');
-            tabEl.classList.remove('text-white', 'border-b-2', 'border-[#4F46E5]');
-            tabEl.classList.add('text-[#94A3B8]');
+            tabEl.style.color = 'var(--text-muted)';
+            tabEl.style.borderBottom = 'none';
         }
     });
 }
 
 async function updateUserRole(userId, newRole) {
     if (userId === currentUser.id && currentProfile.role === 'owner' && newRole !== 'owner') {
-        alert("You can't demote yourself as owner. Transfer ownership first.");
+        showToast("Can't demote yourself as owner", 'error');
         await loadAllUsers();
         return;
     }
     const { error } = await supabaseClient.from('profiles').update({ role: newRole }).eq('id', userId);
-    if (error) { alert('Failed to update role: ' + error.message); await loadAllUsers(); return; }
+    if (error) { showToast('Failed: ' + error.message, 'error'); await loadAllUsers(); return; }
     await loadAllUsers();
+    showToast('Role updated', 'success');
 }
 
 async function updateUserPlan(userId, newPlan) {
     const { error } = await supabaseClient.from('profiles').update({ plan: newPlan }).eq('id', userId);
-    if (error) { alert('Failed to update plan: ' + error.message); await loadAllUsers(); return; }
+    if (error) { showToast('Failed: ' + error.message, 'error'); await loadAllUsers(); return; }
     await loadAllUsers();
+    showToast('Plan updated', 'success');
 }
 
 async function approveUpgrade(requestId, userId, plan) {
     if (!confirm(`Approve this upgrade? User will be moved to ${plan}.`)) return;
     const { error: planError } = await supabaseClient.from('profiles').update({ plan }).eq('id', userId);
-    if (planError) { alert('Failed to update plan: ' + planError.message); return; }
+    if (planError) { showToast('Failed: ' + planError.message, 'error'); return; }
     const { error: reqError } = await supabaseClient.from('upgrade_requests')
         .update({ status: 'approved', resolved_at: new Date().toISOString() }).eq('id', requestId);
-    if (reqError) { alert('Failed to update request: ' + reqError.message); return; }
+    if (reqError) { showToast('Failed: ' + reqError.message, 'error'); return; }
     await loadOwnerConsole();
+    showToast('Upgrade approved', 'success');
 }
 
 async function rejectUpgrade(requestId) {
-    if (!confirm('Reject this upgrade request?')) return;
+    if (!confirm('Reject this request?')) return;
     const { error } = await supabaseClient.from('upgrade_requests')
         .update({ status: 'rejected', resolved_at: new Date().toISOString() }).eq('id', requestId);
-    if (error) { alert('Failed to update request: ' + error.message); return; }
+    if (error) { showToast('Failed: ' + error.message, 'error'); return; }
     await loadOwnerConsole();
+    showToast('Request rejected', 'success');
 }
 
 // ============================================
@@ -1602,11 +1805,22 @@ function escapeHtml(str) {
         .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 }
 
+// Escape key closes modals
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        ['project-modal','project-detail-modal','project-edit-modal','github-modal','plan-modal','payment-modal','connect-modal','upgrade-modal'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el && !el.classList.contains('hidden')) el.classList.add('hidden');
+        });
+    }
+});
+
 // ============================================
 // INIT
 // ============================================
 
 async function init() {
+    initTheme();
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (session) showDashboardView(session.user);
     else showLandingView();
