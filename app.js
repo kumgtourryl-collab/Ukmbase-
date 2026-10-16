@@ -1,4 +1,4 @@
-// UKMBASE APP.JS — v612 (UkmSync + Ukmbase Data)
+// UKMBASE APP.JS — v613 (UkmSync + Ukmbase Data + Per-Project Auth)
 
 const SUPABASE_URL = 'https://dwjyzqsrzdgnpwibnyjn.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_4vcPyg62OqmfwNaHxx0CGA_a7O0_NJV';
@@ -43,6 +43,7 @@ let currentSyncProjectId = null;
 let currentUkmDataProjectId = null;
 let ukmDataSchema = null;
 let ukmDataTables = [];
+let ukmDataUsers = [];
 let ukmDataColumnCounter = 0;
 
 // ============================================
@@ -1110,19 +1111,19 @@ async function onUkmDataProjectChange() {
 
 async function loadUkmDataState() {
     if (!currentUkmDataProjectId || !currentUser) return;
-    // Look up schema for this project
     const { data: schemaRow, error: schemaErr } = await supabaseClient
         .from('project_schemas').select('*')
         .eq('project_id', currentUkmDataProjectId).maybeSingle();
     if (schemaErr) console.error('Schema lookup:', schemaErr.message);
 
     if (!schemaRow) {
-        // Not enabled yet
         ukmDataSchema = null;
         ukmDataTables = [];
+        ukmDataUsers = [];
         document.getElementById('ukmdata-enable-card').classList.remove('hidden');
         document.getElementById('ukmdata-info-card').classList.add('hidden');
         document.getElementById('ukmdata-tables-card').classList.add('hidden');
+        document.getElementById('ukmdata-auth-card').classList.add('hidden');
         return;
     }
 
@@ -1130,15 +1131,16 @@ async function loadUkmDataState() {
     document.getElementById('ukmdata-enable-card').classList.add('hidden');
     document.getElementById('ukmdata-info-card').classList.remove('hidden');
     document.getElementById('ukmdata-tables-card').classList.remove('hidden');
+    document.getElementById('ukmdata-auth-card').classList.remove('hidden');
     document.getElementById('ukmdata-schema-name').textContent = ukmDataSchema;
     await loadUkmDataTables();
+    await loadUkmDataUsers();
 }
 
 async function enableUkmData() {
     if (!currentUkmDataProjectId) return;
     const btn = document.getElementById('ukmdata-enable-btn');
     btn.textContent = 'Enabling...'; btn.disabled = true;
-
     try {
         const { data: { session } } = await supabaseClient.auth.getSession();
         const res = await fetch(SUPABASE_URL + '/functions/v1/ukmdata', {
@@ -1163,7 +1165,6 @@ async function loadUkmDataTables() {
     const list = document.getElementById('ukmdata-tables-list');
     const empty = document.getElementById('ukmdata-tables-empty');
     loading.classList.remove('hidden'); list.classList.add('hidden'); empty.classList.add('hidden');
-
     try {
         const { data: { session } } = await supabaseClient.auth.getSession();
         const res = await fetch(SUPABASE_URL + '/functions/v1/ukmdata', {
@@ -1174,7 +1175,6 @@ async function loadUkmDataTables() {
         const data = await res.json();
         loading.classList.add('hidden');
         if (data.error) { showToast(data.error, 'error'); return; }
-
         ukmDataTables = data.tables || [];
         if (ukmDataTables.length === 0) { empty.classList.remove('hidden'); return; }
         list.classList.remove('hidden');
@@ -1259,12 +1259,10 @@ async function createUkmDataTable() {
     const errEl = document.getElementById('create-table-error');
     const btn = document.getElementById('create-table-submit');
     errEl.classList.add('hidden');
-
     if (!name || !/^[a-z][a-z0-9_]*$/.test(name)) {
         errEl.textContent = 'Table name must start with a letter and use only lowercase letters, numbers, underscores.';
         errEl.classList.remove('hidden'); return;
     }
-
     const rows = document.querySelectorAll('#new-table-columns > div');
     const columns = [];
     for (let i = 0; i < rows.length; i++) {
@@ -1279,14 +1277,11 @@ async function createUkmDataTable() {
         }
         columns.push({ name: colName, type: colType, nullable: colNullable });
     }
-
     if (columns.length === 0) {
         errEl.textContent = 'Add at least one column.';
         errEl.classList.remove('hidden'); return;
     }
-
     btn.textContent = 'Creating...'; btn.disabled = true;
-
     try {
         const { data: { session } } = await supabaseClient.auth.getSession();
         const res = await fetch(SUPABASE_URL + '/functions/v1/ukmdata', {
@@ -1315,14 +1310,105 @@ function copyUkmDataConnection() {
     if (!ukmDataSchema) return;
     const info = 'Ukmbase Data — Connection Info\n\n' +
         'REST URL: ' + SUPABASE_URL + '/rest/v1/\n' +
+        'Auth URL: ' + SUPABASE_URL + '/functions/v1/ukmauth\n' +
         'Anon Key: ' + SUPABASE_ANON_KEY + '\n' +
         'Schema: ' + ukmDataSchema + '\n\n' +
-        'Query your tables using any Supabase client. Example (JS):\n\n' +
-        'const { data } = await supabase\n' +
-        '  .from("' + ukmDataSchema + '_your_table")\n' +
-        '  .select("*");';
+        'Query your tables using any Supabase client.\n' +
+        'For auth, hit the Auth URL with action=signup|login|logout|me.';
     navigator.clipboard.writeText(info);
     showToast('Connection info copied', 'success');
+}
+
+// --------------------------------------------------
+// UKMBASE DATA — AUTH USERS
+// --------------------------------------------------
+
+async function loadUkmDataUsers() {
+    if (!currentUkmDataProjectId || !ukmDataSchema) return;
+    const loading = document.getElementById('ukmdata-auth-loading');
+    const list = document.getElementById('ukmdata-auth-list');
+    const empty = document.getElementById('ukmdata-auth-empty');
+    const countEl = document.getElementById('ukmdata-auth-count');
+    loading.classList.remove('hidden'); list.classList.add('hidden'); empty.classList.add('hidden');
+
+    // Read from public view (password_hash hidden by RLS)
+    const { data, error } = await supabaseClient
+        .from('project_users_public')
+        .select('*')
+        .eq('project_id', currentUkmDataProjectId)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+    loading.classList.add('hidden');
+    if (error) { console.error('Users load:', error.message); empty.classList.remove('hidden'); return; }
+
+    ukmDataUsers = data || [];
+    if (countEl) countEl.textContent = ukmDataUsers.length + ' user' + (ukmDataUsers.length === 1 ? '' : 's');
+
+    generateAuthSnippet();
+
+    if (ukmDataUsers.length === 0) { empty.classList.remove('hidden'); return; }
+
+    list.classList.remove('hidden');
+    let html = '';
+    ukmDataUsers.forEach(function(u) {
+        const initial = (u.name || u.email || 'U').charAt(0).toUpperCase();
+        const created = u.created_at ? new Date(u.created_at).toLocaleDateString() : '—';
+        const lastLogin = u.last_login_at ? new Date(u.last_login_at).toLocaleDateString() : 'never';
+        html += '<div class="rounded-lg p-3 flex items-center gap-3" style="background: var(--bg); border: 1px solid var(--border);">' +
+            '<div class="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0" style="background: rgba(79,70,229,0.2); border: 1px solid rgba(79,70,229,0.4); color: var(--accent);">' + escapeHtml(initial) + '</div>' +
+            '<div class="min-w-0 flex-1">' +
+                '<p class="text-sm font-medium truncate" style="color: var(--text);">' + escapeHtml(u.name || u.email) + '</p>' +
+                '<p class="text-[10px] mono truncate" style="color: var(--text-dim);">' + escapeHtml(u.email) + '</p>' +
+                '<p class="text-[10px] mt-1" style="color: var(--text-dim);">Joined ' + created + ' · Last login ' + lastLogin + '</p>' +
+            '</div>' +
+            '<button onclick="deleteUkmDataUser(\'' + u.id + '\')" class="p-2 flex-shrink-0" style="color: var(--text-muted);">' +
+                '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22"></path></svg>' +
+            '</button>' +
+        '</div>';
+    });
+    list.innerHTML = html;
+}
+
+async function deleteUkmDataUser(id) {
+    if (!confirm('Delete this user? They will lose access immediately.')) return;
+    const { error } = await supabaseClient.from('project_users').delete().eq('id', id);
+    if (error) { showToast('Failed: ' + error.message, 'error'); return; }
+    showToast('User deleted', 'success');
+    await loadUkmDataUsers();
+}
+
+function generateAuthSnippet() {
+    const el = document.getElementById('ukmauth-snippet');
+    if (!el || !currentUkmDataProjectId) return;
+    const proj = projectsCache.find(function(p) { return p.id === currentUkmDataProjectId; });
+    const slug = proj ? proj.slug : 'unknown';
+    const snippet = '// Signup\n' +
+        'const r = await fetch("' + SUPABASE_URL + '/functions/v1/ukmauth", {\n' +
+        '  method: "POST",\n' +
+        '  headers: { "Content-Type": "application/json" },\n' +
+        '  body: JSON.stringify({\n' +
+        '    action: "signup",\n' +
+        '    project_slug: "' + slug + '",\n' +
+        '    email: "user@example.com",\n' +
+        '    password: "secret123"\n' +
+        '  })\n' +
+        '});\n' +
+        'const { user, token } = await r.json();\n\n' +
+        '// Login\n' +
+        '// action: "login"  (returns same shape)\n\n' +
+        '// Me (verify session)\n' +
+        '// action: "me", token: "..."\n\n' +
+        '// Logout\n' +
+        '// action: "logout", token: "..."';
+    el.textContent = snippet;
+}
+
+function copyAuthSnippet() {
+    const el = document.getElementById('ukmauth-snippet');
+    if (!el) return;
+    navigator.clipboard.writeText(el.textContent);
+    showToast('Auth snippet copied', 'success');
 }
 
 // ============================================
@@ -1569,7 +1655,7 @@ async function openConnection(id) {
         let tables = [];
         if (spec) tables = Object.keys(spec.definitions || (spec.components && spec.components.schemas) || {}).sort();
         if (tables.length === 0) {
-            const candidates = ['profiles', 'projects', 'plans', 'payments', 'subscriptions', 'usage_metrics', 'waitlist', 'connected_databases', 'upgrade_requests', 'query_history', 'team_members', 'sync_configs', 'sync_logs', 'project_schemas'];
+            const candidates = ['profiles', 'projects', 'plans', 'payments', 'subscriptions', 'usage_metrics', 'waitlist', 'connected_databases', 'upgrade_requests', 'query_history', 'team_members', 'sync_configs', 'sync_logs', 'project_schemas', 'project_users_public'];
             for (let i = 0; i < candidates.length; i++) {
                 try {
                     const r = await fetch(conn.supabase_url + '/rest/v1/' + candidates[i] + '?select=*&limit=1', { headers: getHeaders(conn.supabase_anon_key) });
