@@ -230,6 +230,10 @@
                     <svg class="w-5 h-5" style="color: var(--cyan);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
                     UkmSync
                 </a>
+                <a href="#" onclick="switchView('ukmdata')" id="nav-ukmdata" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors" style="color: var(--text-muted);">
+                    <svg class="w-5 h-5" style="color: #8B5CF6;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"></path></svg>
+                    Ukmbase Data
+                </a>
                 <a href="#" onclick="switchView('ukmtables')" id="nav-ukmtables" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors" style="color: var(--text-muted);">
                     <svg class="w-5 h-5 text-[#06B6D4]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
                     UkmTables
@@ -403,21 +407,15 @@
                         <h1 class="text-2xl font-bold mb-1" style="color: var(--text);">UkmSync</h1>
                         <p class="text-sm" style="color: var(--text-muted);">Offline-first data for your project. Works on 2G. No internet required.</p>
                     </div>
-
-                    <!-- Project selector -->
                     <div class="rounded-xl p-4 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
                         <label class="block text-xs font-medium mb-2" style="color: var(--text-muted);">Select project</label>
                         <select id="sync-project-select" onchange="onSyncProjectChange()" class="w-full rounded-lg px-4 py-3 focus:outline-none text-sm" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></select>
                     </div>
-
-                    <!-- Empty -->
                     <div id="sync-empty" class="rounded-xl p-12 text-center" style="background: var(--surface); border: 1px dashed var(--border);">
                         <svg class="w-12 h-12 mx-auto mb-4" style="color: var(--text-dim);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
                         <h3 class="font-bold mb-1" style="color: var(--text);">Create a project first</h3>
                         <p class="text-sm" style="color: var(--text-muted);">UkmSync attaches to one of your projects.</p>
                     </div>
-
-                    <!-- Config panel -->
                     <div id="sync-panel" class="hidden">
                         <div class="rounded-xl p-5 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
                             <div class="flex items-center justify-between mb-5">
@@ -430,7 +428,6 @@
                                     <span class="slider"></span>
                                 </label>
                             </div>
-
                             <div class="space-y-4">
                                 <div>
                                     <label class="block text-xs font-medium mb-2" style="color: var(--text-muted);">Conflict strategy</label>
@@ -451,8 +448,6 @@
                                 </div>
                             </div>
                         </div>
-
-                        <!-- SDK snippet -->
                         <div class="rounded-xl p-5 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
                             <div class="flex items-center justify-between mb-3">
                                 <div>
@@ -464,8 +459,6 @@
                             <pre id="sync-snippet" class="mono text-[10px]"></pre>
                             <p class="text-[10px] mt-2" style="color: var(--text-dim);">The snippet uses your anon key + this project's config. Safe to commit.</p>
                         </div>
-
-                        <!-- Logs -->
                         <div class="rounded-xl p-5" style="background: var(--surface); border: 1px solid var(--border);">
                             <div class="flex items-center justify-between mb-4">
                                 <h3 class="font-bold" style="color: var(--text);">Recent Sync Activity</h3>
@@ -478,6 +471,77 @@
                             <div id="sync-logs-empty" class="hidden text-center py-6">
                                 <p class="text-xs" style="color: var(--text-muted);">No activity yet. Once your app connects with the SDK, events will appear here.</p>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- UKMBASE DATA -->
+            <div id="view-ukmdata" class="hidden flex-1 overflow-y-auto p-4 md:p-8">
+                <div class="max-w-4xl mx-auto">
+                    <div class="mb-6">
+                        <h1 class="text-2xl font-bold mb-1" style="color: var(--text);">Ukmbase Data</h1>
+                        <p class="text-sm" style="color: var(--text-muted);">Real Postgres for every project. No Supabase signup required.</p>
+                    </div>
+                    <div class="rounded-xl p-4 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
+                        <label class="block text-xs font-medium mb-2" style="color: var(--text-muted);">Select project</label>
+                        <select id="ukmdata-project-select" onchange="onUkmDataProjectChange()" class="w-full rounded-lg px-4 py-3 focus:outline-none text-sm" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></select>
+                    </div>
+                    <div id="ukmdata-empty" class="hidden rounded-xl p-12 text-center" style="background: var(--surface); border: 1px dashed var(--border);">
+                        <svg class="w-12 h-12 mx-auto mb-4" style="color: var(--text-dim);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2"></path></svg>
+                        <h3 class="font-bold mb-1" style="color: var(--text);">Create a project first</h3>
+                        <p class="text-sm" style="color: var(--text-muted);">Ukmbase Data attaches to one of your projects.</p>
+                    </div>
+                    <div id="ukmdata-panel" class="hidden">
+                        <div id="ukmdata-enable-card" class="rounded-xl p-6 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
+                            <div class="flex items-start gap-4 mb-4">
+                                <div class="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0" style="background: rgba(139,92,246,0.15); border: 1px solid rgba(139,92,246,0.3);">
+                                    <svg class="w-6 h-6" style="color: #8B5CF6;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2"></path></svg>
+                                </div>
+                                <div class="flex-1">
+                                    <h3 class="font-bold mb-1" style="color: var(--text);">Enable Ukmbase Data</h3>
+                                    <p class="text-sm" style="color: var(--text-muted);">Every project gets its own isolated Postgres schema — tables, REST API, RLS. Free tier is generous; no signup, no Supabase limits.</p>
+                                </div>
+                            </div>
+                            <ul class="text-xs space-y-1 mb-5" style="color: var(--text-muted);">
+                                <li>✓ Real PostgreSQL, not a mockup</li>
+                                <li>✓ Instant REST API via PostgREST</li>
+                                <li>✓ Row-level security on every table</li>
+                                <li>✓ Works with UkmSync out of the box</li>
+                            </ul>
+                            <button id="ukmdata-enable-btn" onclick="enableUkmData()" class="w-full font-bold py-3 rounded-lg text-white" style="background: var(--accent);">Enable for this project</button>
+                        </div>
+                        <div id="ukmdata-info-card" class="hidden rounded-xl p-5 mb-6" style="background: var(--surface); border: 1px solid rgba(16,185,129,0.3);">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3);">
+                                        <svg class="w-4 h-4" style="color: var(--green);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-bold" style="color: var(--text);">Connected</p>
+                                        <p class="text-xs mono" style="color: var(--text-dim);">Schema: <span id="ukmdata-schema-name">—</span></p>
+                                    </div>
+                                </div>
+                                <button onclick="copyUkmDataConnection()" class="text-xs font-bold px-3 py-2 rounded-lg text-white" style="background: var(--accent);">Copy info</button>
+                            </div>
+                            <div class="rounded-lg p-3 text-xs" style="background: var(--bg); border: 1px solid var(--border);">
+                                <div class="flex justify-between mb-1"><span style="color: var(--text-dim);">REST URL</span><span class="mono truncate" style="color: var(--text-muted);">https://dwjyzqsrzdgnpwibnyjn.supabase.co/rest/v1/</span></div>
+                                <div class="flex justify-between"><span style="color: var(--text-dim);">Anon key</span><span class="mono" style="color: var(--text-muted);">sb_publishable_…NJV</span></div>
+                            </div>
+                            <p class="text-[10px] mt-3" style="color: var(--text-dim);">Use these with any Supabase client (JS, Flutter, Python) — point it at the REST URL above and query your project's tables by name.</p>
+                        </div>
+                        <div id="ukmdata-tables-card" class="hidden rounded-xl p-5" style="background: var(--surface); border: 1px solid var(--border);">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="font-bold" style="color: var(--text);">Tables</h3>
+                                <button onclick="openCreateTableModal()" class="text-xs font-bold px-3 py-2 rounded-lg text-white" style="background: var(--accent);">+ Create table</button>
+                            </div>
+                            <div id="ukmdata-tables-empty" class="hidden text-center py-8">
+                                <p class="text-sm" style="color: var(--text-muted);">No tables yet. Create one to get started.</p>
+                            </div>
+                            <div id="ukmdata-tables-loading" class="hidden text-center py-8">
+                                <div class="inline-block w-5 h-5 border-2 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent); border-top-color: transparent;"></div>
+                            </div>
+                            <div id="ukmdata-tables-list" class="space-y-2"></div>
                         </div>
                     </div>
                 </div>
@@ -899,9 +963,38 @@
     </div>
 </div>
 
+<!-- CREATE TABLE MODAL -->
+<div id="create-table-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+    <div class="w-full max-w-md rounded-2xl p-6 glow max-h-[90vh] overflow-y-auto" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-lg font-bold" style="color: var(--text);">Create a table</h2>
+            <button onclick="closeCreateTableModal()" style="color: var(--text-muted);">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        <div id="create-table-error" class="hidden bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-3 rounded-lg mb-4"></div>
+        <div class="space-y-4">
+            <div>
+                <label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Table name</label>
+                <input type="text" id="new-table-name" placeholder="customers" class="w-full rounded-lg px-4 py-3 mono text-sm focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
+                <p class="text-[10px] mt-1" style="color: var(--text-dim);">Lowercase, letters, numbers, underscores.</p>
+            </div>
+            <div>
+                <div class="flex items-center justify-between mb-2">
+                    <label class="block text-xs font-medium" style="color: var(--text-muted);">Columns</label>
+                    <button onclick="addColumnRow()" class="text-[10px] font-bold" style="color: var(--cyan);">+ Add column</button>
+                </div>
+                <div id="new-table-columns" class="space-y-2"></div>
+                <p class="text-[10px] mt-2" style="color: var(--text-dim);">Every table gets automatic <span class="mono">id</span> and <span class="mono">created_at</span> columns.</p>
+            </div>
+            <button id="create-table-submit" onclick="createUkmDataTable()" class="w-full font-bold py-3 rounded-lg text-white" style="background: var(--accent);">Create Table</button>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-<script src="app.js?v=610"></script>
+<script src="app.js?v=612"></script>
 </body>
 </html>
