@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>UkmSync Test</title>
+<style>
+body { font-family: system-ui; padding: 24px; background: #0B1020; color: #F8FAFC; max-width: 640px; margin: 0 auto; }
+h1 { font-size: 20px; margin-bottom: 8px; }
+input, button { padding: 10px 14px; border-radius: 8px; border: 1px solid #2A3347; background: #1C2333; color: #F8FAFC; font-size: 14px; }
+button { background: #4F46E5; border: none; cursor: pointer; font-weight: 700; }
+button:hover { background: #4338CA; }
+.todo { display: flex; justify-content: space-between; padding: 12px; border: 1px solid #2A3347; border-radius: 8px; margin-top: 8px; background: #1C2333; }
+.status { padding: 12px; border-radius: 8px; background: #1C2333; margin: 16px 0; font-size: 12px; font-family: monospace; }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+.online { background: #10B981; }
+.offline { background: #EF4444; }
+</style>
+</head>
+<body>
+  <h1>UkmSync Test — todos</h1>
+  <div class="status" id="status">Loading...</div>
+
+  <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+    <input type="text" id="new-todo" placeholder="What needs doing?" style="flex: 1;">
+    <button onclick="addTodo()">Add</button>
+  </div>
+
+  <div id="todos"></div>
+
+  <div style="margin-top: 24px; display: flex; gap: 8px;">
+    <button onclick="UkmSync.sync()" style="flex: 1;">Sync now</button>
+    <button onclick="UkmSync.clearQueue()" style="flex: 1; background: #EF4444;">Clear queue</button>
+  </div>
+
+  <p style="font-size: 12px; color: #94A3B8; margin-top: 16px;">
+    Turn off your WiFi and add a todo. It gets saved locally. Turn WiFi back on — it syncs automatically.
+  </p>
+
+  <script src="ukmsync.js"
+          data-ukm-project="test-app"
+          data-ukm-supabase-url="https://dwjyzqsrzdgnpwibnyjn.supabase.co"
+          data-ukm-anon-key="sb_publishable_4vcPyg62OqmfwNaHxx0CGA_a7O0_NJV"
+          data-ukm-enabled="true"
+          data-ukm-strategy="last-write-wins"
+          data-ukm-poll-ms="5000"
+          defer></script>
+
+  <script>
+    function renderStatus() {
+      var s = UkmSync.status();
+      var el = document.getElementById('status');
+      var onlineDot = s.online ? '<span class="dot online"></span>Online' : '<span class="dot offline"></span>Offline';
+      el.innerHTML = onlineDot + ' &middot; Queue: ' + s.queueLength + ' &middot; Syncing: ' + (s.syncing ? 'yes' : 'no') + (s.lastSyncAt ? ' &middot; Last: ' + new Date(s.lastSyncAt).toLocaleTimeString() : '');
+    }
+
+    async function renderTodos() {
+      var todos = await UkmSync.select('todos', { order: 'created_at.desc', limit: 50 });
+      var el = document.getElementById('todos');
+      if (!todos.length) { el.innerHTML = '<p style="color:#64748B;">No todos yet.</p>'; return; }
+      el.innerHTML = todos.map(function (t) {
+        return '<div class="todo"><span>' + (t.title || '(untitled)') + '</span>' +
+          '<button style="background:#EF4444;padding:6px 10px;font-size:12px;" onclick="removeTodo(' + JSON.stringify(t.id) + ')">×</button></div>';
+      }).join('');
+    }
+
+    async function addTodo() {
+      var input = document.getElementById('new-todo');
+      var title = input.value.trim();
+      if (!title) return;
+      input.value = '';
+      await UkmSync.insert('todos', { title: title });
+      renderTodos();
+    }
+
+    async function removeTodo(id) {
+      await UkmSync.remove('todos', id);
+      renderTodos();
+    }
+
+    UkmSync.onStatusChange(renderStatus);
+    renderTodos();
+    setInterval(renderTodos, 5000);
+  </script>
+</body>
+</html>
