@@ -1,4 +1,4 @@
-// UKMBASE APP.JS — v611 (UkmSync + backend URL)
+// UKMBASE APP.JS — v612 (UkmSync + Ukmbase Data)
 
 const SUPABASE_URL = 'https://dwjyzqsrzdgnpwibnyjn.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_4vcPyg62OqmfwNaHxx0CGA_a7O0_NJV';
@@ -40,6 +40,10 @@ let editingProjectId = null;
 let viewingProjectId = null;
 let linkingProjectId = null;
 let currentSyncProjectId = null;
+let currentUkmDataProjectId = null;
+let ukmDataSchema = null;
+let ukmDataTables = [];
+let ukmDataColumnCounter = 0;
 
 // ============================================
 // THEME
@@ -206,7 +210,7 @@ async function showDashboardView(user) {
 }
 
 function switchView(view) {
-    const views = ['overview', 'ukmai', 'ukmquery', 'ukmsync', 'ukmtables', 'ukmpay', 'team', 'billing', 'settings', 'owner'];
+    const views = ['overview', 'ukmai', 'ukmquery', 'ukmsync', 'ukmdata', 'ukmtables', 'ukmpay', 'team', 'billing', 'settings', 'owner'];
     views.forEach(function(v) {
         const el = document.getElementById('view-' + v);
         const nav = document.getElementById('nav-' + v);
@@ -223,6 +227,7 @@ function switchView(view) {
     if (view === 'ukmtables') { loadConnections(); }
     if (view === 'ukmquery') { loadConnections().then(function() { populateQueryConnections(); loadQueryHistory(); }); }
     if (view === 'ukmsync') { populateSyncProjectSelect(); }
+    if (view === 'ukmdata') { populateUkmDataProjectSelect(); }
     if (view === 'team') { renderTeam(); }
     if (view === 'settings') { renderSettings(); }
     if (view === 'billing') { renderBilling(); }
@@ -1072,6 +1077,255 @@ async function loadSyncLogs() {
 }
 
 // ============================================
+// UKMBASE DATA
+// ============================================
+
+function populateUkmDataProjectSelect() {
+    const sel = document.getElementById('ukmdata-project-select');
+    if (!sel) return;
+    const own = projectsCache.filter(function(p) { return p.owner_id === currentUser.id; });
+    if (own.length === 0) {
+        document.getElementById('ukmdata-empty').classList.remove('hidden');
+        document.getElementById('ukmdata-panel').classList.add('hidden');
+        sel.innerHTML = '<option value="">— no projects —</option>';
+        return;
+    }
+    document.getElementById('ukmdata-empty').classList.add('hidden');
+    let html = '';
+    own.forEach(function(p) { html += '<option value="' + p.id + '">' + escapeHtml(p.name) + '</option>'; });
+    const current = sel.value;
+    sel.innerHTML = html;
+    if (current && own.find(function(p) { return p.id === current; })) sel.value = current;
+    else sel.value = own[0].id;
+    onUkmDataProjectChange();
+}
+
+async function onUkmDataProjectChange() {
+    const sel = document.getElementById('ukmdata-project-select');
+    if (!sel || !sel.value) { document.getElementById('ukmdata-panel').classList.add('hidden'); return; }
+    currentUkmDataProjectId = sel.value;
+    document.getElementById('ukmdata-panel').classList.remove('hidden');
+    await loadUkmDataState();
+}
+
+async function loadUkmDataState() {
+    if (!currentUkmDataProjectId || !currentUser) return;
+    // Look up schema for this project
+    const { data: schemaRow, error: schemaErr } = await supabaseClient
+        .from('project_schemas').select('*')
+        .eq('project_id', currentUkmDataProjectId).maybeSingle();
+    if (schemaErr) console.error('Schema lookup:', schemaErr.message);
+
+    if (!schemaRow) {
+        // Not enabled yet
+        ukmDataSchema = null;
+        ukmDataTables = [];
+        document.getElementById('ukmdata-enable-card').classList.remove('hidden');
+        document.getElementById('ukmdata-info-card').classList.add('hidden');
+        document.getElementById('ukmdata-tables-card').classList.add('hidden');
+        return;
+    }
+
+    ukmDataSchema = schemaRow.schema_name;
+    document.getElementById('ukmdata-enable-card').classList.add('hidden');
+    document.getElementById('ukmdata-info-card').classList.remove('hidden');
+    document.getElementById('ukmdata-tables-card').classList.remove('hidden');
+    document.getElementById('ukmdata-schema-name').textContent = ukmDataSchema;
+    await loadUkmDataTables();
+}
+
+async function enableUkmData() {
+    if (!currentUkmDataProjectId) return;
+    const btn = document.getElementById('ukmdata-enable-btn');
+    btn.textContent = 'Enabling...'; btn.disabled = true;
+
+    try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        const res = await fetch(SUPABASE_URL + '/functions/v1/ukmdata', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'enable', project_id: currentUkmDataProjectId })
+        });
+        const data = await res.json();
+        btn.textContent = 'Enable for this project'; btn.disabled = false;
+        if (data.error) { showToast(data.error, 'error'); return; }
+        showToast('Ukmbase Data enabled', 'success');
+        await loadUkmDataState();
+    } catch (err) {
+        btn.textContent = 'Enable for this project'; btn.disabled = false;
+        showToast('Network error: ' + err.message, 'error');
+    }
+}
+
+async function loadUkmDataTables() {
+    if (!currentUkmDataProjectId) return;
+    const loading = document.getElementById('ukmdata-tables-loading');
+    const list = document.getElementById('ukmdata-tables-list');
+    const empty = document.getElementById('ukmdata-tables-empty');
+    loading.classList.remove('hidden'); list.classList.add('hidden'); empty.classList.add('hidden');
+
+    try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        const res = await fetch(SUPABASE_URL + '/functions/v1/ukmdata', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'list', project_id: currentUkmDataProjectId })
+        });
+        const data = await res.json();
+        loading.classList.add('hidden');
+        if (data.error) { showToast(data.error, 'error'); return; }
+
+        ukmDataTables = data.tables || [];
+        if (ukmDataTables.length === 0) { empty.classList.remove('hidden'); return; }
+        list.classList.remove('hidden');
+        let html = '';
+        ukmDataTables.forEach(function(t) {
+            html += '<div class="rounded-lg p-3 flex items-center justify-between" style="background: var(--bg); border: 1px solid var(--border);">' +
+                '<div class="flex items-center gap-3 min-w-0">' +
+                    '<div class="w-8 h-8 rounded flex items-center justify-center flex-shrink-0" style="background: rgba(139,92,246,0.15); border: 1px solid rgba(139,92,246,0.3);">' +
+                        '<svg class="w-4 h-4" style="color: #8B5CF6;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7-4h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>' +
+                    '</div>' +
+                    '<div class="min-w-0"><p class="text-sm font-bold truncate mono" style="color: var(--text);">' + escapeHtml(t.table_name) + '</p>' +
+                    '<p class="text-[10px] mono truncate" style="color: var(--text-dim);">' + escapeHtml(ukmDataSchema) + '_' + escapeHtml(t.table_name) + '</p></div>' +
+                '</div>' +
+                '<button onclick="dropUkmDataTable(\'' + t.table_name + '\')" class="p-2" style="color: var(--text-muted);">' +
+                    '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22"></path></svg>' +
+                '</button>' +
+            '</div>';
+        });
+        list.innerHTML = html;
+    } catch (err) {
+        loading.classList.add('hidden');
+        showToast('Network error: ' + err.message, 'error');
+    }
+}
+
+async function dropUkmDataTable(name) {
+    if (!confirm('Delete table "' + name + '"? All rows will be lost.')) return;
+    try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        const res = await fetch(SUPABASE_URL + '/functions/v1/ukmdata', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'drop_table', project_id: currentUkmDataProjectId, table_name: name })
+        });
+        const data = await res.json();
+        if (data.error) { showToast(data.error, 'error'); return; }
+        showToast('Table deleted', 'success');
+        await loadUkmDataTables();
+    } catch (err) { showToast('Network error: ' + err.message, 'error'); }
+}
+
+function openCreateTableModal() {
+    if (!ukmDataSchema) { showToast('Enable Ukmbase Data first', 'error'); return; }
+    document.getElementById('create-table-modal').classList.remove('hidden');
+    document.getElementById('create-table-error').classList.add('hidden');
+    document.getElementById('new-table-name').value = '';
+    document.getElementById('new-table-columns').innerHTML = '';
+    ukmDataColumnCounter = 0;
+    addColumnRow();
+}
+
+function closeCreateTableModal() { document.getElementById('create-table-modal').classList.add('hidden'); }
+
+function addColumnRow() {
+    ukmDataColumnCounter++;
+    const idx = ukmDataColumnCounter;
+    const container = document.getElementById('new-table-columns');
+    const row = document.createElement('div');
+    row.className = 'flex gap-2 items-center';
+    row.dataset.colIdx = idx;
+    row.innerHTML =
+        '<input type="text" class="col-name flex-1 rounded-lg px-3 py-2 mono text-xs focus:outline-none" placeholder="column_name" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">' +
+        '<select class="col-type rounded-lg px-2 py-2 text-xs focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">' +
+            '<option value="text">text</option>' +
+            '<option value="number">number</option>' +
+            '<option value="integer">integer</option>' +
+            '<option value="boolean">boolean</option>' +
+            '<option value="date">date</option>' +
+            '<option value="json">json</option>' +
+            '<option value="uuid">uuid</option>' +
+        '</select>' +
+        '<label class="flex items-center gap-1 text-[10px]" style="color: var(--text-muted);"><input type="checkbox" class="col-nullable"> null</label>' +
+        '<button type="button" class="col-remove p-1" style="color: var(--text-muted);">' +
+            '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>' +
+        '</button>';
+    row.querySelector('.col-remove').onclick = function() { row.remove(); };
+    container.appendChild(row);
+}
+
+async function createUkmDataTable() {
+    const name = document.getElementById('new-table-name').value.trim().toLowerCase();
+    const errEl = document.getElementById('create-table-error');
+    const btn = document.getElementById('create-table-submit');
+    errEl.classList.add('hidden');
+
+    if (!name || !/^[a-z][a-z0-9_]*$/.test(name)) {
+        errEl.textContent = 'Table name must start with a letter and use only lowercase letters, numbers, underscores.';
+        errEl.classList.remove('hidden'); return;
+    }
+
+    const rows = document.querySelectorAll('#new-table-columns > div');
+    const columns = [];
+    for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const colName = row.querySelector('.col-name').value.trim().toLowerCase();
+        const colType = row.querySelector('.col-type').value;
+        const colNullable = row.querySelector('.col-nullable').checked;
+        if (!colName) continue;
+        if (!/^[a-z][a-z0-9_]*$/.test(colName)) {
+            errEl.textContent = 'Column "' + colName + '" has invalid name.';
+            errEl.classList.remove('hidden'); return;
+        }
+        columns.push({ name: colName, type: colType, nullable: colNullable });
+    }
+
+    if (columns.length === 0) {
+        errEl.textContent = 'Add at least one column.';
+        errEl.classList.remove('hidden'); return;
+    }
+
+    btn.textContent = 'Creating...'; btn.disabled = true;
+
+    try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        const res = await fetch(SUPABASE_URL + '/functions/v1/ukmdata', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'create_table',
+                project_id: currentUkmDataProjectId,
+                table: { name: name, columns: columns }
+            })
+        });
+        const data = await res.json();
+        btn.textContent = 'Create Table'; btn.disabled = false;
+        if (data.error) { errEl.textContent = data.error; errEl.classList.remove('hidden'); return; }
+        closeCreateTableModal();
+        showToast('Table "' + name + '" created', 'success');
+        await loadUkmDataTables();
+    } catch (err) {
+        btn.textContent = 'Create Table'; btn.disabled = false;
+        errEl.textContent = 'Network error: ' + err.message;
+        errEl.classList.remove('hidden');
+    }
+}
+
+function copyUkmDataConnection() {
+    if (!ukmDataSchema) return;
+    const info = 'Ukmbase Data — Connection Info\n\n' +
+        'REST URL: ' + SUPABASE_URL + '/rest/v1/\n' +
+        'Anon Key: ' + SUPABASE_ANON_KEY + '\n' +
+        'Schema: ' + ukmDataSchema + '\n\n' +
+        'Query your tables using any Supabase client. Example (JS):\n\n' +
+        'const { data } = await supabase\n' +
+        '  .from("' + ukmDataSchema + '_your_table")\n' +
+        '  .select("*");';
+    navigator.clipboard.writeText(info);
+    showToast('Connection info copied', 'success');
+}
+
+// ============================================
 // UKMPAY
 // ============================================
 
@@ -1315,7 +1569,7 @@ async function openConnection(id) {
         let tables = [];
         if (spec) tables = Object.keys(spec.definitions || (spec.components && spec.components.schemas) || {}).sort();
         if (tables.length === 0) {
-            const candidates = ['profiles', 'projects', 'plans', 'payments', 'subscriptions', 'usage_metrics', 'waitlist', 'connected_databases', 'upgrade_requests', 'query_history', 'team_members', 'sync_configs', 'sync_logs'];
+            const candidates = ['profiles', 'projects', 'plans', 'payments', 'subscriptions', 'usage_metrics', 'waitlist', 'connected_databases', 'upgrade_requests', 'query_history', 'team_members', 'sync_configs', 'sync_logs', 'project_schemas'];
             for (let i = 0; i < candidates.length; i++) {
                 try {
                     const r = await fetch(conn.supabase_url + '/rest/v1/' + candidates[i] + '?select=*&limit=1', { headers: getHeaders(conn.supabase_anon_key) });
@@ -1676,48 +1930,4 @@ async function approveUpgrade(requestId, userId, plan) {
     if (planError) { showToast('Failed: ' + planError.message, 'error'); return; }
     const { error: reqError } = await supabaseClient.from('upgrade_requests').update({ status: 'approved', resolved_at: new Date().toISOString() }).eq('id', requestId);
     if (reqError) { showToast('Failed: ' + reqError.message, 'error'); return; }
-    await loadOwnerConsole(); showToast('Upgrade approved', 'success');
-}
-
-async function rejectUpgrade(requestId) {
-    if (!confirm('Reject this request?')) return;
-    const { error } = await supabaseClient.from('upgrade_requests').update({ status: 'rejected', resolved_at: new Date().toISOString() }).eq('id', requestId);
-    if (error) { showToast('Failed: ' + error.message, 'error'); return; }
-    await loadOwnerConsole(); showToast('Request rejected', 'success');
-}
-
-// ============================================
-// UTIL
-// ============================================
-
-function escapeHtml(str) {
-    if (!str) return '';
-    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
-}
-
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-        ['project-modal','project-detail-modal','project-edit-modal','github-modal','plan-modal','payment-modal','connect-modal','upgrade-modal'].forEach(function(id) {
-            const el = document.getElementById(id);
-            if (el && !el.classList.contains('hidden')) el.classList.add('hidden');
-        });
-    }
-});
-
-// ============================================
-// INIT
-// ============================================
-
-async function init() {
-    initTheme();
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    if (session) showDashboardView(session.user);
-    else showLandingView();
-}
-
-supabaseClient.auth.onAuthStateChange(function(event, session) {
-    if (session) showDashboardView(session.user);
-    else showLandingView();
-});
-
-init();
+    await loadOwnerConsole(); showToast
