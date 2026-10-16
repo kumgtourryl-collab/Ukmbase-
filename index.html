@@ -137,7 +137,7 @@
         <div class="space-y-4">
             <div id="field-fullname" class="hidden">
                 <label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Full Name</label>
-                <input type="text" id="auth-fullname" placeholder="Kerryl Murwisi" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
+                <input type="text" id="auth-fullname" placeholder="Your Name" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
             </div>
             <div>
                 <label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Email</label>
@@ -500,12 +500,13 @@
                                 </div>
                                 <div class="flex-1">
                                     <h3 class="font-bold mb-1" style="color: var(--text);">Enable Ukmbase Data</h3>
-                                    <p class="text-sm" style="color: var(--text-muted);">Every project gets its own isolated Postgres schema — tables, REST API, RLS. Free tier is generous; no signup, no Supabase limits.</p>
+                                    <p class="text-sm" style="color: var(--text-muted);">Every project gets its own isolated Postgres schema — tables, REST API, RLS, and end-user auth. Free tier is generous; no signup, no Supabase limits.</p>
                                 </div>
                             </div>
                             <ul class="text-xs space-y-1 mb-5" style="color: var(--text-muted);">
                                 <li>✓ Real PostgreSQL, not a mockup</li>
                                 <li>✓ Instant REST API via PostgREST</li>
+                                <li>✓ End-user authentication with sessions</li>
                                 <li>✓ Row-level security on every table</li>
                                 <li>✓ Works with UkmSync out of the box</li>
                             </ul>
@@ -526,11 +527,12 @@
                             </div>
                             <div class="rounded-lg p-3 text-xs" style="background: var(--bg); border: 1px solid var(--border);">
                                 <div class="flex justify-between mb-1"><span style="color: var(--text-dim);">REST URL</span><span class="mono truncate" style="color: var(--text-muted);">https://dwjyzqsrzdgnpwibnyjn.supabase.co/rest/v1/</span></div>
+                                <div class="flex justify-between mb-1"><span style="color: var(--text-dim);">Auth URL</span><span class="mono truncate" style="color: var(--text-muted);">/functions/v1/ukmauth</span></div>
                                 <div class="flex justify-between"><span style="color: var(--text-dim);">Anon key</span><span class="mono" style="color: var(--text-muted);">sb_publishable_…NJV</span></div>
                             </div>
-                            <p class="text-[10px] mt-3" style="color: var(--text-dim);">Use these with any Supabase client (JS, Flutter, Python) — point it at the REST URL above and query your project's tables by name.</p>
+                            <p class="text-[10px] mt-3" style="color: var(--text-dim);">Use these with any Supabase client, or hit the auth endpoint directly for signup/login.</p>
                         </div>
-                        <div id="ukmdata-tables-card" class="hidden rounded-xl p-5" style="background: var(--surface); border: 1px solid var(--border);">
+                        <div id="ukmdata-tables-card" class="hidden rounded-xl p-5 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
                             <div class="flex items-center justify-between mb-4">
                                 <h3 class="font-bold" style="color: var(--text);">Tables</h3>
                                 <button onclick="openCreateTableModal()" class="text-xs font-bold px-3 py-2 rounded-lg text-white" style="background: var(--accent);">+ Create table</button>
@@ -542,6 +544,35 @@
                                 <div class="inline-block w-5 h-5 border-2 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent); border-top-color: transparent;"></div>
                             </div>
                             <div id="ukmdata-tables-list" class="space-y-2"></div>
+                        </div>
+
+                        <!-- AUTH CARD (NEW) -->
+                        <div id="ukmdata-auth-card" class="hidden rounded-xl p-5" style="background: var(--surface); border: 1px solid var(--border);">
+                            <div class="flex items-center justify-between mb-4">
+                                <div>
+                                    <h3 class="font-bold" style="color: var(--text);">Authentication</h3>
+                                    <p class="text-xs mt-1" style="color: var(--text-muted);">End-user accounts for your app. Password auth with sessions.</p>
+                                </div>
+                                <span id="ukmdata-auth-count" class="text-xs mono px-2 py-1 rounded" style="background: rgba(79,70,229,0.1); color: var(--accent);">0 users</span>
+                            </div>
+
+                            <div id="ukmdata-auth-loading" class="hidden text-center py-6">
+                                <div class="inline-block w-5 h-5 border-2 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent); border-top-color: transparent;"></div>
+                            </div>
+
+                            <div id="ukmdata-auth-empty" class="hidden text-center py-6">
+                                <p class="text-sm" style="color: var(--text-muted);">No users yet. Your app's end-users will appear here once they sign up.</p>
+                            </div>
+
+                            <div id="ukmdata-auth-list" class="space-y-2 mb-4"></div>
+
+                            <div class="rounded-lg p-3 text-xs" style="background: var(--bg); border: 1px solid var(--border);">
+                                <div class="flex items-center justify-between mb-2">
+                                    <p class="font-bold" style="color: var(--text);">How to use it in your app</p>
+                                    <button onclick="copyAuthSnippet()" class="text-[10px] font-bold px-2 py-1 rounded" style="background: rgba(79,70,229,0.1); color: var(--accent);">Copy snippet</button>
+                                </div>
+                                <pre id="ukmauth-snippet" class="mono text-[10px]"></pre>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -995,6 +1026,6 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-<script src="app.js?v=612"></script>
+<script src="app.js?v=613"></script>
 </body>
 </html>
