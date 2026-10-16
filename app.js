@@ -1,4 +1,4 @@
-// UKMBASE APP.JS — v610 (UkmSync)
+// UKMBASE APP.JS — v611 (UkmSync + backend URL)
 
 const SUPABASE_URL = 'https://dwjyzqsrzdgnpwibnyjn.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_4vcPyg62OqmfwNaHxx0CGA_a7O0_NJV';
@@ -941,7 +941,6 @@ async function loadHistoryItem(id) {
 function populateSyncProjectSelect() {
     const sel = document.getElementById('sync-project-select');
     if (!sel) return;
-    // Only own projects can have sync
     const own = projectsCache.filter(function(p) { return p.owner_id === currentUser.id; });
     if (own.length === 0) {
         document.getElementById('sync-empty').classList.remove('hidden');
@@ -972,7 +971,6 @@ async function loadSyncConfig(projectId) {
     const { data, error } = await supabaseClient.from('sync_configs').select('*').eq('project_id', projectId).maybeSingle();
     if (error) { console.error('Sync config load:', error.message); return; }
     if (data) { syncConfigCache = data; return; }
-    // Create default
     const { data: created, error: createErr } = await supabaseClient.from('sync_configs').insert([{
         project_id: projectId, enabled: false, conflict_strategy: 'last-write-wins', tables_to_sync: [], poll_interval_ms: 15000
     }]).select().single();
@@ -1026,6 +1024,7 @@ function generateSdkSnippet() {
         '<script\n' +
         '  src="https://kumgtourryl-collab.github.io/Ukmbase-/ukmsync.js"\n' +
         '  data-ukm-project="' + projectSlug + '"\n' +
+        '  data-ukm-backend-url="https://ukmsync-server.onrender.com"\n' +
         '  data-ukm-supabase-url="' + SUPABASE_URL + '"\n' +
         '  data-ukm-anon-key="' + SUPABASE_ANON_KEY + '"\n' +
         '  data-ukm-enabled="' + (syncConfigCache.enabled ? 'true' : 'false') + '"\n' +
@@ -1051,9 +1050,7 @@ async function loadSyncLogs() {
     const empty = document.getElementById('sync-logs-empty');
     loading.classList.remove('hidden'); list.classList.add('hidden'); empty.classList.add('hidden');
     const { data, error } = await supabaseClient.from('sync_logs').select('*')
-        .eq('project_id', currentSyncProjectId)
-        .order('created_at', { ascending: false })
-        .limit(20);
+        .eq('project_id', currentSyncProjectId).order('created_at', { ascending: false }).limit(20);
     loading.classList.add('hidden');
     if (error) { console.error(error.message); empty.classList.remove('hidden'); return; }
     if (!data || data.length === 0) { empty.classList.remove('hidden'); return; }
