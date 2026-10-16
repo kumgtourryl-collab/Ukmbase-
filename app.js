@@ -1930,4 +1930,48 @@ async function approveUpgrade(requestId, userId, plan) {
     if (planError) { showToast('Failed: ' + planError.message, 'error'); return; }
     const { error: reqError } = await supabaseClient.from('upgrade_requests').update({ status: 'approved', resolved_at: new Date().toISOString() }).eq('id', requestId);
     if (reqError) { showToast('Failed: ' + reqError.message, 'error'); return; }
-    await loadOwnerConsole(); showToast
+    await loadOwnerConsole(); showToast('Upgrade approved', 'success');
+}
+
+async function rejectUpgrade(requestId) {
+    if (!confirm('Reject this request?')) return;
+    const { error } = await supabaseClient.from('upgrade_requests').update({ status: 'rejected', resolved_at: new Date().toISOString() }).eq('id', requestId);
+    if (error) { showToast('Failed: ' + error.message, 'error'); return; }
+    await loadOwnerConsole(); showToast('Request rejected', 'success');
+}
+
+// ============================================
+// UTIL
+// ============================================
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+}
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        ['project-modal','project-detail-modal','project-edit-modal','github-modal','plan-modal','payment-modal','connect-modal','upgrade-modal','create-table-modal'].forEach(function(id) {
+            const el = document.getElementById(id);
+            if (el && !el.classList.contains('hidden')) el.classList.add('hidden');
+        });
+    }
+});
+
+// ============================================
+// INIT
+// ============================================
+
+async function init() {
+    initTheme();
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (session) showDashboardView(session.user);
+    else showLandingView();
+}
+
+supabaseClient.auth.onAuthStateChange(function(event, session) {
+    if (session) showDashboardView(session.user);
+    else showLandingView();
+});
+
+init();
