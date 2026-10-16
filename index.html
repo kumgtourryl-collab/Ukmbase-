@@ -9,28 +9,14 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
 <style>
     :root {
-        --bg: #0B1020;
-        --surface: #1C2333;
-        --surface-2: #0F1626;
-        --border: #2A3347;
-        --text: #F8FAFC;
-        --text-muted: #94A3B8;
-        --text-dim: #64748B;
-        --accent: #4F46E5;
-        --accent-hover: #4338CA;
-        --cyan: #06B6D4;
-        --amber: #F59E0B;
-        --green: #10B981;
-        --red: #EF4444;
+        --bg: #0B1020; --surface: #1C2333; --surface-2: #0F1626; --border: #2A3347;
+        --text: #F8FAFC; --text-muted: #94A3B8; --text-dim: #64748B;
+        --accent: #4F46E5; --accent-hover: #4338CA; --cyan: #06B6D4;
+        --amber: #F59E0B; --green: #10B981; --red: #EF4444; --purple: #8B5CF6;
     }
     [data-theme="light"] {
-        --bg: #F8FAFC;
-        --surface: #FFFFFF;
-        --surface-2: #F1F5F9;
-        --border: #E2E8F0;
-        --text: #0F172A;
-        --text-muted: #475569;
-        --text-dim: #94A3B8;
+        --bg: #F8FAFC; --surface: #FFFFFF; --surface-2: #F1F5F9; --border: #E2E8F0;
+        --text: #0F172A; --text-muted: #475569; --text-dim: #94A3B8;
     }
     body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var(--text); transition: background-color 0.25s ease, color 0.25s ease; }
     .mono { font-family: 'JetBrains Mono', monospace; }
@@ -62,8 +48,8 @@
     .auth-tab { transition: all 0.2s ease; }
     .auth-tab.active { color: var(--text); border-color: var(--accent); }
     .strength-bar { transition: all 0.3s ease; }
-    .role-owner   { background: linear-gradient(135deg, #F59E0B, #EF4444); color: white; }
-    .role-admin   { background: linear-gradient(135deg, #4F46E5, #06B6D4); color: white; }
+    .role-owner { background: linear-gradient(135deg, #F59E0B, #EF4444); color: white; }
+    .role-admin { background: linear-gradient(135deg, #4F46E5, #06B6D4); color: white; }
     .role-support { background: linear-gradient(135deg, #8B5CF6, #EC4899); color: white; }
     .plan-card { transition: all 0.3s ease; }
     .plan-card:hover { transform: translateY(-4px); border-color: var(--accent); }
@@ -81,6 +67,12 @@
     @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
     .theme-btn { transition: transform 0.3s ease; }
     .theme-btn:hover { transform: rotate(20deg); }
+    .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: var(--border); transition: 0.3s; border-radius: 24px; }
+    .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background: white; transition: 0.3s; border-radius: 50%; }
+    input:checked + .slider { background: var(--accent); }
+    input:checked + .slider:before { transform: translateX(20px); }
 </style>
 </head>
 <body class="min-h-screen">
@@ -234,6 +226,10 @@
                     <svg class="w-5 h-5 text-[#10B981]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                     UkmQuery
                 </a>
+                <a href="#" onclick="switchView('ukmsync')" id="nav-ukmsync" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors" style="color: var(--text-muted);">
+                    <svg class="w-5 h-5" style="color: var(--cyan);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                    UkmSync
+                </a>
                 <a href="#" onclick="switchView('ukmtables')" id="nav-ukmtables" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors" style="color: var(--text-muted);">
                     <svg class="w-5 h-5 text-[#06B6D4]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
                     UkmTables
@@ -376,7 +372,6 @@
                             <button onclick="setQueryPrompt('Add a phone_number text column to the customers table, and create an index on it')" class="text-[11px] px-3 py-1.5 rounded-lg" style="background: var(--bg); border: 1px solid var(--border); color: var(--text-muted);">+ phone column</button>
                             <button onclick="setQueryPrompt('Create a table for invoices with id, customer_id, amount, currency, status, and due_date')" class="text-[11px] px-3 py-1.5 rounded-lg" style="background: var(--bg); border: 1px solid var(--border); color: var(--text-muted);">+ invoices table</button>
                             <button onclick="setQueryPrompt('Add a full-text search index on the products.name column')" class="text-[11px] px-3 py-1.5 rounded-lg" style="background: var(--bg); border: 1px solid var(--border); color: var(--text-muted);">+ search index</button>
-                            <button onclick="setQueryPrompt('Show me all users who signed up in the last 30 days, ordered by created_at descending')" class="text-[11px] px-3 py-1.5 rounded-lg" style="background: var(--bg); border: 1px solid var(--border); color: var(--text-muted);">+ recent users</button>
                         </div>
                         <button id="query-submit" onclick="generateSQL()" class="w-full mt-4 font-bold py-3 rounded-lg transition-colors glow disabled:opacity-50 flex items-center justify-center gap-2 text-white" style="background: var(--accent);">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
@@ -393,11 +388,97 @@
                     </div>
                     <div id="query-loading" class="hidden rounded-xl p-8 text-center mb-6" style="background: var(--surface); border: 1px solid var(--border);">
                         <div class="inline-block w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent); border-top-color: transparent;"></div>
-                        <p class="text-xs mt-3" style="color: var(--text-muted);">Generating SQL...</p>
                     </div>
                     <div id="query-history-wrap" class="hidden">
                         <h3 class="font-bold text-sm mb-3" style="color: var(--text);">Recent Queries</h3>
                         <div id="query-history-list" class="space-y-2"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- UKMSYNC -->
+            <div id="view-ukmsync" class="hidden flex-1 overflow-y-auto p-4 md:p-8">
+                <div class="max-w-4xl mx-auto">
+                    <div class="mb-6">
+                        <h1 class="text-2xl font-bold mb-1" style="color: var(--text);">UkmSync</h1>
+                        <p class="text-sm" style="color: var(--text-muted);">Offline-first data for your project. Works on 2G. No internet required.</p>
+                    </div>
+
+                    <!-- Project selector -->
+                    <div class="rounded-xl p-4 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
+                        <label class="block text-xs font-medium mb-2" style="color: var(--text-muted);">Select project</label>
+                        <select id="sync-project-select" onchange="onSyncProjectChange()" class="w-full rounded-lg px-4 py-3 focus:outline-none text-sm" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></select>
+                    </div>
+
+                    <!-- Empty -->
+                    <div id="sync-empty" class="rounded-xl p-12 text-center" style="background: var(--surface); border: 1px dashed var(--border);">
+                        <svg class="w-12 h-12 mx-auto mb-4" style="color: var(--text-dim);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                        <h3 class="font-bold mb-1" style="color: var(--text);">Create a project first</h3>
+                        <p class="text-sm" style="color: var(--text-muted);">UkmSync attaches to one of your projects.</p>
+                    </div>
+
+                    <!-- Config panel -->
+                    <div id="sync-panel" class="hidden">
+                        <div class="rounded-xl p-5 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
+                            <div class="flex items-center justify-between mb-5">
+                                <div>
+                                    <h3 class="font-bold" style="color: var(--text);">Sync Engine</h3>
+                                    <p class="text-xs mt-1" style="color: var(--text-muted);">Toggle off to pause syncing immediately.</p>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="sync-enabled" onchange="toggleSyncEnabled()">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-xs font-medium mb-2" style="color: var(--text-muted);">Conflict strategy</label>
+                                    <select id="sync-strategy" onchange="updateSyncConfig()" class="w-full rounded-lg px-4 py-3 focus:outline-none text-sm" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
+                                        <option value="last-write-wins">Last Write Wins — newest timestamp always wins</option>
+                                        <option value="server-wins">Server Wins — Supabase copy always wins</option>
+                                        <option value="client-wins">Client Wins — local device always wins</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium mb-2" style="color: var(--text-muted);">Tables to sync (comma-separated)</label>
+                                    <input type="text" id="sync-tables" onchange="updateSyncConfig()" placeholder="todos, notes, invoices" class="w-full rounded-lg px-4 py-3 focus:outline-none mono text-sm" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
+                                    <p class="text-[10px] mt-1" style="color: var(--text-dim);">Leave blank to sync every table the SDK is given.</p>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium mb-2" style="color: var(--text-muted);">Pull interval (milliseconds)</label>
+                                    <input type="number" id="sync-interval" onchange="updateSyncConfig()" value="15000" class="w-full rounded-lg px-4 py-3 focus:outline-none mono text-sm" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SDK snippet -->
+                        <div class="rounded-xl p-5 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
+                            <div class="flex items-center justify-between mb-3">
+                                <div>
+                                    <h3 class="font-bold" style="color: var(--text);">SDK Snippet</h3>
+                                    <p class="text-xs mt-1" style="color: var(--text-muted);">Paste this into your app's <span class="mono">&lt;head&gt;</span> tag.</p>
+                                </div>
+                                <button onclick="copySdkSnippet()" class="text-xs font-bold px-3 py-2 rounded-lg text-white" style="background: var(--accent);">Copy</button>
+                            </div>
+                            <pre id="sync-snippet" class="mono text-[10px]"></pre>
+                            <p class="text-[10px] mt-2" style="color: var(--text-dim);">The snippet uses your anon key + this project's config. Safe to commit.</p>
+                        </div>
+
+                        <!-- Logs -->
+                        <div class="rounded-xl p-5" style="background: var(--surface); border: 1px solid var(--border);">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="font-bold" style="color: var(--text);">Recent Sync Activity</h3>
+                                <button onclick="loadSyncLogs()" class="text-xs" style="color: var(--cyan);">Refresh</button>
+                            </div>
+                            <div id="sync-logs-loading" class="text-center py-6">
+                                <div class="inline-block w-5 h-5 border-2 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent); border-top-color: transparent;"></div>
+                            </div>
+                            <div id="sync-logs-list" class="hidden space-y-2"></div>
+                            <div id="sync-logs-empty" class="hidden text-center py-6">
+                                <p class="text-xs" style="color: var(--text-muted);">No activity yet. Once your app connects with the SDK, events will appear here.</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -498,7 +579,6 @@
                         <h1 class="text-2xl font-bold mb-1" style="color: var(--text);">Team</h1>
                         <p class="text-sm" style="color: var(--text-muted);">Invite teammates to collaborate on your projects.</p>
                     </div>
-
                     <div class="rounded-xl p-5 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
                         <div class="flex items-center justify-between mb-3">
                             <span class="text-xs font-medium uppercase tracking-wider" style="color: var(--text-muted);">Seats Used</span>
@@ -507,35 +587,28 @@
                         <div class="w-full rounded-full h-2 overflow-hidden" style="background: var(--bg);">
                             <div id="team-seats-bar" class="usage-bar h-2 rounded-full" style="width: 0%; background: var(--accent);"></div>
                         </div>
-                        <p id="team-plan-note" class="text-xs mt-3" style="color: var(--text-dim);">Upgrade to Team for 3 seats (you + 2 teammates).</p>
+                        <p id="team-plan-note" class="text-xs mt-3" style="color: var(--text-dim);">Upgrade to Team for 3 seats.</p>
                     </div>
-
                     <div id="team-invite-card" class="rounded-xl p-5 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
                         <h3 class="font-bold mb-4" style="color: var(--text);">Invite a teammate</h3>
                         <div id="team-invite-error" class="hidden bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-3 rounded-lg mb-4"></div>
                         <div class="space-y-4">
-                            <div>
-                                <label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Email</label>
-                                <input type="email" id="team-invite-email" placeholder="teammate@company.com" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
-                            </div>
+                            <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Email</label><input type="email" id="team-invite-email" placeholder="teammate@company.com" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></div>
                             <div>
                                 <label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Role</label>
                                 <select id="team-invite-role" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
-                                    <option value="member">Member — can view and edit projects</option>
-                                    <option value="viewer">Viewer — can only view projects</option>
-                                    <option value="admin">Admin — full access + can invite</option>
+                                    <option value="member">Member — view projects</option>
+                                    <option value="viewer">Viewer — view only</option>
+                                    <option value="admin">Admin — full access</option>
                                 </select>
                             </div>
                             <button id="team-invite-btn" onclick="sendTeamInvite()" class="w-full font-bold py-3 rounded-lg text-white" style="background: var(--accent);">Send Invite</button>
-                            <p class="text-[10px] text-center" style="color: var(--text-dim);">If they don't have an Ukmbase account yet, they'll be auto-linked when they sign up with this email.</p>
                         </div>
                     </div>
-
                     <div class="rounded-xl p-5 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
                         <h3 class="font-bold mb-4" style="color: var(--text);">Active members</h3>
                         <div id="team-active-list" class="space-y-2"><p class="text-sm" style="color: var(--text-muted);">Loading...</p></div>
                     </div>
-
                     <div id="team-pending-card" class="hidden rounded-xl p-5" style="background: var(--surface); border: 1px solid var(--border);">
                         <h3 class="font-bold mb-4" style="color: var(--text);">Pending invites</h3>
                         <div id="team-pending-list" class="space-y-2"></div>
@@ -546,10 +619,7 @@
             <!-- BILLING -->
             <div id="view-billing" class="hidden flex-1 overflow-y-auto p-4 md:p-8">
                 <div class="max-w-6xl mx-auto">
-                    <div class="mb-8">
-                        <h1 class="text-2xl font-bold mb-1" style="color: var(--text);">Billing</h1>
-                        <p class="text-sm" style="color: var(--text-muted);">Manage your plan and usage.</p>
-                    </div>
+                    <div class="mb-8"><h1 class="text-2xl font-bold mb-1" style="color: var(--text);">Billing</h1><p class="text-sm" style="color: var(--text-muted);">Manage your plan and usage.</p></div>
                     <div class="rounded-xl p-6 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
                         <div class="flex items-center justify-between mb-6 flex-wrap gap-4">
                             <div>
@@ -563,90 +633,45 @@
                         </div>
                         <div class="space-y-4">
                             <div>
-                                <div class="flex items-center justify-between mb-1">
-                                    <span class="text-xs font-medium" style="color: var(--text-muted);">Projects</span>
-                                    <span id="billing-projects-label" class="text-xs mono" style="color: var(--text);">0 / 2</span>
-                                </div>
-                                <div class="w-full rounded-full h-2 overflow-hidden" style="background: var(--bg);">
-                                    <div id="billing-projects-bar" class="usage-bar h-2 rounded-full" style="width: 0%; background: var(--accent);"></div>
-                                </div>
+                                <div class="flex items-center justify-between mb-1"><span class="text-xs font-medium" style="color: var(--text-muted);">Projects</span><span id="billing-projects-label" class="text-xs mono" style="color: var(--text);">0 / 2</span></div>
+                                <div class="w-full rounded-full h-2 overflow-hidden" style="background: var(--bg);"><div id="billing-projects-bar" class="usage-bar h-2 rounded-full" style="width: 0%; background: var(--accent);"></div></div>
                             </div>
                             <div>
-                                <div class="flex items-center justify-between mb-1">
-                                    <span class="text-xs font-medium" style="color: var(--text-muted);">DB Connections</span>
-                                    <span id="billing-connections-label" class="text-xs mono" style="color: var(--text);">0 / 3</span>
-                                </div>
-                                <div class="w-full rounded-full h-2 overflow-hidden" style="background: var(--bg);">
-                                    <div id="billing-connections-bar" class="usage-bar h-2 rounded-full" style="width: 0%; background: var(--cyan);"></div>
-                                </div>
+                                <div class="flex items-center justify-between mb-1"><span class="text-xs font-medium" style="color: var(--text-muted);">DB Connections</span><span id="billing-connections-label" class="text-xs mono" style="color: var(--text);">0 / 3</span></div>
+                                <div class="w-full rounded-full h-2 overflow-hidden" style="background: var(--bg);"><div id="billing-connections-bar" class="usage-bar h-2 rounded-full" style="width: 0%; background: var(--cyan);"></div></div>
                             </div>
                             <div>
-                                <div class="flex items-center justify-between mb-1">
-                                    <span class="text-xs font-medium" style="color: var(--text-muted);">GitHub Repos</span>
-                                    <span id="billing-repos-label" class="text-xs mono" style="color: var(--text);">0 / 1</span>
-                                </div>
-                                <div class="w-full rounded-full h-2 overflow-hidden" style="background: var(--bg);">
-                                    <div id="billing-repos-bar" class="usage-bar h-2 rounded-full" style="width: 0%; background: #8B5CF6;"></div>
-                                </div>
+                                <div class="flex items-center justify-between mb-1"><span class="text-xs font-medium" style="color: var(--text-muted);">GitHub Repos</span><span id="billing-repos-label" class="text-xs mono" style="color: var(--text);">0 / 1</span></div>
+                                <div class="w-full rounded-full h-2 overflow-hidden" style="background: var(--bg);"><div id="billing-repos-bar" class="usage-bar h-2 rounded-full" style="width: 0%; background: #8B5CF6;"></div></div>
                             </div>
                             <div>
-                                <div class="flex items-center justify-between mb-1">
-                                    <span class="text-xs font-medium" style="color: var(--text-muted);">Team Seats</span>
-                                    <span id="billing-seats-label" class="text-xs mono" style="color: var(--text);">0 / 1</span>
-                                </div>
-                                <div class="w-full rounded-full h-2 overflow-hidden" style="background: var(--bg);">
-                                    <div id="billing-seats-bar" class="usage-bar h-2 rounded-full" style="width: 0%; background: #8B5CF6;"></div>
-                                </div>
+                                <div class="flex items-center justify-between mb-1"><span class="text-xs font-medium" style="color: var(--text-muted);">Team Seats</span><span id="billing-seats-label" class="text-xs mono" style="color: var(--text);">0 / 1</span></div>
+                                <div class="w-full rounded-full h-2 overflow-hidden" style="background: var(--bg);"><div id="billing-seats-bar" class="usage-bar h-2 rounded-full" style="width: 0%; background: #8B5CF6;"></div></div>
                             </div>
                             <div>
-                                <div class="flex items-center justify-between mb-1">
-                                    <span class="text-xs font-medium" style="color: var(--text-muted);">AI Tokens (this month)</span>
-                                    <span id="billing-tokens-label" class="text-xs mono" style="color: var(--text);">0 / 100k</span>
-                                </div>
-                                <div class="w-full rounded-full h-2 overflow-hidden" style="background: var(--bg);">
-                                    <div id="billing-tokens-bar" class="usage-bar h-2 rounded-full" style="width: 0%; background: var(--amber);"></div>
-                                </div>
+                                <div class="flex items-center justify-between mb-1"><span class="text-xs font-medium" style="color: var(--text-muted);">AI Tokens</span><span id="billing-tokens-label" class="text-xs mono" style="color: var(--text);">0 / 100k</span></div>
+                                <div class="w-full rounded-full h-2 overflow-hidden" style="background: var(--bg);"><div id="billing-tokens-bar" class="usage-bar h-2 rounded-full" style="width: 0%; background: var(--amber);"></div></div>
                             </div>
                         </div>
                     </div>
                     <h2 class="text-lg font-bold mb-4" style="color: var(--text);">Upgrade your plan</h2>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                         <div class="plan-card featured rounded-xl p-6 flex flex-col" style="background: var(--surface); border: 2px solid var(--accent);">
-                            <div class="flex items-center justify-between mb-4">
-                                <h3 class="text-xl font-extrabold" style="color: var(--text);">Pro</h3>
-                                <span class="text-[10px] font-bold uppercase tracking-wider text-white px-2 py-1 rounded" style="background: var(--accent);">Popular</span>
-                            </div>
+                            <div class="flex items-center justify-between mb-4"><h3 class="text-xl font-extrabold" style="color: var(--text);">Pro</h3><span class="text-[10px] font-bold uppercase tracking-wider text-white px-2 py-1 rounded" style="background: var(--accent);">Popular</span></div>
                             <div class="mb-4"><span class="text-3xl font-extrabold mono" style="color: var(--text);">$19</span><span class="text-sm" style="color: var(--text-dim);">/mo</span></div>
-                            <ul class="space-y-2 text-sm mb-6 flex-1" style="color: var(--text-muted);">
-                                <li>✓ 20 projects</li>
-                                <li>✓ 20 DB connections</li>
-                                <li>✓ 10 GitHub repo links</li>
-                                <li>✓ 500k AI tokens / mo</li>
-                                <li>✓ Priority support</li>
-                            </ul>
+                            <ul class="space-y-2 text-sm mb-6 flex-1" style="color: var(--text-muted);"><li>✓ 20 projects</li><li>✓ 20 DB connections</li><li>✓ 10 GitHub repos</li><li>✓ 500k AI tokens / mo</li></ul>
                             <button onclick="openUpgradeModal('pro', 19)" class="w-full font-bold py-3 rounded-lg text-white" style="background: var(--accent);">Upgrade to Pro</button>
                         </div>
                         <div class="plan-card rounded-xl p-6 flex flex-col" style="background: var(--surface); border: 2px solid var(--border);">
                             <h3 class="text-xl font-extrabold mb-4" style="color: var(--text);">Team</h3>
                             <div class="mb-4"><span class="text-3xl font-extrabold mono" style="color: var(--text);">$79</span><span class="text-sm" style="color: var(--text-dim);">/mo</span></div>
-                            <ul class="space-y-2 text-sm mb-6 flex-1" style="color: var(--text-muted);">
-                                <li>✓ 100 projects</li>
-                                <li>✓ 100 DB connections</li>
-                                <li>✓ 50 GitHub repo links</li>
-                                <li>✓ 3 team seats (you + 2)</li>
-                                <li>✓ 2M AI tokens / mo</li>
-                            </ul>
+                            <ul class="space-y-2 text-sm mb-6 flex-1" style="color: var(--text-muted);"><li>✓ 100 projects</li><li>✓ 100 DB connections</li><li>✓ 50 GitHub repos</li><li>✓ 3 team seats</li><li>✓ 2M AI tokens</li></ul>
                             <button onclick="openUpgradeModal('team', 79)" class="w-full font-bold py-3 rounded-lg" style="border: 1px solid var(--border); color: var(--text);">Upgrade to Team</button>
                         </div>
                         <div class="plan-card rounded-xl p-6 flex flex-col" style="background: var(--surface); border: 2px solid var(--border);">
                             <h3 class="text-xl font-extrabold mb-4" style="color: var(--text);">Enterprise</h3>
                             <div class="mb-4"><span class="text-3xl font-extrabold mono" style="color: var(--text);">Custom</span></div>
-                            <ul class="space-y-2 text-sm mb-6 flex-1" style="color: var(--text-muted);">
-                                <li>✓ Unlimited everything</li>
-                                <li>✓ Unlimited team seats</li>
-                                <li>✓ SSO + audit logs</li>
-                                <li>✓ Self-host option</li>
-                            </ul>
+                            <ul class="space-y-2 text-sm mb-6 flex-1" style="color: var(--text-muted);"><li>✓ Unlimited everything</li><li>✓ Unlimited seats</li><li>✓ SSO + audit logs</li><li>✓ Self-host option</li></ul>
                             <button onclick="openUpgradeModal('enterprise', null)" class="w-full font-bold py-3 rounded-lg" style="border: 1px solid var(--border); color: var(--text);">Contact us</button>
                         </div>
                     </div>
@@ -668,28 +693,16 @@
                         <p class="text-sm" style="color: var(--text-muted);">Full platform visibility and control.</p>
                     </div>
                     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
-                        <div class="p-4 rounded-xl" style="background: var(--surface); border: 1px solid var(--border);">
-                            <span class="text-[10px] font-medium uppercase tracking-wider" style="color: var(--text-muted);">Total Users</span>
-                            <div id="owner-stat-users" class="text-xl font-bold mono mt-1" style="color: var(--text);">—</div>
-                        </div>
-                        <div class="p-4 rounded-xl" style="background: var(--surface); border: 1px solid var(--border);">
-                            <span class="text-[10px] font-medium uppercase tracking-wider" style="color: var(--text-muted);">Total Projects</span>
-                            <div id="owner-stat-projects" class="text-xl font-bold mono mt-1" style="color: var(--text);">—</div>
-                        </div>
-                        <div class="p-4 rounded-xl" style="background: var(--surface); border: 1px solid var(--border);">
-                            <span class="text-[10px] font-medium uppercase tracking-wider" style="color: var(--text-muted);">Platform Revenue</span>
-                            <div id="owner-stat-revenue" class="text-xl font-bold mono mt-1" style="color: var(--text);">—</div>
-                        </div>
-                        <div class="p-4 rounded-xl" style="background: var(--surface); border: 1px solid var(--border);">
-                            <span class="text-[10px] font-medium uppercase tracking-wider" style="color: var(--text-muted);">Active Teams</span>
-                            <div id="owner-stat-teams" class="text-xl font-bold mono mt-1" style="color: var(--text);">—</div>
-                        </div>
+                        <div class="p-4 rounded-xl" style="background: var(--surface); border: 1px solid var(--border);"><span class="text-[10px] font-medium uppercase tracking-wider" style="color: var(--text-muted);">Users</span><div id="owner-stat-users" class="text-xl font-bold mono mt-1" style="color: var(--text);">—</div></div>
+                        <div class="p-4 rounded-xl" style="background: var(--surface); border: 1px solid var(--border);"><span class="text-[10px] font-medium uppercase tracking-wider" style="color: var(--text-muted);">Projects</span><div id="owner-stat-projects" class="text-xl font-bold mono mt-1" style="color: var(--text);">—</div></div>
+                        <div class="p-4 rounded-xl" style="background: var(--surface); border: 1px solid var(--border);"><span class="text-[10px] font-medium uppercase tracking-wider" style="color: var(--text-muted);">Revenue</span><div id="owner-stat-revenue" class="text-xl font-bold mono mt-1" style="color: var(--text);">—</div></div>
+                        <div class="p-4 rounded-xl" style="background: var(--surface); border: 1px solid var(--border);"><span class="text-[10px] font-medium uppercase tracking-wider" style="color: var(--text-muted);">Active Teams</span><div id="owner-stat-teams" class="text-xl font-bold mono mt-1" style="color: var(--text);">—</div></div>
                     </div>
                     <div class="flex gap-2 mb-4 overflow-x-auto no-scrollbar" style="border-bottom: 1px solid var(--border);">
                         <button onclick="switchOwnerTab('users')" id="owner-tab-users" class="px-4 py-2 text-sm font-medium -mb-px whitespace-nowrap" style="color: var(--text); border-bottom: 2px solid var(--accent);">Users</button>
                         <button onclick="switchOwnerTab('projects')" id="owner-tab-projects" class="px-4 py-2 text-sm font-medium -mb-px whitespace-nowrap" style="color: var(--text-muted);">Projects</button>
                         <button onclick="switchOwnerTab('payments')" id="owner-tab-payments" class="px-4 py-2 text-sm font-medium -mb-px whitespace-nowrap" style="color: var(--text-muted);">Payments</button>
-                        <button onclick="switchOwnerTab('requests')" id="owner-tab-requests" class="px-4 py-2 text-sm font-medium -mb-px whitespace-nowrap" style="color: var(--text-muted);">Upgrade Requests</button>
+                        <button onclick="switchOwnerTab('requests')" id="owner-tab-requests" class="px-4 py-2 text-sm font-medium -mb-px whitespace-nowrap" style="color: var(--text-muted);">Requests</button>
                         <button onclick="switchOwnerTab('teams')" id="owner-tab-teams" class="px-4 py-2 text-sm font-medium -mb-px whitespace-nowrap" style="color: var(--text-muted);">Teams</button>
                     </div>
                     <div id="owner-users-panel"><div class="text-center py-12"><div class="inline-block w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent); border-top-color: transparent;"></div></div><div id="owner-users-list" class="hidden space-y-3"></div></div>
@@ -703,15 +716,10 @@
             <!-- SETTINGS -->
             <div id="view-settings" class="hidden flex-1 overflow-y-auto p-4 md:p-8">
                 <div class="max-w-2xl mx-auto">
-                    <div class="mb-8">
-                        <h1 class="text-2xl font-bold mb-1" style="color: var(--text);">Settings</h1>
-                        <p class="text-sm" style="color: var(--text-muted);">Manage your account and preferences.</p>
-                    </div>
+                    <div class="mb-8"><h1 class="text-2xl font-bold mb-1" style="color: var(--text);">Settings</h1><p class="text-sm" style="color: var(--text-muted);">Manage your account and preferences.</p></div>
                     <div class="rounded-xl p-6 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
                         <div class="flex items-center gap-4 mb-6">
-                            <div class="w-16 h-16 rounded-full flex items-center justify-center text-2xl font-extrabold" style="background: rgba(79,70,229,0.2); border: 1px solid rgba(79,70,229,0.4); color: var(--accent);">
-                                <span id="settings-initial">K</span>
-                            </div>
+                            <div class="w-16 h-16 rounded-full flex items-center justify-center text-2xl font-extrabold" style="background: rgba(79,70,229,0.2); border: 1px solid rgba(79,70,229,0.4); color: var(--accent);"><span id="settings-initial">K</span></div>
                             <div class="min-w-0">
                                 <h2 id="settings-display-name" class="font-bold truncate" style="color: var(--text);">Loading...</h2>
                                 <p id="settings-display-email" class="text-xs mono truncate" style="color: var(--text-muted);">...</p>
@@ -737,7 +745,6 @@
                             <button id="settings-save-btn" onclick="saveProfile()" class="w-full font-bold py-3 rounded-lg text-white" style="background: var(--accent);">Save Changes</button>
                         </div>
                     </div>
-
                     <div class="rounded-xl p-6 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
                         <h3 class="font-bold mb-4" style="color: var(--text);">Your Plan</h3>
                         <div class="flex items-center justify-between mb-3"><span class="text-sm" style="color: var(--text-muted);">Current plan</span><span id="settings-plan-2" class="font-bold uppercase text-sm" style="color: var(--text);">free</span></div>
@@ -746,18 +753,13 @@
                         <div class="flex items-center justify-between mb-4"><span class="text-sm" style="color: var(--text-muted);">Team Seats</span><span id="settings-limit-seats" class="mono text-sm" style="color: var(--text);">0 / 1</span></div>
                         <button onclick="switchView('billing')" class="w-full text-xs font-bold py-2 rounded-lg text-white" style="background: var(--accent);">Manage plan</button>
                     </div>
-
                     <div class="rounded-xl p-6 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
                         <h3 class="font-bold mb-4" style="color: var(--text);">Appearance</h3>
                         <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-sm font-medium" style="color: var(--text);">Theme</p>
-                                <p class="text-xs" style="color: var(--text-muted);">Currently: <span id="settings-theme-label">Dark</span></p>
-                            </div>
+                            <div><p class="text-sm font-medium" style="color: var(--text);">Theme</p><p class="text-xs" style="color: var(--text-muted);">Currently: <span id="settings-theme-label">Dark</span></p></div>
                             <button onclick="toggleTheme()" class="px-4 py-2 rounded-lg text-xs font-bold" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">Switch</button>
                         </div>
                     </div>
-
                     <div class="rounded-xl p-6" style="background: var(--surface); border: 1px solid rgba(239,68,68,0.3);">
                         <h3 class="font-bold mb-2" style="color: var(--text);">Sign Out</h3>
                         <p class="text-xs mb-4" style="color: var(--text-muted);">You'll be returned to the home page. Your data is safe.</p>
@@ -769,8 +771,6 @@
         </main>
     </div>
 </div>
-
-<!-- ================= MODALS ================= -->
 
 <!-- PROJECT CREATE -->
 <div id="project-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
@@ -817,9 +817,8 @@
         <div class="flex items-center justify-between mb-6"><h2 class="text-lg font-bold" style="color: var(--text);">Link GitHub repo</h2><button onclick="closeGithubModal()" style="color: var(--text-muted);"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button></div>
         <div id="gh-error" class="hidden bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-3 rounded-lg mb-4"></div>
         <div class="space-y-4">
-            <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Repository (owner/repo)</label><input type="text" id="gh-repo" placeholder="kumgtourryl-collab/Ukmbase-" class="w-full rounded-lg px-4 py-3 mono text-sm focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></div>
+            <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Repository</label><input type="text" id="gh-repo" placeholder="kumgtourryl-collab/Ukmbase-" class="w-full rounded-lg px-4 py-3 mono text-sm focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></div>
             <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Branch</label><input type="text" id="gh-branch" value="main" class="w-full rounded-lg px-4 py-3 mono text-sm focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></div>
-            <div class="bg-[#4F46E5]/5 border border-[#4F46E5]/20 rounded-lg p-3 text-xs" style="color: var(--text-muted);">We read the public repo info. No GitHub login needed.</div>
             <button id="save-gh-btn" onclick="saveGithubLink()" class="w-full font-bold py-3 rounded-lg text-white" style="background: var(--accent);">Link Repository</button>
         </div>
     </div>
@@ -835,10 +834,10 @@
             <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Plan Name</label><input type="text" id="plan-name" placeholder="Pro" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></div>
             <div class="grid grid-cols-2 gap-3">
                 <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Price</label><input type="number" id="plan-price" placeholder="29" step="0.01" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></div>
-                <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Currency</label><select id="plan-currency" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"><option>USD</option><option>ZAR</option><option>KES</option><option>NGN</option><option>GBP</option><option>EUR</option></select></div>
+                <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Currency</label><select id="plan-currency" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"><option>USD</option><option>ZAR</option><option>KES</option><option>NGN</option></select></div>
             </div>
             <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Interval</label><select id="plan-interval" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"><option value="monthly">Monthly</option><option value="yearly">Yearly</option><option value="one_time">One-time</option></select></div>
-            <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Provider</label><select id="plan-provider" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"><option value="stripe">Stripe</option><option value="paystack">Paystack</option><option value="flutterwave">Flutterwave</option><option value="paynow">Paynow</option><option value="ecocash">EcoCash</option><option value="manual">Manual / Cash</option></select></div>
+            <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Provider</label><select id="plan-provider" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"><option value="stripe">Stripe</option><option value="paystack">Paystack</option><option value="flutterwave">Flutterwave</option><option value="paynow">Paynow</option><option value="ecocash">EcoCash</option><option value="manual">Manual</option></select></div>
             <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Checkout URL</label><input type="url" id="plan-url" placeholder="https://buy.stripe.com/..." class="w-full rounded-lg px-4 py-3 text-xs mono focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></div>
             <button id="create-plan-btn" onclick="createPlan()" class="w-full font-bold py-3 rounded-lg text-white" style="background: var(--accent);">Create Plan</button>
         </div>
@@ -853,12 +852,12 @@
         <div class="space-y-4">
             <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Project</label><select id="pay-project" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></select></div>
             <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Plan (optional)</label><select id="pay-plan" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"><option value="">— none —</option></select></div>
-            <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Customer Email</label><input type="email" id="pay-email" placeholder="customer@example.com" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></div>
+            <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Customer Email</label><input type="email" id="pay-email" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></div>
             <div class="grid grid-cols-2 gap-3">
-                <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Amount</label><input type="number" id="pay-amount" placeholder="29" step="0.01" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></div>
-                <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Currency</label><select id="pay-currency" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"><option>USD</option><option>ZAR</option><option>KES</option><option>NGN</option><option>GBP</option><option>EUR</option></select></div>
+                <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Amount</label><input type="number" id="pay-amount" step="0.01" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></div>
+                <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Currency</label><select id="pay-currency" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"><option>USD</option><option>ZAR</option><option>KES</option><option>NGN</option></select></div>
             </div>
-            <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Provider</label><select id="pay-provider" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"><option value="manual">Manual / Cash</option><option value="stripe">Stripe</option><option value="paystack">Paystack</option><option value="flutterwave">Flutterwave</option><option value="ecocash">EcoCash</option></select></div>
+            <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Provider</label><select id="pay-provider" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"><option value="manual">Manual</option><option value="stripe">Stripe</option><option value="paystack">Paystack</option><option value="ecocash">EcoCash</option></select></div>
             <button id="create-payment-btn" onclick="createPayment()" class="w-full font-bold py-3 rounded-lg text-white" style="background: var(--accent);">Log Payment</button>
         </div>
     </div>
@@ -870,10 +869,10 @@
         <div class="flex items-center justify-between mb-6"><h2 class="text-lg font-bold" style="color: var(--text);">Connect a database</h2><button onclick="closeConnectModal()" style="color: var(--text-muted);"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button></div>
         <div id="connect-error" class="hidden bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-3 rounded-lg mb-4"></div>
         <div class="space-y-4">
-            <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Connection Name</label><input type="text" id="connect-name" placeholder="My Main DB" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></div>
+            <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Connection Name</label><input type="text" id="connect-name" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></div>
             <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Supabase URL</label><input type="url" id="connect-url" placeholder="https://xxxxx.supabase.co" class="w-full rounded-lg px-4 py-3 text-xs mono focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></div>
-            <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Anon Key</label><textarea id="connect-key" rows="2" placeholder="eyJhbGc..." class="w-full rounded-lg px-4 py-3 text-xs mono focus:outline-none resize-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></textarea></div>
-            <div class="bg-[#4F46E5]/5 border border-[#4F46E5]/20 rounded-lg p-3 text-xs" style="color: var(--text-muted);">Only paste the anon key. Never the service_role key.</div>
+            <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Anon Key</label><textarea id="connect-key" rows="2" class="w-full rounded-lg px-4 py-3 text-xs mono focus:outline-none resize-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></textarea></div>
+            <div class="bg-[#4F46E5]/5 border border-[#4F46E5]/20 rounded-lg p-3 text-xs" style="color: var(--text-muted);">Only paste the anon key.</div>
             <button id="create-connect-btn" onclick="createConnection()" class="w-full font-bold py-3 rounded-lg text-white" style="background: var(--accent);">Connect</button>
         </div>
     </div>
@@ -888,15 +887,14 @@
         </div>
         <div class="bg-[#4F46E5]/5 border border-[#4F46E5]/20 rounded-lg p-4 mb-5 text-xs" style="color: var(--text-muted);">
             <p class="font-bold mb-1" style="color: var(--text);">How payment works right now</p>
-            Ukmbase is in early access. We handle payments personally so we can support EcoCash, Paynow, bank transfer, and regional pricing. Send the request and we'll reach out within 24 hours.
+            Ukmbase is in early access. We handle payments personally so we can support EcoCash, Paynow, bank transfer, and regional pricing.
         </div>
         <div id="upgrade-error" class="hidden bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-3 rounded-lg mb-4"></div>
         <div class="space-y-4">
-            <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Your name</label><input type="text" id="upgrade-name" placeholder="Kerryl Murwisi" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></div>
-            <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">WhatsApp or Email</label><input type="text" id="upgrade-contact" placeholder="+263 78 123 4567 or you@email.com" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></div>
-            <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Notes (optional)</label><textarea id="upgrade-notes" rows="3" placeholder="I'm in Zimbabwe — can I pay via EcoCash?" class="w-full rounded-lg px-4 py-3 focus:outline-none resize-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></textarea></div>
+            <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Your name</label><input type="text" id="upgrade-name" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></div>
+            <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">WhatsApp or Email</label><input type="text" id="upgrade-contact" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></div>
+            <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Notes</label><textarea id="upgrade-notes" rows="3" class="w-full rounded-lg px-4 py-3 focus:outline-none resize-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></textarea></div>
             <button id="submit-upgrade-btn" onclick="submitUpgradeRequest()" class="w-full font-bold py-3 rounded-lg text-white" style="background: var(--accent);">Send Request</button>
-            <p class="text-[10px] text-center" style="color: var(--text-dim);">Your plan activates once payment is confirmed.</p>
         </div>
     </div>
 </div>
@@ -904,6 +902,6 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-<script src="app.js?v=509"></script>
+<script src="app.js?v=610"></script>
 </body>
 </html>
