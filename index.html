@@ -863,6 +863,9 @@
                     <div id="owner-payments-panel" class="hidden"><div class="text-center py-12"><div class="inline-block w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent); border-top-color: transparent;"></div></div><div id="owner-payments-list" class="hidden space-y-3"></div></div>
                     <div id="owner-requests-panel" class="hidden"><div class="text-center py-12"><div class="inline-block w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent); border-top-color: transparent;"></div></div><div id="owner-requests-list" class="hidden space-y-3"></div></div>
                     <div id="owner-teams-panel" class="hidden"><div class="text-center py-12"><div class="inline-block w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent); border-top-color: transparent;"></div></div><div id="owner-teams-list" class="hidden space-y-3"></div></div>
+                    <p class="text-[10px] mt-10 text-center" style="color: var(--text-dim);">
+                        Platform owner: <a href="mailto:kumgtourryl@gmail.com" style="color: var(--cyan);">kumgtourryl@gmail.com</a>
+                    </p>
                 </div>
             </div>
 
@@ -921,7 +924,7 @@
                     <div class="mt-8 text-center flex justify-center gap-6 text-xs" style="color: var(--text-dim);">
                         <a href="terms.html" class="hover:text-white">Terms of Service</a>
                         <a href="privacy.html" class="hover:text-white">Privacy Policy</a>
-                        <a href="mailto:rrylukm@gmail.com" class="hover:text-white">Support</a>
+                        <a href="mailto:rrrylukm@gmail.com" class="hover:text-white">Support</a>
                     </div>
                 </div>
             </div>
@@ -1019,7 +1022,7 @@
             <button id="create-payment-btn" onclick="createPayment()" class="w-full font-bold py-3 rounded-lg text-white" style="background: var(--accent);">Log Payment</button>
         </div>
     </div>
-</div> 
+</div>
 
 <!-- CONNECT DB -->
 <div id="connect-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
@@ -1048,7 +1051,15 @@
             Ukmbase is in early access. We handle payments personally so we can support EcoCash, Paynow, bank transfer, and regional pricing.
         </div>
         <div id="upgrade-error" class="hidden bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-3 rounded-lg mb-4"></div>
+        <div id="upgrade-support-line" class="text-[10px] mb-3" style="color: var(--text-dim);"></div>
         <div class="space-y-4">
+            <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Your name</label><input type="text" id="upgrade-name" placeholder="Your Name" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></div>
+            <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">WhatsApp or Email</label><input type="text" id="upgrade-contact" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></div>
+            <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Notes</label><textarea id="upgrade-notes" rows="3" class="w-full rounded-lg px-4 py-3 focus:outline-none resize-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></textarea></div>
+            <button id="submit-upgrade-btn" onclick="submitUpgradeRequest()" class="w-full font-bold py-3 rounded-lg text-white" style="background: var(--accent);">Send Request</button>
+        </div>
+    </div>
+</div>
 
 <!-- CREATE TABLE MODAL -->
 <div id="create-table-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
