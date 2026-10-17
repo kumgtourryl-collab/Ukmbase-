@@ -481,7 +481,7 @@
                 <div class="max-w-4xl mx-auto">
                     <div class="mb-6">
                         <h1 class="text-2xl font-bold mb-1" style="color: var(--text);">Ukmbase Data</h1>
-                        <p class="text-sm" style="color: var(--text-muted);">Real Postgres for every project. No Supabase signup required.</p>
+                        <p class="text-sm" style="color: var(--text-muted);">Real Postgres, auth, and storage for every project. No Supabase signup required.</p>
                     </div>
                     <div class="rounded-xl p-4 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
                         <label class="block text-xs font-medium mb-2" style="color: var(--text-muted);">Select project</label>
@@ -500,13 +500,14 @@
                                 </div>
                                 <div class="flex-1">
                                     <h3 class="font-bold mb-1" style="color: var(--text);">Enable Ukmbase Data</h3>
-                                    <p class="text-sm" style="color: var(--text-muted);">Every project gets its own isolated Postgres schema — tables, REST API, RLS, and end-user auth. Free tier is generous; no signup, no Supabase limits.</p>
+                                    <p class="text-sm" style="color: var(--text-muted);">Every project gets its own isolated Postgres schema, end-user auth, and file storage. Free tier is generous; no signup, no Supabase limits.</p>
                                 </div>
                             </div>
                             <ul class="text-xs space-y-1 mb-5" style="color: var(--text-muted);">
                                 <li>✓ Real PostgreSQL, not a mockup</li>
                                 <li>✓ Instant REST API via PostgREST</li>
                                 <li>✓ End-user authentication with sessions</li>
+                                <li>✓ File storage with signed URLs</li>
                                 <li>✓ Row-level security on every table</li>
                                 <li>✓ Works with UkmSync out of the box</li>
                             </ul>
@@ -528,9 +529,10 @@
                             <div class="rounded-lg p-3 text-xs" style="background: var(--bg); border: 1px solid var(--border);">
                                 <div class="flex justify-between mb-1"><span style="color: var(--text-dim);">REST URL</span><span class="mono truncate" style="color: var(--text-muted);">https://dwjyzqsrzdgnpwibnyjn.supabase.co/rest/v1/</span></div>
                                 <div class="flex justify-between mb-1"><span style="color: var(--text-dim);">Auth URL</span><span class="mono truncate" style="color: var(--text-muted);">/functions/v1/ukmauth</span></div>
+                                <div class="flex justify-between mb-1"><span style="color: var(--text-dim);">Storage URL</span><span class="mono truncate" style="color: var(--text-muted);">/functions/v1/ukmstore</span></div>
                                 <div class="flex justify-between"><span style="color: var(--text-dim);">Anon key</span><span class="mono" style="color: var(--text-muted);">sb_publishable_…NJV</span></div>
                             </div>
-                            <p class="text-[10px] mt-3" style="color: var(--text-dim);">Use these with any Supabase client, or hit the auth endpoint directly for signup/login.</p>
+                            <p class="text-[10px] mt-3" style="color: var(--text-dim);">Use these with any Supabase client, or hit the auth/storage endpoints directly.</p>
                         </div>
                         <div id="ukmdata-tables-card" class="hidden rounded-xl p-5 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
                             <div class="flex items-center justify-between mb-4">
@@ -546,8 +548,8 @@
                             <div id="ukmdata-tables-list" class="space-y-2"></div>
                         </div>
 
-                        <!-- AUTH CARD (NEW) -->
-                        <div id="ukmdata-auth-card" class="hidden rounded-xl p-5" style="background: var(--surface); border: 1px solid var(--border);">
+                        <!-- AUTH CARD -->
+                        <div id="ukmdata-auth-card" class="hidden rounded-xl p-5 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
                             <div class="flex items-center justify-between mb-4">
                                 <div>
                                     <h3 class="font-bold" style="color: var(--text);">Authentication</h3>
@@ -555,23 +557,66 @@
                                 </div>
                                 <span id="ukmdata-auth-count" class="text-xs mono px-2 py-1 rounded" style="background: rgba(79,70,229,0.1); color: var(--accent);">0 users</span>
                             </div>
-
                             <div id="ukmdata-auth-loading" class="hidden text-center py-6">
                                 <div class="inline-block w-5 h-5 border-2 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent); border-top-color: transparent;"></div>
                             </div>
-
                             <div id="ukmdata-auth-empty" class="hidden text-center py-6">
                                 <p class="text-sm" style="color: var(--text-muted);">No users yet. Your app's end-users will appear here once they sign up.</p>
                             </div>
-
                             <div id="ukmdata-auth-list" class="space-y-2 mb-4"></div>
-
                             <div class="rounded-lg p-3 text-xs" style="background: var(--bg); border: 1px solid var(--border);">
                                 <div class="flex items-center justify-between mb-2">
                                     <p class="font-bold" style="color: var(--text);">How to use it in your app</p>
                                     <button onclick="copyAuthSnippet()" class="text-[10px] font-bold px-2 py-1 rounded" style="background: rgba(79,70,229,0.1); color: var(--accent);">Copy snippet</button>
                                 </div>
                                 <pre id="ukmauth-snippet" class="mono text-[10px]"></pre>
+                            </div>
+                        </div>
+
+                        <!-- STORAGE CARD -->
+                        <div id="ukmdata-storage-card" class="hidden rounded-xl p-5" style="background: var(--surface); border: 1px solid var(--border);">
+                            <div class="flex items-center justify-between mb-4">
+                                <div>
+                                    <h3 class="font-bold" style="color: var(--text);">Storage</h3>
+                                    <p class="text-xs mt-1" style="color: var(--text-muted);">Files for your app. Max 5 MB per file.</p>
+                                </div>
+                                <span id="ukmdata-storage-count" class="text-xs mono px-2 py-1 rounded" style="background: rgba(6,182,212,0.1); color: var(--cyan);">0 files</span>
+                            </div>
+
+                            <div class="rounded-lg p-3 mb-4" style="background: var(--bg); border: 1px solid var(--border);">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-xs font-medium" style="color: var(--text-muted);">Storage Used</span>
+                                    <span id="ukmdata-storage-size" class="text-xs mono" style="color: var(--text);">0 B / 500 MB</span>
+                                </div>
+                                <div class="w-full rounded-full h-2 overflow-hidden" style="background: var(--surface);">
+                                    <div id="ukmdata-storage-bar" class="usage-bar h-2 rounded-full" style="width: 0%; background: var(--cyan);"></div>
+                                </div>
+                            </div>
+
+                            <!-- Upload zone -->
+                            <div id="ukmdata-upload-zone" class="rounded-lg p-6 mb-4 text-center cursor-pointer" style="background: var(--bg); border: 2px dashed var(--border);">
+                                <input type="file" id="ukmdata-file-input" class="hidden" onchange="uploadUkmDataFile(this)">
+                                <svg class="w-8 h-8 mx-auto mb-2" style="color: var(--text-dim);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                                <p class="text-sm font-medium" style="color: var(--text);">Tap to upload a file</p>
+                                <p class="text-[10px] mt-1" style="color: var(--text-dim);">Images, PDFs, any file up to 5 MB</p>
+                            </div>
+
+                            <div id="ukmdata-storage-loading" class="hidden text-center py-6">
+                                <div class="inline-block w-5 h-5 border-2 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent); border-top-color: transparent;"></div>
+                            </div>
+
+                            <div id="ukmdata-storage-empty" class="hidden text-center py-6">
+                                <p class="text-sm" style="color: var(--text-muted);">No files yet. Upload one to get started.</p>
+                            </div>
+
+                            <div id="ukmdata-storage-list" class="space-y-2 mb-4"></div>
+
+                            <div class="rounded-lg p-3 text-xs" style="background: var(--bg); border: 1px solid var(--border);">
+                                <div class="flex items-center justify-between mb-2">
+                                    <p class="font-bold" style="color: var(--text);">How to use it in your app</p>
+                                    <button onclick="copyStorageSnippet()" class="text-[10px] font-bold px-2 py-1 rounded" style="background: rgba(79,70,229,0.1); color: var(--accent);">Copy snippet</button>
+                                </div>
+                                <pre id="ukmstore-snippet" class="mono text-[10px]"></pre>
                             </div>
                         </div>
                     </div>
@@ -986,7 +1031,7 @@
         </div>
         <div id="upgrade-error" class="hidden bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-3 rounded-lg mb-4"></div>
         <div class="space-y-4">
-            <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Your name</label><input type="text" id="upgrade-name" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></div>
+            <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Your name</label><input type="text" id="upgrade-name" placeholder="Your Name" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></div>
             <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">WhatsApp or Email</label><input type="text" id="upgrade-contact" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></div>
             <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Notes</label><textarea id="upgrade-notes" rows="3" class="w-full rounded-lg px-4 py-3 focus:outline-none resize-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></textarea></div>
             <button id="submit-upgrade-btn" onclick="submitUpgradeRequest()" class="w-full font-bold py-3 rounded-lg text-white" style="background: var(--accent);">Send Request</button>
@@ -1026,6 +1071,6 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-<script src="app.js?v=613"></script>
+<script src="app.js?v=614"></script>
 </body>
 </html>
