@@ -1,0 +1,17 @@
+{
+  "name": "Ukmbase",
+  "short_name": "Ukmbase",
+  "description": "Forge your backend. Ship your SaaS.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0B1020",
+  "theme_color": "#0B1020",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
