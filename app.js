@@ -1,4 +1,5 @@
-// UKMBASE APP.JS — v614 (UkmSync + Ukmbase Data + Per-Project Auth + Storage)
+// UKMBASE APP.JS — v615 (UkmSync + Ukmbase Data + Per-Project Auth + Storage)
+// + Fixed upgrade flow (button reset, error handling, support contacts)
 
 const SUPABASE_URL = 'https://dwjyzqsrzdgnpwibnyjn.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_4vcPyg62OqmfwNaHxx0CGA_a7O0_NJV';
@@ -17,6 +18,23 @@ const PLAN_PRICES = {
     free: { label: '$0/mo' }, pro: { label: '$19/mo' },
     team: { label: '$79/mo' }, enterprise: { label: 'Custom' },
 };
+
+// ============================================
+// SUPPORT & CONTACT
+// ============================================
+const SUPPORT_EMAIL    = 'rrrylukm@gmail.com';     // user-facing support inbox
+const SUPPORT_WHATSAPP = '774739401';               // human-readable display
+const SUPPORT_WA_INTL  = '263774739401';            // for wa.me links (no +)
+const OWNER_EMAIL      = 'kumgtourryl@gmail.com';   // platform owner / admin
+
+function supportWhatsAppLink(message) {
+    const text = encodeURIComponent(message || 'Hi Ukmbase support, I need help with my upgrade.');
+    return 'https://wa.me/' + SUPPORT_WA_INTL + '?text=' + text;
+}
+function supportEmailLink(subject) {
+    const s = encodeURIComponent(subject || 'Ukmbase support request');
+    return 'mailto:' + SUPPORT_EMAIL + '?subject=' + s;
+}
 
 const landingView = document.getElementById('landing-view');
 const authView = document.getElementById('auth-view');
@@ -1137,7 +1155,7 @@ async function loadUkmDataState() {
     document.getElementById('ukmdata-auth-card').classList.remove('hidden');
     document.getElementById('ukmdata-storage-card').classList.remove('hidden');
     document.getElementById('ukmdata-schema-name').textContent = ukmDataSchema;
-    
+
     await loadUkmDataTables();
     await loadUkmDataUsers();
     await loadUkmDataFiles();
@@ -1429,7 +1447,7 @@ async function loadUkmDataFiles() {
     const countEl = document.getElementById('ukmdata-storage-count');
     const sizeEl = document.getElementById('ukmdata-storage-size');
     const barEl = document.getElementById('ukmdata-storage-bar');
-    
+
     loading.classList.remove('hidden'); list.classList.add('hidden'); empty.classList.add('hidden');
 
     try {
@@ -1441,17 +1459,16 @@ async function loadUkmDataFiles() {
         });
         const data = await res.json();
         loading.classList.add('hidden');
-        
+
         if (data.error) { showToast(data.error, 'error'); empty.classList.remove('hidden'); return; }
 
         ukmDataFiles = data.files || [];
-        
+
         let totalBytes = 0;
         ukmDataFiles.forEach(function(f) { totalBytes += Number(f.size_bytes) || 0; });
-        
-        // Update UI stats
+
         if (countEl) countEl.textContent = ukmDataFiles.length + ' file' + (ukmDataFiles.length === 1 ? '' : 's');
-        
+
         const mb = totalBytes / (1024 * 1024);
         const limitMb = 500;
         if (sizeEl) sizeEl.textContent = (mb < 1 ? (totalBytes / 1024).toFixed(1) + ' KB' : mb.toFixed(2) + ' MB') + ' / ' + limitMb + ' MB';
@@ -1464,10 +1481,10 @@ async function loadUkmDataFiles() {
 
         let html = '';
         ukmDataFiles.forEach(function(f) {
-            const sizeStr = f.size_bytes > 1024 * 1024 
-                ? (f.size_bytes / 1024 / 1024).toFixed(1) + ' MB' 
+            const sizeStr = f.size_bytes > 1024 * 1024
+                ? (f.size_bytes / 1024 / 1024).toFixed(1) + ' MB'
                 : (f.size_bytes / 1024).toFixed(0) + ' KB';
-            
+
             let iconSvg = '';
             if (f.mime_type && f.mime_type.startsWith('image/')) {
                 iconSvg = '<svg class="w-4 h-4" style="color: #10B981;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>';
@@ -1512,7 +1529,7 @@ function uploadUkmDataFile(input) {
         const btn = document.getElementById('ukmdata-upload-zone');
         const originalHtml = btn.innerHTML;
         btn.innerHTML = '<div class="text-sm font-medium" style="color: var(--text);">Uploading...</div>';
-        
+
         try {
             const { data: { session } } = await supabaseClient.auth.getSession();
             const res = await fetch(SUPABASE_URL + '/functions/v1/ukmstore', {
@@ -1979,60 +1996,134 @@ function renderBilling() {
     document.getElementById('billing-tokens-bar').style.width = Math.min(100, (tokensUsed / tokenLimit) * 100) + '%';
 }
 
+// ============================================
+// UPGRADE (FIXED)
+// ============================================
+
 function openUpgradeModal(plan, price) {
     currentUpgradePlan = { plan: plan, price: price };
     document.getElementById('upgrade-plan-name').textContent = plan.charAt(0).toUpperCase() + plan.slice(1);
     document.getElementById('upgrade-plan-detail').textContent = price ? '$' + price + '/mo billed monthly' : 'Custom pricing';
     document.getElementById('upgrade-error').classList.add('hidden');
     document.getElementById('upgrade-name').value = (currentProfile && currentProfile.full_name) || '';
-    document.getElementById('upgrade-contact').value = (currentProfile && (currentProfile.phone || currentProfile.email)) || (currentUser && currentUser.email) || '';
+    document.getElementById('upgrade-contact').value =
+        (currentProfile && (currentProfile.phone || currentProfile.email)) ||
+        (currentUser && currentUser.email) || '';
     document.getElementById('upgrade-notes').value = '';
+
+    // ALWAYS reset the submit button
+    const btn = document.getElementById('submit-upgrade-btn');
+    btn.disabled = false;
+    btn.textContent = 'Send Request';
+
+    // Inject support contacts
+    const helpEl = document.getElementById('upgrade-support-line');
+    if (helpEl) {
+        helpEl.innerHTML =
+            'Questions? WhatsApp <a href="' + supportWhatsAppLink('Hi, I have a question about the ' + plan + ' plan') + '" target="_blank" rel="noopener" style="color: var(--cyan); text-decoration: underline;">+' + SUPPORT_WA_INTL + '</a> ' +
+            'or email <a href="' + supportEmailLink('Question about ' + plan + ' plan') + '" style="color: var(--cyan); text-decoration: underline;">' + SUPPORT_EMAIL + '</a>';
+    }
+
     document.getElementById('upgrade-modal').classList.remove('hidden');
 }
 
-function closeUpgradeModal() { document.getElementById('upgrade-modal').classList.add('hidden'); currentUpgradePlan = null; }
+function closeUpgradeModal() {
+    document.getElementById('upgrade-modal').classList.add('hidden');
+    currentUpgradePlan = null;
+}
 
 async function submitUpgradeRequest() {
-    const name = document.getElementById('upgrade-name').value.trim();
-    const contact = document.getElementById('upgrade-contact').value.trim();
-    const notes = document.getElementById('upgrade-notes').value.trim();
-    const errEl = document.getElementById('upgrade-error');
     const btn = document.getElementById('submit-upgrade-btn');
+    if (btn.disabled) return;
+
+    const name    = document.getElementById('upgrade-name').value.trim();
+    const contact = document.getElementById('upgrade-contact').value.trim();
+    const notes   = document.getElementById('upgrade-notes').value.trim();
+    const errEl   = document.getElementById('upgrade-error');
     errEl.classList.add('hidden');
-    if (!name || !contact) { errEl.textContent = 'Name and contact required.'; errEl.classList.remove('hidden'); return; }
-    if (!currentUpgradePlan) return;
-    btn.textContent = 'Sending...'; btn.disabled = true;
-    const { error } = await supabaseClient.from('upgrade_requests').insert([{
-        user_id: currentUser.id, requested_plan: currentUpgradePlan.plan, amount: currentUpgradePlan.price,
-        currency: 'USD', contact_method: 'whatsapp', contact_value: contact,
-        notes: 'Name: ' + name + (notes ? ' | ' + notes : ''), status: 'pending'
-    }]);
-    btn.textContent = 'Send Request'; btn.disabled = false;
-    if (error) { errEl.textContent = error.message; errEl.classList.remove('hidden'); return; }
-    closeUpgradeModal(); showToast("Request sent! We'll reach out within 24 hours", 'success', 5000);
-    await loadMyUpgradeRequests();
-    closeUpgradeModal(); 
-showToast("Request sent! We'll reach out on WhatsApp (" + contact + ") within 24 hours", 'success', 5000);
-await loadMyUpgradeRequests();
+
+    if (!name || !contact) {
+        errEl.textContent = 'Name and contact required.';
+        errEl.classList.remove('hidden');
+        return;
+    }
+    if (!currentUpgradePlan) {
+        errEl.textContent = 'No plan selected. Close this and tap a plan again.';
+        errEl.classList.remove('hidden');
+        return;
+    }
+
+    btn.textContent = 'Sending...';
+    btn.disabled = true;
+
+    try {
+        const { error } = await supabaseClient.from('upgrade_requests').insert([{
+            user_id:        currentUser.id,
+            requested_plan: currentUpgradePlan.plan,
+            amount:         currentUpgradePlan.price,
+            currency:       'USD',
+            contact_method: contact.indexOf('@') !== -1 ? 'email' : 'whatsapp',
+            contact_value:  contact,
+            notes:          'Name: ' + name + (notes ? ' | ' + notes : ''),
+            status:         'pending'
+        }]);
+        if (error) throw error;
+
+        closeUpgradeModal();
+        showToast(
+            "Request sent! We'll reach out on WhatsApp (" + contact + ") within 24 hours",
+            'success',
+            5000
+        );
+
+        try { await loadMyUpgradeRequests(); }
+        catch (reloadErr) { console.warn('[upgrade] reload failed', reloadErr); }
+
+    } catch (err) {
+        console.error('[upgrade]', err);
+        errEl.innerHTML =
+            escapeHtml(err.message || 'Could not send request. Please try again.') +
+            '<br><span style="font-size:10px;opacity:0.75;">Still stuck? WhatsApp ' +
+            '<a href="' + supportWhatsAppLink('I need help upgrading') + '" target="_blank" rel="noopener" style="color: var(--cyan);">+' + SUPPORT_WA_INTL + '</a>' +
+            ' or email <a href="' + supportEmailLink('Upgrade error') + '" style="color: var(--cyan);">' + SUPPORT_EMAIL + '</a>.</span>';
+        errEl.classList.remove('hidden');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Send Request';
+    }
 }
 
 async function loadMyUpgradeRequests() {
     if (!currentUser) return;
     const wrap = document.getElementById('billing-my-requests');
     const list = document.getElementById('billing-requests-list');
-    if (!wrap) return;
-    const { data, error } = await supabaseClient.from('upgrade_requests').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false });
-    if (error) { console.error(error.message); return; }
-    if (!data || data.length === 0) { wrap.classList.add('hidden'); return; }
-    wrap.classList.remove('hidden');
-    let html = '';
-    data.forEach(function(r) {
-        html += '<div class="rounded-lg p-3 flex items-center justify-between" style="background: var(--bg); border: 1px solid var(--border);">' +
-            '<div><p class="text-sm font-medium capitalize" style="color: var(--text);">' + escapeHtml(r.requested_plan) + '</p>' +
-            '<p class="text-xs mono" style="color: var(--text-dim);">' + new Date(r.created_at).toLocaleDateString() + '</p></div>' +
-            '<span class="text-[10px] uppercase font-bold ' + (r.status === 'approved' ? 'text-green-400' : r.status === 'pending' ? 'text-yellow-400' : 'text-red-400') + '">' + r.status + '</span></div>';
-    });
-    list.innerHTML = html;
+    if (!wrap || !list) return;
+
+    try {
+        const { data, error } = await supabaseClient
+            .from('upgrade_requests')
+            .select('*')
+            .eq('user_id', currentUser.id)
+            .order('created_at', { ascending: false });
+
+        if (error) { console.warn('[upgrade] list load:', error.message); return; }
+        if (!data || data.length === 0) { wrap.classList.add('hidden'); return; }
+
+        wrap.classList.remove('hidden');
+        let html = '';
+        data.forEach(function(r) {
+            html += '<div class="rounded-lg p-3 flex items-center justify-between" style="background: var(--bg); border: 1px solid var(--border);">' +
+                '<div><p class="text-sm font-medium capitalize" style="color: var(--text);">' + escapeHtml(r.requested_plan) + '</p>' +
+                '<p class="text-xs mono" style="color: var(--text-dim);">' + new Date(r.created_at).toLocaleDateString() + '</p></div>' +
+                '<span class="text-[10px] uppercase font-bold ' +
+                    (r.status === 'approved' ? 'text-green-400' :
+                     r.status === 'pending'  ? 'text-yellow-400' : 'text-red-400') +
+                '">' + r.status + '</span></div>';
+        });
+        list.innerHTML = html;
+    } catch (err) {
+        console.warn('[upgrade] list failed', err);
+    }
 }
 
 // ============================================
