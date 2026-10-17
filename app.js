@@ -1,4 +1,4 @@
-// UKMBASE APP.JS — v613 (UkmSync + Ukmbase Data + Per-Project Auth)
+// UKMBASE APP.JS — v614 (UkmSync + Ukmbase Data + Per-Project Auth + Storage)
 
 const SUPABASE_URL = 'https://dwjyzqsrzdgnpwibnyjn.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_4vcPyg62OqmfwNaHxx0CGA_a7O0_NJV';
@@ -44,6 +44,7 @@ let currentUkmDataProjectId = null;
 let ukmDataSchema = null;
 let ukmDataTables = [];
 let ukmDataUsers = [];
+let ukmDataFiles = [];
 let ukmDataColumnCounter = 0;
 
 // ============================================
@@ -1120,10 +1121,12 @@ async function loadUkmDataState() {
         ukmDataSchema = null;
         ukmDataTables = [];
         ukmDataUsers = [];
+        ukmDataFiles = [];
         document.getElementById('ukmdata-enable-card').classList.remove('hidden');
         document.getElementById('ukmdata-info-card').classList.add('hidden');
         document.getElementById('ukmdata-tables-card').classList.add('hidden');
         document.getElementById('ukmdata-auth-card').classList.add('hidden');
+        document.getElementById('ukmdata-storage-card').classList.add('hidden');
         return;
     }
 
@@ -1132,9 +1135,12 @@ async function loadUkmDataState() {
     document.getElementById('ukmdata-info-card').classList.remove('hidden');
     document.getElementById('ukmdata-tables-card').classList.remove('hidden');
     document.getElementById('ukmdata-auth-card').classList.remove('hidden');
+    document.getElementById('ukmdata-storage-card').classList.remove('hidden');
     document.getElementById('ukmdata-schema-name').textContent = ukmDataSchema;
+    
     await loadUkmDataTables();
     await loadUkmDataUsers();
+    await loadUkmDataFiles();
 }
 
 async function enableUkmData() {
@@ -1311,6 +1317,7 @@ function copyUkmDataConnection() {
     const info = 'Ukmbase Data — Connection Info\n\n' +
         'REST URL: ' + SUPABASE_URL + '/rest/v1/\n' +
         'Auth URL: ' + SUPABASE_URL + '/functions/v1/ukmauth\n' +
+        'Storage URL: ' + SUPABASE_URL + '/functions/v1/ukmstore\n' +
         'Anon Key: ' + SUPABASE_ANON_KEY + '\n' +
         'Schema: ' + ukmDataSchema + '\n\n' +
         'Query your tables using any Supabase client.\n' +
@@ -1319,9 +1326,9 @@ function copyUkmDataConnection() {
     showToast('Connection info copied', 'success');
 }
 
-// --------------------------------------------------
-// UKMBASE DATA — AUTH USERS
-// --------------------------------------------------
+// ============================================
+// UKMBASE DATA — AUTH
+// ============================================
 
 async function loadUkmDataUsers() {
     if (!currentUkmDataProjectId || !ukmDataSchema) return;
@@ -1331,7 +1338,6 @@ async function loadUkmDataUsers() {
     const countEl = document.getElementById('ukmdata-auth-count');
     loading.classList.remove('hidden'); list.classList.add('hidden'); empty.classList.add('hidden');
 
-    // Read from public view (password_hash hidden by RLS)
     const { data, error } = await supabaseClient
         .from('project_users_public')
         .select('*')
@@ -1409,6 +1415,201 @@ function copyAuthSnippet() {
     if (!el) return;
     navigator.clipboard.writeText(el.textContent);
     showToast('Auth snippet copied', 'success');
+}
+
+// ============================================
+// UKMBASE DATA — STORAGE
+// ============================================
+
+async function loadUkmDataFiles() {
+    if (!currentUkmDataProjectId || !ukmDataSchema) return;
+    const loading = document.getElementById('ukmdata-storage-loading');
+    const list = document.getElementById('ukmdata-storage-list');
+    const empty = document.getElementById('ukmdata-storage-empty');
+    const countEl = document.getElementById('ukmdata-storage-count');
+    const sizeEl = document.getElementById('ukmdata-storage-size');
+    const barEl = document.getElementById('ukmdata-storage-bar');
+    
+    loading.classList.remove('hidden'); list.classList.add('hidden'); empty.classList.add('hidden');
+
+    try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        const res = await fetch(SUPABASE_URL + '/functions/v1/ukmstore', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'list', project_id: currentUkmDataProjectId })
+        });
+        const data = await res.json();
+        loading.classList.add('hidden');
+        
+        if (data.error) { showToast(data.error, 'error'); empty.classList.remove('hidden'); return; }
+
+        ukmDataFiles = data.files || [];
+        
+        let totalBytes = 0;
+        ukmDataFiles.forEach(function(f) { totalBytes += Number(f.size_bytes) || 0; });
+        
+        // Update UI stats
+        if (countEl) countEl.textContent = ukmDataFiles.length + ' file' + (ukmDataFiles.length === 1 ? '' : 's');
+        
+        const mb = totalBytes / (1024 * 1024);
+        const limitMb = 500;
+        if (sizeEl) sizeEl.textContent = (mb < 1 ? (totalBytes / 1024).toFixed(1) + ' KB' : mb.toFixed(2) + ' MB') + ' / ' + limitMb + ' MB';
+        if (barEl) barEl.style.width = Math.min(100, (mb / limitMb) * 100) + '%';
+
+        generateStorageSnippet();
+
+        if (ukmDataFiles.length === 0) { empty.classList.remove('hidden'); return; }
+        list.classList.remove('hidden');
+
+        let html = '';
+        ukmDataFiles.forEach(function(f) {
+            const sizeStr = f.size_bytes > 1024 * 1024 
+                ? (f.size_bytes / 1024 / 1024).toFixed(1) + ' MB' 
+                : (f.size_bytes / 1024).toFixed(0) + ' KB';
+            
+            let iconSvg = '';
+            if (f.mime_type && f.mime_type.startsWith('image/')) {
+                iconSvg = '<svg class="w-4 h-4" style="color: #10B981;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>';
+            } else if (f.mime_type && f.mime_type.includes('pdf')) {
+                iconSvg = '<svg class="w-4 h-4" style="color: #EF4444;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>';
+            } else {
+                iconSvg = '<svg class="w-4 h-4" style="color: #64748B;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>';
+            }
+
+            html += '<div class="rounded-lg p-3 flex items-center gap-3" style="background: var(--bg); border: 1px solid var(--border);">' +
+                '<div class="w-8 h-8 rounded flex items-center justify-center flex-shrink-0" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border);">' + iconSvg + '</div>' +
+                '<div class="min-w-0 flex-1">' +
+                    '<p class="text-sm font-medium truncate" style="color: var(--text);">' + escapeHtml(f.filename) + '</p>' +
+                    '<p class="text-[10px] mono" style="color: var(--text-dim);">' + sizeStr + ' · ' + new Date(f.created_at).toLocaleDateString() + '</p>' +
+                '</div>' +
+                '<div class="flex items-center gap-1">' +
+                    '<button onclick="downloadUkmDataFile(\'' + f.id + '\')" class="p-2" style="color: var(--cyan);">' +
+                        '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>' +
+                    '</button>' +
+                    '<button onclick="deleteUkmDataFile(\'' + f.id + '\')" class="p-2" style="color: var(--text-muted);">' +
+                        '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22"></path></svg>' +
+                    '</button>' +
+                '</div>' +
+            '</div>';
+        });
+        list.innerHTML = html;
+    } catch (err) {
+        loading.classList.add('hidden');
+        showToast('Network error: ' + err.message, 'error');
+        empty.classList.remove('hidden');
+    }
+}
+
+function uploadUkmDataFile(input) {
+    const file = input.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { showToast('File too large. Max 5 MB.', 'error'); input.value = ''; return; }
+
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        const base64 = e.target.result.split(',')[1];
+        const btn = document.getElementById('ukmdata-upload-zone');
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<div class="text-sm font-medium" style="color: var(--text);">Uploading...</div>';
+        
+        try {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            const res = await fetch(SUPABASE_URL + '/functions/v1/ukmstore', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'upload',
+                    project_id: currentUkmDataProjectId,
+                    filename: file.name,
+                    mime_type: file.type,
+                    file: base64
+                })
+            });
+            const data = await res.json();
+            btn.innerHTML = originalHtml;
+            input.value = '';
+
+            if (data.error) { showToast(data.error, 'error'); return; }
+            showToast('File uploaded', 'success');
+            await loadUkmDataFiles();
+        } catch (err) {
+            btn.innerHTML = originalHtml;
+            input.value = '';
+            showToast('Network error: ' + err.message, 'error');
+        }
+    };
+    reader.readAsDataURL(file);
+}
+
+async function deleteUkmDataFile(fileId) {
+    if (!confirm('Delete this file permanently?')) return;
+    try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        const res = await fetch(SUPABASE_URL + '/functions/v1/ukmstore', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'delete', project_id: currentUkmDataProjectId, file_id: fileId })
+        });
+        const data = await res.json();
+        if (data.error) { showToast(data.error, 'error'); return; }
+        showToast('File deleted', 'success');
+        await loadUkmDataFiles();
+    } catch (err) { showToast('Network error: ' + err.message, 'error'); }
+}
+
+async function downloadUkmDataFile(fileId) {
+    try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        const res = await fetch(SUPABASE_URL + '/functions/v1/ukmstore', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'download', project_id: currentUkmDataProjectId, file_id: fileId })
+        });
+        const data = await res.json();
+        if (data.error) { showToast(data.error, 'error'); return; }
+        window.open(data.url, '_blank');
+    } catch (err) { showToast('Network error: ' + err.message, 'error'); }
+}
+
+function generateStorageSnippet() {
+    const el = document.getElementById('ukmstore-snippet');
+    if (!el || !currentUkmDataProjectId) return;
+    const proj = projectsCache.find(function(p) { return p.id === currentUkmDataProjectId; });
+    const slug = proj ? proj.slug : 'unknown';
+    const snippet = '// Upload a file\n' +
+        'const fileInput = document.querySelector("input[type=file]");\n' +
+        'const file = fileInput.files[0];\n' +
+        'const reader = new FileReader();\n' +
+        'reader.onload = async (e) => {\n' +
+        '  const base64 = e.target.result.split(",")[1];\n' +
+        '  const res = await fetch("' + SUPABASE_URL + '/functions/v1/ukmstore", {\n' +
+        '    method: "POST",\n' +
+        '    headers: { "Content-Type": "application/json" },\n' +
+        '    body: JSON.stringify({\n' +
+        '      action: "upload",\n' +
+        '      project_slug: "' + slug + '",\n' +
+        '      filename: file.name,\n' +
+        '      mime_type: file.type,\n' +
+        '      file: base64,\n' +
+        '      session_token: "USER_SESSION_TOKEN_HERE"\n' +
+        '    })\n' +
+        '  });\n' +
+        '  console.log(await res.json());\n' +
+        '};\n' +
+        'reader.readAsDataURL(file);\n\n' +
+        '// Download a file\n' +
+        '// action: "download", file_id: "..."\n\n' +
+        '// Delete a file\n' +
+        '// action: "delete", file_id: "..."';
+    el.textContent = snippet;
+}
+
+function copyStorageSnippet() {
+    const el = document.getElementById('ukmstore-snippet');
+    if (!el) return;
+    navigator.clipboard.writeText(el.textContent);
+    showToast('Storage snippet copied', 'success');
 }
 
 // ============================================
@@ -1655,7 +1856,7 @@ async function openConnection(id) {
         let tables = [];
         if (spec) tables = Object.keys(spec.definitions || (spec.components && spec.components.schemas) || {}).sort();
         if (tables.length === 0) {
-            const candidates = ['profiles', 'projects', 'plans', 'payments', 'subscriptions', 'usage_metrics', 'waitlist', 'connected_databases', 'upgrade_requests', 'query_history', 'team_members', 'sync_configs', 'sync_logs', 'project_schemas', 'project_users_public'];
+            const candidates = ['profiles', 'projects', 'plans', 'payments', 'subscriptions', 'usage_metrics', 'waitlist', 'connected_databases', 'upgrade_requests', 'query_history', 'team_members', 'sync_configs', 'sync_logs', 'project_schemas', 'project_users_public', 'project_files'];
             for (let i = 0; i < candidates.length; i++) {
                 try {
                     const r = await fetch(conn.supabase_url + '/rest/v1/' + candidates[i] + '?select=*&limit=1', { headers: getHeaders(conn.supabase_anon_key) });
