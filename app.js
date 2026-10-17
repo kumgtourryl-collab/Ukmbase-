@@ -1991,7 +1991,9 @@ function openUpgradeModal(plan, price) {
 }
 
 function closeUpgradeModal() { document.getElementById('upgrade-modal').classList.add('hidden'); currentUpgradePlan = null; }
-
+closeUpgradeModal(); 
+showToast("Request sent! We'll reach out on WhatsApp (" + contact + ") within 24 hours", 'success', 5000);
+await loadMyUpgradeRequests();
 async function submitUpgradeRequest() {
     const name = document.getElementById('upgrade-name').value.trim();
     const contact = document.getElementById('upgrade-contact').value.trim();
