@@ -1,5 +1,7 @@
-// UKMBASE APP.JS — v615 (UkmSync + Ukmbase Data + Per-Project Auth + Storage)
-// + Fixed upgrade flow (button reset, error handling, support contacts)
+// UKMBASE APP.JS — v616 (UkmSync + Ukmbase Data + Per-Project Auth + Storage)
+// + DOMPurify sanitize on AI markdown
+// + Idempotent dashboard view (kills double-render)
+// + Skip TOKEN_REFRESHED reloads
 
 const SUPABASE_URL = 'https://dwjyzqsrzdgnpwibnyjn.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_4vcPyg62OqmfwNaHxx0CGA_a7O0_NJV';
@@ -43,6 +45,7 @@ const userEmailDisplay = document.getElementById('user-email');
 
 let currentUser = null;
 let currentProfile = null;
+let showingDashboardFor = null;   // ✅ v616: guard against double-render
 let chatHistory = [];
 let projectsCache = [];
 let connectionsCache = [];
@@ -201,6 +204,7 @@ function updateStrength() {
 // ============================================
 
 function showLandingView() {
+    showingDashboardFor = null;   // ✅ v616: reset guard on sign-out
     landingView.classList.remove('hidden');
     authView.classList.add('hidden');
     dashboardView.classList.add('hidden');
@@ -214,10 +218,16 @@ function showAuthView() {
 }
 
 async function showDashboardView(user) {
+    if (!user) return;
+    // ✅ v616: idempotent — if we're already showing this user's dashboard, do nothing.
+    if (showingDashboardFor === user.id && !dashboardView.classList.contains('hidden')) {
+        return;
+    }
+    showingDashboardFor = user.id;
     landingView.classList.add('hidden');
     authView.classList.add('hidden');
     dashboardView.classList.remove('hidden');
-    if (user && user.email) userEmailDisplay.textContent = user.email;
+    if (user.email) userEmailDisplay.textContent = user.email;
     currentUser = user;
     await loadProfile();
     await loadTeam();
@@ -813,8 +823,9 @@ function appendMessage(role, content) {
         wrapper.innerHTML = '<div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background: rgba(79,70,229,0.2); border: 1px solid rgba(79,70,229,0.4);"><svg class="w-4 h-4" style="color: var(--accent);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg></div>' +
             '<div class="rounded-2xl rounded-tr-sm px-4 py-2.5 max-w-[80%] text-sm text-white" style="background: var(--accent);">' + escapeHtml(content) + '</div>';
     } else {
+        // ✅ v616: DOMPurify sanitizes marked output — prevents XSS from AI responses
         wrapper.innerHTML = '<div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background: rgba(245,158,11,0.2); border: 1px solid rgba(245,158,11,0.4);"><svg class="w-4 h-4 text-[#F59E0B]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path></svg></div>' +
-            '<div class="rounded-2xl rounded-tl-sm px-4 py-3 max-w-[85%] text-sm chat-message" style="background: var(--surface); border: 1px solid var(--border); color: var(--text);">' + marked.parse(content) + '</div>';
+            '<div class="rounded-2xl rounded-tl-sm px-4 py-3 max-w-[85%] text-sm chat-message" style="background: var(--surface); border: 1px solid var(--border); color: var(--text);">' + DOMPurify.sanitize(marked.parse(content)) + '</div>';
     }
     container.appendChild(wrapper);
     wrapper.querySelectorAll('pre code').forEach(function(b) { hljs.highlightElement(b); });
@@ -1997,7 +2008,7 @@ function renderBilling() {
 }
 
 // ============================================
-// UPGRADE (FIXED)
+// UPGRADE
 // ============================================
 
 function openUpgradeModal(plan, price) {
@@ -2351,6 +2362,8 @@ async function init() {
 }
 
 supabaseClient.auth.onAuthStateChange(function(event, session) {
+    // ✅ v616: ignore token refresh — no need to reload the whole dashboard
+    if (event === 'TOKEN_REFRESHED') return;
     if (session) showDashboardView(session.user);
     else showLandingView();
 });
