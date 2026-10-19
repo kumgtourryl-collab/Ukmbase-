@@ -1,4 +1,4 @@
-// UKMBASE APP.JS — v622 (Final Build)
+// UKMBASE APP.JS — FINAL BUILD (v622)
 
 // ✅ GLOBAL ERROR CATCHER
 window.onerror = function(msg, url, line) {
@@ -40,6 +40,9 @@ function supportEmailLink(subject) {
     return 'mailto:' + SUPPORT_EMAIL + '?subject=' + encodeURIComponent(subject || 'Ukmbase support');
 }
 
+// ============================================
+// GLOBAL STATE
+// ============================================
 const landingView = document.getElementById('landing-view');
 const authView = document.getElementById('auth-view');
 const dashboardView = document.getElementById('dashboard-view');
@@ -455,7 +458,7 @@ function renderTeam() {
 
     const activeList = document.getElementById('team-active-list');
     const active = teamCache.filter(m => m.status === 'active');
-    let html = '<div class="flex items-center gap-3 p-3 rounded-lg" style="background: var(--bg); border: 1px solid var(--border);"><div class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold" style="background: rgba(79,70,229,0.2); color: var(--accent);">' + (currentProfile.full_name || 'U').charAt(0).toUpperCase() + '</div><div class="flex-1 min-w-0"><p class="text-sm font-bold truncate" style="color: var(--text);">' + escapeHtml(currentProfile.full_name || 'You') + ' (you)</p><p class="text-xs mono truncate" style="color: var(--text-dim);">' + escapeHtml(currentUser.email) + '</p></div><span class="text-[9px] font-bold uppercase px-2 py-1 rounded role-owner">Owner</span></div>';
+    let html = '<div class="flex items-center gap-3 p-3 rounded-lg" style="background: var(--bg); border: 1px solid var(--border);"><div class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold" style="background: rgba(79,70,229,0.2); color: var(--accent);">' + (currentProfile?.full_name || 'U').charAt(0).toUpperCase() + '</div><div class="flex-1 min-w-0"><p class="text-sm font-bold truncate" style="color: var(--text);">' + escapeHtml(currentProfile?.full_name || 'You') + ' (you)</p><p class="text-xs mono truncate" style="color: var(--text-dim);">' + escapeHtml(currentUser.email) + '</p></div><span class="text-[9px] font-bold uppercase px-2 py-1 rounded role-owner">Owner</span></div>';
     active.forEach(m => {
         html += '<div class="flex items-center gap-3 p-3 rounded-lg" style="background: var(--bg); border: 1px solid var(--border);"><div class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold" style="background: rgba(6,182,212,0.2); color: var(--cyan);">' + escapeHtml(m.invite_email.charAt(0).toUpperCase()) + '</div><div class="flex-1 min-w-0"><p class="text-sm font-bold truncate" style="color: var(--text);">' + escapeHtml(m.invite_email) + '</p><p class="text-xs capitalize" style="color: var(--text-dim);">' + escapeHtml(m.role) + '</p></div><button onclick="removeTeamMember(\'' + m.id + '\')" class="p-2 text-red-400"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22"></path></svg></button></div>';
     });
