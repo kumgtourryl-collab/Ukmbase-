@@ -1,4 +1,24 @@
-// UKMBASE APP.JS — v619 (Master Build + Fixes)
+// UKMBASE APP.JS — v620 (Master Build + Debug Mode)
+
+// ✅ GLOBAL ERROR CATCHER (Shows a red box on screen if something breaks)
+window.onerror = function(msg, url, line) {
+    const errDiv = document.createElement('div');
+    errDiv.style.position = 'fixed';
+    errDiv.style.bottom = '10px';
+    errDiv.style.left = '10px';
+    errDiv.style.right = '10px';
+    errDiv.style.background = 'rgba(239, 68, 68, 0.95)';
+    errDiv.style.color = 'white';
+    errDiv.style.padding = '12px';
+    errDiv.style.zIndex = '999999';
+    errDiv.style.fontSize = '12px';
+    errDiv.style.borderRadius = '8px';
+    errDiv.style.fontFamily = 'monospace';
+    errDiv.innerHTML = '<strong>JS Error:</strong> ' + msg + '<br><span style="font-size:10px;">Line ' + line + ' - ' + url + '</span>';
+    document.body.appendChild(errDiv);
+    setTimeout(() => errDiv.remove(), 10000);
+    return false;
+};
 
 const SUPABASE_URL = 'https://dwjyzqsrzdgnpwibnyjn.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_4vcPyg62OqmfwNaHxx0CGA_a7O0_NJV';
@@ -18,26 +38,16 @@ const PLAN_PRICES = {
     team: { label: '$79/mo' }, enterprise: { label: 'Custom' },
 };
 
-// ============================================
-// SUPPORT & CONTACT
-// ============================================
 const SUPPORT_EMAIL    = 'rrrylukm@gmail.com';
-const SUPPORT_WHATSAPP = '774739401';
 const SUPPORT_WA_INTL  = '263774739401';
-const OWNER_EMAIL      = 'kumgtourryl@gmail.com';
 
 function supportWhatsAppLink(message) {
-    const text = encodeURIComponent(message || 'Hi Ukmbase support, I need help with my upgrade.');
-    return 'https://wa.me/' + SUPPORT_WA_INTL + '?text=' + text;
+    return 'https://wa.me/' + SUPPORT_WA_INTL + '?text=' + encodeURIComponent(message || 'Hi Ukmbase support');
 }
 function supportEmailLink(subject) {
-    const s = encodeURIComponent(subject || 'Ukmbase support request');
-    return 'mailto:' + SUPPORT_EMAIL + '?subject=' + s;
+    return 'mailto:' + SUPPORT_EMAIL + '?subject=' + encodeURIComponent(subject || 'Ukmbase support');
 }
 
-// ============================================
-// GLOBAL STATE
-// ============================================
 const landingView = document.getElementById('landing-view');
 const authView = document.getElementById('auth-view');
 const dashboardView = document.getElementById('dashboard-view');
@@ -67,11 +77,13 @@ let ukmDataTables = [];
 let ukmDataUsers = [];
 let ukmDataFiles = [];
 let ukmDataColumnCounter = 0;
+
+// ✅ New variables for safe data editing
+let currentTableData = [];
+let currentTableName = null;
 let editingRowId = null;
-let editingRowTable = null;
 let impersonatingUserId = null;
 let currentChartData = null;
-let currentChartTable = null;
 let currentSeedTable = null;
 
 // ============================================
@@ -794,7 +806,7 @@ async function dropUkmDataTable(name) {
 }
 
 // ============================================
-// DATA VIEWER & EDITOR
+// DATA VIEWER & EDITOR (SAFE MODE)
 // ============================================
 async function viewTableData(tableName) {
     document.getElementById('data-viewer-title').textContent = tableName;
@@ -802,47 +814,65 @@ async function viewTableData(tableName) {
     document.getElementById('data-viewer-loading').classList.remove('hidden');
     document.getElementById('data-viewer-content').classList.add('hidden');
     document.getElementById('data-viewer-empty').classList.add('hidden');
+    
+    currentTableName = tableName;
+    currentTableData = [];
+
     try {
         const { data: { session } } = await supabaseClient.auth.getSession();
         const res = await fetch(SUPABASE_URL + '/functions/v1/ukmdata', { method: 'POST', headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'fetch_rows', project_id: currentUkmDataProjectId, table_name: tableName }) });
         const data = await res.json(); document.getElementById('data-viewer-loading').classList.add('hidden');
         if (data.error) throw new Error(data.error);
+        
         const rows = data.rows || [];
+        currentTableData = rows; // Store in memory safely
+
         if (rows.length === 0) { document.getElementById('data-viewer-empty').classList.remove('hidden'); return; }
+        
         document.getElementById('data-viewer-content').classList.remove('hidden');
         const columns = Object.keys(rows[0]);
         document.getElementById('data-viewer-head').innerHTML = '<tr>' + columns.map(c => `<th class="p-3 border-b border-r border-[var(--border)] text-[var(--cyan)] font-bold">${escapeHtml(c)}</th>`).join('') + '<th class="p-3 border-b border-[var(--border)] text-center">Actions</th></tr>';
+        
         document.getElementById('data-viewer-body').innerHTML = rows.map(row => {
             const cells = columns.map(c => `<td class="p-3 border-b border-r border-[var(--border)] max-w-xs truncate">${row[c] === null ? '<span class="italic text-[var(--text-dim)]">null</span>' : typeof row[c] === 'object' ? escapeHtml(JSON.stringify(row[c])) : escapeHtml(String(row[c]))}</td>`).join('');
-            return `<tr class="hover:bg-[var(--surface-2)]">${cells}<td class="p-2 border-b border-[var(--border)] text-center whitespace-nowrap"><button onclick='openEditRowModal("${tableName}", "${row.id}", ${JSON.stringify(JSON.stringify(row))})' class="p-1.5 text-[var(--cyan)]"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg></button><button onclick="deleteTableRow('${tableName}', '${row.id}')" class="p-1.5 text-[var(--red)]"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22"></path></svg></button></td></tr>`;
+            return `<tr class="hover:bg-[var(--surface-2)]">${cells}<td class="p-2 border-b border-[var(--border)] text-center whitespace-nowrap"><button onclick="openEditRowModal('${row.id}')" class="p-1.5 text-[var(--cyan)]"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg></button><button onclick="deleteTableRow('${row.id}')" class="p-1.5 text-[var(--red)]"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22"></path></svg></button></td></tr>`;
         }).join('');
     } catch (err) { document.getElementById('data-viewer-loading').classList.add('hidden'); showToast(err.message, 'error'); document.getElementById('data-viewer-modal').classList.add('hidden'); }
 }
-function openEditRowModal(tableName, rowId, rowJsonString) {
-    editingRowId = rowId; editingRowTable = tableName;
-    const row = JSON.parse(JSON.parse(rowJsonString));
+
+function openEditRowModal(rowId) {
+    editingRowId = rowId; 
+    const row = currentTableData.find(r => r.id === rowId);
+    if (!row) return showToast('Row data not found', 'error');
+    
     const fields = document.getElementById('edit-row-fields'); fields.innerHTML = '';
     Object.keys(row).forEach(key => {
-        if (key === 'id') return; let val = row[key]; if (typeof val === 'object') val = JSON.stringify(val);
+        if (key === 'id' || key === 'created_at') return; // Usually shouldn't edit these
+        let val = row[key]; if (typeof val === 'object') val = JSON.stringify(val);
         fields.innerHTML += `<div><label class="block text-xs font-medium mb-1 mono" style="color: var(--text-muted);">${escapeHtml(key)}</label><input type="${typeof row[key] === 'number' ? 'number' : 'text'}" id="edit-field-${key}" value="${escapeHtml(String(val || ''))}" class="w-full rounded-lg px-3 py-2 text-sm mono" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></div>`;
     });
     document.getElementById('edit-row-modal').classList.remove('hidden');
 }
+
 async function saveRowChanges() {
     const updates = {}; document.querySelectorAll('#edit-row-fields input').forEach(i => updates[i.id.replace('edit-field-', '')] = i.value);
     const btn = document.getElementById('save-row-btn'); btn.textContent = 'Saving...'; btn.disabled = true;
     try {
         const { data: { session } } = await supabaseClient.auth.getSession();
-        await fetch(SUPABASE_URL + '/functions/v1/ukmdata', { method: 'POST', headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'update_row', project_id: currentUkmDataProjectId, table_name: editingRowTable, row_id: editingRowId, updates }) });
-        document.getElementById('edit-row-modal').classList.add('hidden'); viewTableData(editingRowTable);
+        await fetch(SUPABASE_URL + '/functions/v1/ukmdata', { method: 'POST', headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'update_row', project_id: currentUkmDataProjectId, table_name: currentTableName, row_id: editingRowId, updates }) });
+        document.getElementById('edit-row-modal').classList.add('hidden'); viewTableData(currentTableName);
+    } catch (err) {
+        showToast(err.message, 'error');
     } finally { btn.textContent = 'Save Changes'; btn.disabled = false; }
 }
-async function deleteTableRow(tableName, rowId) {
+
+async function deleteTableRow(rowId) {
     if (!confirm('Delete this row?')) return;
     const { data: { session } } = await supabaseClient.auth.getSession();
-    await fetch(SUPABASE_URL + '/functions/v1/ukmdata', { method: 'POST', headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'delete_row', project_id: currentUkmDataProjectId, table_name: tableName, row_id: rowId }) });
-    viewTableData(tableName);
+    await fetch(SUPABASE_URL + '/functions/v1/ukmdata', { method: 'POST', headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'delete_row', project_id: currentUkmDataProjectId, table_name: currentTableName, row_id: rowId }) });
+    viewTableData(currentTableName);
 }
+
 async function exportTableCSV(btn) {
     const tableName = document.getElementById('data-viewer-title').textContent;
     if (!tableName) return;
@@ -966,14 +996,23 @@ async function loadUkmDataUsers() {
             <div class="w-9 h-9 rounded-full flex items-center justify-center font-bold" style="background: rgba(79,70,229,0.2); color: var(--accent);">${escapeHtml((u.name || u.email || 'U').charAt(0).toUpperCase())}</div>
             <div class="flex-1 min-w-0"><p class="text-sm font-medium truncate" style="color: var(--text);">${escapeHtml(u.name || u.email)}</p><p class="text-[10px] mono" style="color: var(--text-dim);">${escapeHtml(u.email)}</p></div>
             <div class="flex gap-1">
-                <button onclick="openImpersonateModal('${u.id}', '${escapeHtml(u.email)}')" class="px-2 py-1 text-[10px] font-bold rounded" style="background: rgba(139,92,246,0.1); color: #8B5CF6;">Login As</button>
+                <button onclick="openImpersonateModal('${u.id}')" class="px-2 py-1 text-[10px] font-bold rounded" style="background: rgba(139,92,246,0.1); color: #8B5CF6;">Login As</button>
                 <button onclick="deleteUkmDataUser('${u.id}')" class="p-1 text-red-400"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22"></path></svg></button>
             </div>
         </div>
     `).join('');
 }
 async function deleteUkmDataUser(id) { if (confirm('Delete user?')) { await supabaseClient.from('project_users').delete().eq('id', id); loadUkmDataUsers(); } }
-function openImpersonateModal(userId, email) { impersonatingUserId = userId; document.getElementById('impersonate-email').textContent = email; document.getElementById('impersonate-result').classList.add('hidden'); document.getElementById('impersonate-btn').textContent = 'Generate Token'; document.getElementById('impersonate-modal').classList.remove('hidden'); }
+
+// ✅ SAFE IMPERSONATION
+function openImpersonateModal(userId) { 
+    impersonatingUserId = userId; 
+    const user = ukmDataUsers.find(u => u.id === userId);
+    document.getElementById('impersonate-email').textContent = user ? user.email : 'User'; 
+    document.getElementById('impersonate-result').classList.add('hidden'); 
+    document.getElementById('impersonate-btn').textContent = 'Generate Token'; 
+    document.getElementById('impersonate-modal').classList.remove('hidden'); 
+}
 async function executeImpersonation() {
     const btn = document.getElementById('impersonate-btn'); btn.textContent = 'Generating...'; btn.disabled = true;
     try {
@@ -1083,6 +1122,27 @@ async function loadActivityLogs() {
 // ============================================
 // PUBLIC ROUTES
 // ============================================
+async function loadPublicCheckout(slug, planId) {
+    document.getElementById('landing-view').classList.add('hidden'); document.getElementById('auth-view').classList.add('hidden'); document.getElementById('dashboard-view').classList.add('hidden'); document.getElementById('public-checkout-view').classList.remove('hidden');
+    try {
+        const { data: plan, error: planErr } = await supabaseClient.from('plans').select('*, projects!inner(name, slug)').eq('id', planId).eq('projects.slug', slug).single();
+        if (planErr || !plan) throw new Error('Plan not found');
+        document.getElementById('checkout-project-name').textContent = plan.projects.name;
+        document.getElementById('checkout-plan-name').textContent = plan.name;
+        document.getElementById('checkout-currency').textContent = plan.currency;
+        document.getElementById('checkout-price').textContent = Number(plan.price_amount).toFixed(2);
+        document.getElementById('checkout-interval').textContent = plan.interval;
+        const payBtn = document.getElementById('checkout-pay-btn');
+        if (plan.checkout_url) {
+            payBtn.onclick = () => { window.location.href = plan.checkout_url; };
+        } else {
+            payBtn.textContent = 'Contact Business to Pay'; payBtn.style.background = 'var(--border)';
+        }
+        document.getElementById('checkout-loading').classList.add('hidden'); document.getElementById('checkout-content').classList.remove('hidden');
+    } catch (err) {
+        document.getElementById('checkout-loading').classList.add('hidden'); document.getElementById('checkout-error').classList.remove('hidden');
+    }
+}
 async function loadPublicPage(pageSlug) {
     document.getElementById('landing-view').classList.add('hidden'); document.getElementById('auth-view').classList.add('hidden'); document.getElementById('dashboard-view').classList.add('hidden'); document.getElementById('public-page-view').classList.remove('hidden');
     const { data: page } = await supabaseClient.from('project_pages').select('*, projects!inner(slug)').eq('slug', pageSlug).single();
@@ -1123,6 +1183,7 @@ function copyFormLink(tableName) {
 async function init() {
     initTheme();
     const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('pay') && urlParams.has('plan')) return loadPublicCheckout(urlParams.get('pay'), urlParams.get('plan'));
     if (urlParams.has('form') && urlParams.has('project')) return loadPublicForm(urlParams.get('project'), urlParams.get('form'));
     if (urlParams.has('page')) return loadPublicPage(urlParams.get('page'));
     if (urlParams.has('type') && urlParams.get('type') === 'recovery') {
