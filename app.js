@@ -1,8 +1,5 @@
-// app.js - The Core Module Glue
-
-// 1. Imports from your /js folder
-import { SUPABASE_URL, SUPABASE_ANON_KEY, PLAN_LIMITS, STAFF_ROLES, SUPPORT_EMAIL, SUPPORT_WA_INTL } from './js/config.js';
-import { showToast, escapeHtml, getLimits, getTeamSeatsUsed } from './js/utils.js'; // Imported from utils now
+import { SUPABASE_URL, SUPABASE_ANON_KEY, PLAN_LIMITS, STAFF_ROLES } from './js/config.js';
+import { showToast, escapeHtml, getLimits, getTeamSeatsUsed } from './js/utils.js';
 import { state } from './js/state.js';
 import * as Auth from './js/auth.js';
 import * as Projects from './js/projects.js';
@@ -11,10 +8,8 @@ import * as Database from './js/database.js';
 import * as Billing from './js/billing.js';
 import * as AI from './js/ai.js';
 
-// 2. Initialize Supabase globally
 window.supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// 3. Global Error Catcher
 let jsErrorBanner = null; let jsErrorTimer = null;
 window.onerror = function(msg, url, line) {
     if (!jsErrorBanner) {
@@ -29,13 +24,6 @@ window.onerror = function(msg, url, line) {
     return false;
 };
 
-// 4. Limits & Permissions Helpers (Bind them to window so HTML onclicks can use them)
-window.getLimits = getLimits;
-window.getTeamSeatsUsed = getTeamSeatsUsed;
-window.canCreateProject = function() { return state.projectsCache.length < getLimits().projects; };
-window.canCreateConnection = function() { return state.connectionsCache.length < getLimits().connections; };
-
-// 5. Core UI & Routing
 function initTheme() {
     const saved = localStorage.getItem('ukmbase-theme') || 'dark';
     applyTheme(saved);
@@ -51,8 +39,6 @@ function applyTheme(theme) {
         if (theme === 'light') { sunIcon.classList.remove('hidden'); moonIcon.classList.add('hidden'); }
         else { sunIcon.classList.add('hidden'); moonIcon.classList.remove('hidden'); }
     }
-    const label = document.getElementById('settings-theme-label');
-    if (label) label.textContent = theme === 'light' ? 'Light' : 'Dark';
 }
 
 function toggleTheme() {
@@ -97,11 +83,11 @@ async function showDashboardView(user) {
         planNameEl.textContent = (state.currentProfile.plan || 'free').toUpperCase() + ' Plan';
     }
 
-    window.loadPayments(); 
-    window.loadPlans();
-    Database.loadConnections().then(() => Database.populateQueryConnections());
-    window.loadMyUpgradeRequests(); 
-    window.loadQueryHistory(); 
+    if(window.loadPayments) window.loadPayments(); 
+    if(window.loadPlans) window.loadPlans();
+    if(window.loadConnections) window.loadConnections().then(() => { if(window.populateQueryConnections) window.populateQueryConnections(); });
+    if(window.loadMyUpgradeRequests) window.loadMyUpgradeRequests(); 
+    if(window.loadQueryHistory) window.loadQueryHistory(); 
     Projects.checkForPendingInvites(); 
     
     switchView('overview');
@@ -121,67 +107,27 @@ function switchView(view) {
             if (nav) { nav.classList.remove('sidebar-active'); nav.style.color = 'var(--text-muted)'; }
         }
     });
-    if (view === 'ukmpay') { window.loadPayments(); window.loadPlans(); }
-    if (view === 'ukmtables') { Database.loadConnections(); }
-    if (view === 'ukmquery') { Database.loadConnections().then(() => { Database.populateQueryConnections(); window.loadQueryHistory(); }); }
-    if (view === 'ukmsync') { Database.populateSyncProjectSelect(); }
-    if (view === 'ukmdata') { UkmData.populateUkmDataProjectSelect(); }
-    if (view === 'connect') { Database.populateConnectProjectSelect(); }
-    if (view === 'team') { window.renderTeam(); }
+    if (view === 'ukmpay' && window.loadPayments) { window.loadPayments(); if(window.loadPlans) window.loadPlans(); }
+    if (view === 'ukmtables' && window.loadConnections) { window.loadConnections(); }
+    if (view === 'ukmquery' && window.loadConnections) { window.loadConnections().then(() => { if(window.populateQueryConnections) window.populateQueryConnections(); if(window.loadQueryHistory) window.loadQueryHistory(); }); }
+    if (view === 'ukmsync' && window.populateSyncProjectSelect) { window.populateSyncProjectSelect(); }
+    if (view === 'ukmdata' && window.populateUkmDataProjectSelect) { window.populateUkmDataProjectSelect(); }
+    if (view === 'connect' && window.populateConnectProjectSelect) { window.populateConnectProjectSelect(); }
+    if (view === 'team' && window.renderTeam) { window.renderTeam(); }
     if (view === 'settings') { Auth.renderSettings(); }
     if (view === 'billing') { Billing.renderBilling(); }
-    if (view === 'owner') { window.loadOwnerConsole(); }
+    if (view === 'owner' && window.loadOwnerConsole) { window.loadOwnerConsole(); }
     const sidebar = document.getElementById('sidebar');
     if (sidebar) sidebar.classList.add('-translate-x-full');
 }
 
 function toggleSidebar() { document.getElementById('sidebar').classList.toggle('-translate-x-full'); }
 
-// 6. Landing Page AI Demo
+// --- DEMO LOGIC ---
 const DEMO_RESPONSES = {
-    "salon": `-- 🪄 Ukmbase AI generated this schema in 0.8s
-CREATE TABLE appointments (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  client_name TEXT NOT NULL,
-  service TEXT NOT NULL,
-  appointment_time TIMESTAMPTZ NOT NULL,
-  status TEXT DEFAULT 'pending',
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-
--- RLS enabled automatically
-ALTER TABLE appointments ENABLE ROW LEVEL SECURITY;`,
-    "shop": `-- 🪄 Ukmbase AI generated this schema in 0.9s
-CREATE TABLE products (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL,
-  price DECIMAL(10,2) NOT NULL,
-  inventory_count INT DEFAULT 0,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-
-CREATE TABLE orders (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  customer_email TEXT NOT NULL,
-  total_amount DECIMAL(10,2),
-  status TEXT DEFAULT 'cart',
-  created_at TIMESTAMPTZ DEFAULT now()
-);`,
-    "default": `-- 🪄 Ukmbase AI generated this schema in 1.1s
-CREATE TABLE users (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL,
-  email TEXT UNIQUE NOT NULL,
-  role TEXT DEFAULT 'user',
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-
-CREATE TABLE items (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  owner_id UUID REFERENCES users(id),
-  title TEXT NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT now()
-);`
+    "salon": `-- 🪄 Ukmbase AI generated this schema in 0.8s\nCREATE TABLE appointments (\n  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n  client_name TEXT NOT NULL,\n  service TEXT NOT NULL,\n  appointment_time TIMESTAMPTZ NOT NULL,\n  status TEXT DEFAULT 'pending',\n  created_at TIMESTAMPTZ DEFAULT now()\n);\n\n-- RLS enabled automatically\nALTER TABLE appointments ENABLE ROW LEVEL SECURITY;`,
+    "shop": `-- 🪄 Ukmbase AI generated this schema in 0.9s\nCREATE TABLE products (\n  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n  name TEXT NOT NULL,\n  price DECIMAL(10,2) NOT NULL,\n  inventory_count INT DEFAULT 0,\n  created_at TIMESTAMPTZ DEFAULT now()\n);\n\nCREATE TABLE orders (\n  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n  customer_email TEXT NOT NULL,\n  total_amount DECIMAL(10,2),\n  status TEXT DEFAULT 'cart',\n  created_at TIMESTAMPTZ DEFAULT now()\n);`,
+    "default": `-- 🪄 Ukmbase AI generated this schema in 1.1s\nCREATE TABLE users (\n  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n  name TEXT NOT NULL,\n  email TEXT UNIQUE NOT NULL,\n  role TEXT DEFAULT 'user',\n  created_at TIMESTAMPTZ DEFAULT now()\n);\n\nCREATE TABLE items (\n  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n  owner_id UUID REFERENCES users(id),\n  title TEXT NOT NULL,\n  created_at TIMESTAMPTZ DEFAULT now()\n);`
 };
 
 let demoRunning = false;
@@ -226,10 +172,8 @@ document.getElementById('demo-prompt')?.addEventListener('keypress', function (e
 
 
 // ============================================
-// 7. WINDOW BINDINGS
+// WINDOW BINDINGS
 // ============================================
-
-// Core UI
 window.toggleSidebar = toggleSidebar;
 window.switchView = switchView;
 window.showToast = showToast;
@@ -237,7 +181,12 @@ window.toggleTheme = toggleTheme;
 window.showLandingView = showLandingView;
 window.showAuthView = showAuthView;
 
-// Auth & Profile
+window.getLimits = getLimits;
+window.getTeamSeatsUsed = getTeamSeatsUsed;
+window.canCreateProject = function() { return state.projectsCache.length < getLimits().projects; };
+window.canCreateConnection = function() { return state.connectionsCache.length < getLimits().connections; };
+
+// Auth
 window.setAuthMode = Auth.setAuthMode;
 window.handleAuthSubmit = Auth.handleAuthSubmit;
 window.handleLogout = Auth.handleLogout;
@@ -375,20 +324,19 @@ window.closePaymentModal = Billing.closePaymentModal;
 window.loadPayments = Billing.loadPayments;
 window.createPayment = Billing.createPayment;
 
-// Owner Console
+// Owner & Public
 window.loadOwnerConsole = Billing.loadOwnerConsole;
 window.switchOwnerTab = Billing.switchOwnerTab;
 window.setUserRole = Billing.setUserRole;
 window.setRequestStatus = Billing.setRequestStatus;
-
-// Public Routes
 window.loadPublicCheckout = Billing.loadPublicCheckout;
 window.loadPublicPage = Billing.loadPublicPage;
 window.loadPublicForm = Billing.loadPublicForm;
 window.copyFormLink = Billing.copyFormLink;
 
+
 // ============================================
-// 8. Initialization
+// INITIALIZATION (MUST BE AT THE BOTTOM)
 // ============================================
 async function init() {
     initTheme();
