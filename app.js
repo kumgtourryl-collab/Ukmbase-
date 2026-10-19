@@ -30,6 +30,17 @@ function getLimits() { return PLAN_LIMITS[state.currentProfile?.plan || 'free'] 
 // ============================================
 // 3. NAVIGATION & THEME
 // ============================================
+function toggleTheme() {
+    const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+    if (isLight) document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.setAttribute('data-theme', 'light');
+    const sun = document.getElementById('theme-icon-sun'); const moon = document.getElementById('theme-icon-moon');
+    if (sun && moon) {
+        if (isLight) { sun.classList.add('hidden'); moon.classList.remove('hidden'); }
+        else { sun.classList.remove('hidden'); moon.classList.add('hidden'); }
+    }
+}
+
 function showLandingView() { 
     document.getElementById('landing-view').classList.remove('hidden'); 
     document.getElementById('auth-view').classList.add('hidden'); 
@@ -42,7 +53,8 @@ function showAuthView() {
 }
 function toggleSidebar() { document.getElementById('sidebar').classList.toggle('-translate-x-full'); }
 function switchView(view) {
-    ['overview', 'ukmai', 'ukmdata', 'billing', 'settings'].forEach(v => {
+    const views = ['overview', 'ukmai', 'ukmquery', 'ukmsync', 'ukmdata', 'ukmtables', 'connect', 'ukmpay', 'team', 'billing', 'settings'];
+    views.forEach(v => {
         const el = document.getElementById('view-' + v); const nav = document.getElementById('nav-' + v);
         if (el) v === view ? el.classList.remove('hidden') : el.classList.add('hidden');
         if (nav) {
@@ -51,6 +63,7 @@ function switchView(view) {
         }
     });
     document.getElementById('sidebar').classList.add('-translate-x-full');
+    if (view === 'ukmdata') populateUkmDataProjectSelect();
 }
 
 // ============================================
@@ -65,9 +78,15 @@ function setAuthMode(mode) {
 async function handleAuthSubmit() {
     const email = document.getElementById('auth-email').value;
     const password = document.getElementById('auth-password').value;
-    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    const isSignup = document.getElementById('auth-submit').textContent === 'Create Account';
+    
+    const { data, error } = isSignup 
+        ? await supabaseClient.auth.signUp({ email, password })
+        : await supabaseClient.auth.signInWithPassword({ email, password });
+        
     if (error) return showToast(error.message, 'error');
-    showDashboardView(data.user);
+    if (data.user && !data.session) return showToast('Check email to confirm account', 'success');
+    showDashboardView(data.user || data.session.user);
 }
 async function showDashboardView(user) {
     document.getElementById('landing-view').classList.add('hidden'); 
@@ -76,7 +95,6 @@ async function showDashboardView(user) {
     state.currentUser = user;
     document.getElementById('user-email').textContent = user.email;
     
-    // Fetch Projects
     const { data } = await supabaseClient.from('projects').select('*').order('created_at', { ascending: false });
     state.projectsCache = data || [];
     renderProjects();
@@ -107,7 +125,51 @@ async function createProject() {
 }
 
 // ============================================
-// 6. AI CHAT
+// 6. UKMBASE DATA (LITE)
+// ============================================
+function populateUkmDataProjectSelect() {
+    const sel = document.getElementById('ukmdata-project-select'); if (!sel) return;
+    if (state.projectsCache.length === 0) { 
+        document.getElementById('ukmdata-empty').classList.remove('hidden'); 
+        document.getElementById('ukmdata-panel').classList.add('hidden'); 
+        return; 
+    }
+    document.getElementById('ukmdata-empty').classList.add('hidden');
+    sel.innerHTML = state.projectsCache.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+    onUkmDataProjectChange();
+}
+async function onUkmDataProjectChange() {
+    const sel = document.getElementById('ukmdata-project-select'); if (!sel || !sel.value) return;
+    state.currentUkmDataProjectId = sel.value; 
+    document.getElementById('ukmdata-panel').classList.remove('hidden');
+    
+    const { data } = await supabaseClient.from('project_schemas').select('*').eq('project_id', state.currentUkmDataProjectId).maybeSingle();
+    if (!data) {
+        state.ukmDataSchema = null;
+        document.getElementById('ukmdata-enable-card').classList.remove('hidden');
+        document.getElementById('ukmdata-tables-card').classList.add('hidden');
+    } else {
+        state.ukmDataSchema = data.schema_name;
+        document.getElementById('ukmdata-enable-card').classList.add('hidden');
+        document.getElementById('ukmdata-tables-card').classList.remove('hidden');
+        document.getElementById('ukmdata-tables-list').innerHTML = `<p class="text-sm">Schema: ${state.ukmDataSchema}</p>`;
+    }
+}
+async function enableUkmData() {
+    if (!state.currentUkmDataProjectId) return;
+    const btn = document.getElementById('ukmdata-enable-btn'); btn.textContent = 'Enabling...';
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    const res = await fetch(SUPABASE_URL + '/functions/v1/ukmdata', { 
+        method: 'POST', headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' }, 
+        body: JSON.stringify({ action: 'enable', project_id: state.currentUkmDataProjectId }) 
+    });
+    const data = await res.json();
+    if (data.error) return showToast(data.error, 'error');
+    showToast('Ukmbase Data enabled!'); onUkmDataProjectChange();
+}
+
+// ============================================
+// 7. AI CHAT
 // ============================================
 async function sendChat() {
     const input = document.getElementById('chat-input'); const prompt = input.value.trim(); if (!prompt) return;
@@ -126,7 +188,7 @@ async function sendChat() {
 function handleChatKeydown(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); } }
 
 // ============================================
-// 7. LANDING DEMO
+// 8. LANDING DEMO
 // ============================================
 let demoRunning = false;
 function runLandingDemo() {
@@ -150,27 +212,19 @@ function runLandingDemo() {
 }
 
 // ============================================
-// 8. WINDOW BINDINGS (The Glue)
-// ============================================
-window.showLandingView = showLandingView;
-window.showAuthView = showAuthView;
-window.toggleSidebar = toggleSidebar;
-window.switchView = switchView;
-window.setAuthMode = setAuthMode;
-window.handleAuthSubmit = handleAuthSubmit;
-window.showToast = showToast;
-window.openProjectModal = openProjectModal;
-window.closeProjectModal = closeProjectModal;
-window.createProject = createProject;
-window.sendChat = sendChat;
-window.handleChatKeydown = handleChatKeydown;
-window.runLandingDemo = runLandingDemo;
-
-// ============================================
-// 9. INIT
+// 9. INIT & AUTH LISTENER
 // ============================================
 async function init() {
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (session) showDashboardView(session.user); else showLandingView();
 }
+
+supabaseClient.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+        if (session) showDashboardView(session.user);
+        else showLandingView();
+    }
+});
+
+// START THE APP
 init();
