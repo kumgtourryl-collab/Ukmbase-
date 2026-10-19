@@ -7,7 +7,6 @@ const AI_CONFIG = {
     maxRetries: 2,
     retryBaseMs: 1500,
     cooldownMs: 1200,
-    cacheTtlMs: 5 * 60 * 1000,
     maxHistoryTurns: 12,
     endpoint: '/functions/v1/ukmai',
 };
@@ -68,7 +67,6 @@ async function aiCall({ prompt, mode, history, projectId }) {
                 const data = await res.json();
                 if (data.error) throw new AIError('provider', data.error);
 
-                // Token tracking
                 if (data.usage) {
                     const t = data.usage.total_tokens || ((data.usage.prompt_tokens || 0) + (data.usage.completion_tokens || 0));
                     const p = state.projectsCache.find(x => x.id === projectId);
@@ -110,6 +108,14 @@ export function aiFormatError(err) {
 // CHAT UI
 // ============================================
 export async function sendChat() {
+    // AUTO-FIX: If no project is selected, grab their first project automatically
+    if (!state.currentUkmDataProjectId && state.projectsCache.length > 0) {
+        const ownProjects = state.projectsCache.filter(p => p.owner_id === state.currentUser.id);
+        if (ownProjects.length > 0) {
+            state.currentUkmDataProjectId = ownProjects[0].id;
+        }
+    }
+
     const input = document.getElementById('chat-input');
     const sendBtn = document.getElementById('chat-send');
     const prompt = input.value.trim(); if (!prompt) return;
@@ -128,7 +134,47 @@ export async function sendChat() {
     } catch (err) {
         removeTypingIndicator(typingId);
         appendMessage('ai', aiFormatError(err));
-    } finally { sendBtn.disabled = false; input.focus(); }
+    } finally { 
+        sendBtn.disabled = false; 
+        input.focus(); 
+    }
+}
+
+export async function executeAiSQL(sqlText, btn) {
+    if (!state.currentUkmDataProjectId) {
+        return showToast('Please create a project first in the Overview tab.', 'error');
+    }
+    
+    // Check for destructive SQL
+    const isDestructive = /\b(DROP|DELETE|TRUNCATE)\b/i.test(sqlText);
+    if (isDestructive && !confirm('⚠️ WARNING: Destructive SQL detected.\n\nThis cannot be undone. Execute anyway?')) return;
+
+    const origHtml = btn.innerHTML;
+    btn.innerHTML = 'Executing...';
+    btn.disabled = true;
+
+    try {
+        const { data: { session } } = await window.supabaseClient.auth.getSession();
+        const res = await fetch(SUPABASE_URL + '/functions/v1/ukmdata', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'execute_sql', project_id: state.currentUkmDataProjectId, sql_query: sqlText }),
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        
+        btn.innerHTML = '✅ Executed';
+        btn.style.background = 'rgba(16,185,129,0.15)';
+        btn.style.color = '#10B981';
+        showToast('SQL executed successfully.', 'success');
+        
+        const ukmView = document.getElementById('view-ukmdata');
+        if (ukmView && !ukmView.classList.contains('hidden')) window.loadUkmDataTables();
+    } catch (err) {
+        showToast(err.message, 'error');
+        btn.innerHTML = origHtml;
+        btn.disabled = false;
+    }
 }
 
 export function appendMessage(role, content) {
@@ -145,6 +191,24 @@ export function appendMessage(role, content) {
     }
     container.appendChild(wrapper);
     wrapper.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b));
+    
+    // Add Execute button to SQL blocks
+    wrapper.querySelectorAll('pre').forEach(pre => {
+        pre.style.position = 'relative';
+        const copyBtn = document.createElement('button'); copyBtn.className = 'copy-btn'; copyBtn.innerText = 'Copy';
+        copyBtn.onclick = () => { navigator.clipboard.writeText(pre.querySelector('code').innerText); copyBtn.innerText = 'Copied!'; setTimeout(() => copyBtn.innerText = 'Copy', 1500); };
+        pre.appendChild(copyBtn);
+        
+        const codeEl = pre.querySelector('code');
+        if (role === 'ai' && codeEl && (codeEl.className.includes('language-sql') || codeEl.innerText.trim().toUpperCase().startsWith('CREATE') || codeEl.innerText.trim().toUpperCase().startsWith('ALTER'))) {
+            const execBtn = document.createElement('button'); 
+            execBtn.className = 'w-full mt-2 text-xs font-bold py-2 rounded-lg flex items-center justify-center gap-2'; 
+            execBtn.style.background = 'rgba(139,92,246,0.15)'; execBtn.style.color = '#8B5CF6'; execBtn.style.border = '1px solid rgba(139,92,246,0.3)'; 
+            execBtn.innerHTML = '⚡ Execute in Database';
+            execBtn.onclick = () => executeAiSQL(codeEl.innerText, execBtn);
+            pre.parentNode.insertBefore(execBtn, pre.nextSibling);
+        }
+    });
     container.scrollTop = container.scrollHeight;
 }
 
