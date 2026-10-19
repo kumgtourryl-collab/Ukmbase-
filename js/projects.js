@@ -1,19 +1,22 @@
 import { showToast, escapeHtml } from './utils.js';
 import { state } from './state.js';
-import { getLimits, getTeamSeatsUsed } from './app.js'; // We'll keep limits in app.js for now
 
 export async function loadProjects() {
     if (!state.currentUser) return;
     document.getElementById('projects-loading').classList.remove('hidden');
     document.getElementById('projects-grid').classList.add('hidden');
     document.getElementById('empty-state').classList.add('hidden');
+    
     const { data, error } = await window.supabaseClient.from('projects').select('*').order('created_at', { ascending: false });
+    
     document.getElementById('projects-loading').classList.add('hidden');
     if (error) return console.error(error);
+    
     state.projectsCache = data || [];
     renderProjects(state.projectsCache);
     updateStats(state.projectsCache);
     window.populateProjectSelects();
+    updateOnboardingChecklist();
 }
 
 export function renderProjects(projects) {
@@ -64,7 +67,6 @@ export async function openProjectDetail(id) {
     document.getElementById('project-detail-modal').classList.remove('hidden');
 }
 
-// --- TEAM ---
 export async function loadTeam() {
     if (!state.currentUser) return;
     const { data } = await window.supabaseClient.from('team_members').select('*').eq('owner_id', state.currentUser.id).order('invited_at', { ascending: false });
@@ -79,5 +81,55 @@ export async function checkForPendingInvites() {
         const ownerName = data.profiles?.full_name || data.profiles?.email || 'A user';
         document.getElementById('invite-banner-text').innerHTML = `<strong>${escapeHtml(ownerName)}</strong> has invited you to join their team as a <strong>${escapeHtml(data.role)}</strong>.`;
         document.getElementById('team-invite-banner').classList.remove('hidden');
+    }
+}
+
+// --- ONBOARDING CHECKLIST ---
+export function updateOnboardingChecklist() {
+    const checklist = document.getElementById('onboarding-checklist');
+    if (!checklist) return;
+
+    // Check Step 1: Project created?
+    const hasProjects = state.projectsCache.length > 0;
+    const icon1 = document.getElementById('step-1-icon');
+    const text1 = document.getElementById('step-1-text');
+    if (icon1 && text1) {
+        icon1.innerHTML = hasProjects ? '✓' : '1';
+        icon1.style.background = hasProjects ? 'var(--green)' : 'var(--bg)';
+        icon1.style.color = hasProjects ? 'white' : 'var(--text-muted)';
+        icon1.style.borderColor = hasProjects ? 'var(--green)' : 'var(--border)';
+        text1.style.textDecoration = hasProjects ? 'line-through' : 'none';
+        text1.style.color = hasProjects ? 'var(--text-dim)' : 'var(--text)';
+    }
+
+    // Check Step 2: UkmData enabled?
+    const hasData = state.ukmDataSchema !== null;
+    const icon2 = document.getElementById('step-2-icon');
+    const text2 = document.getElementById('step-2-text');
+    if (icon2 && text2) {
+        icon2.innerHTML = hasData ? '✓' : '2';
+        icon2.style.background = hasData ? 'var(--green)' : 'var(--bg)';
+        icon2.style.color = hasData ? 'white' : 'var(--text-muted)';
+        icon2.style.borderColor = hasData ? 'var(--green)' : 'var(--border)';
+        text2.style.textDecoration = hasData ? 'line-through' : 'none';
+        text2.style.color = hasData ? 'var(--text-dim)' : 'var(--text)';
+    }
+
+    // Check Step 3: AI used?
+    const hasChatted = state.chatHistory.length > 0;
+    const icon3 = document.getElementById('step-3-icon');
+    const text3 = document.getElementById('step-3-text');
+    if (icon3 && text3) {
+        icon3.innerHTML = hasChatted ? '✓' : '3';
+        icon3.style.background = hasChatted ? 'var(--green)' : 'var(--bg)';
+        icon3.style.color = hasChatted ? 'white' : 'var(--text-muted)';
+        icon3.style.borderColor = hasChatted ? 'var(--green)' : 'var(--border)';
+        text3.style.textDecoration = hasChatted ? 'line-through' : 'none';
+        text3.style.color = hasChatted ? 'var(--text-dim)' : 'var(--text)';
+    }
+
+    // Hide checklist if all 3 are done
+    if (hasProjects && hasData && hasChatted) {
+        checklist.style.display = 'none';
     }
 }
