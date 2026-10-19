@@ -2,7 +2,7 @@
 
 // 1. Imports from your /js folder
 import { SUPABASE_URL, SUPABASE_ANON_KEY, PLAN_LIMITS, STAFF_ROLES, SUPPORT_EMAIL, SUPPORT_WA_INTL } from './js/config.js';
-import { showToast, escapeHtml } from './js/utils.js';
+import { showToast, escapeHtml, getLimits, getTeamSeatsUsed } from './js/utils.js'; // Imported from utils now
 import { state } from './js/state.js';
 import * as Auth from './js/auth.js';
 import * as Projects from './js/projects.js';
@@ -11,7 +11,7 @@ import * as Database from './js/database.js';
 import * as Billing from './js/billing.js';
 import * as AI from './js/ai.js';
 
-// 2. Initialize Supabase globally so all modules can use window.supabaseClient
+// 2. Initialize Supabase globally
 window.supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // 3. Global Error Catcher
@@ -29,15 +29,11 @@ window.onerror = function(msg, url, line) {
     return false;
 };
 
-// 4. Limits & Permissions Helpers
-window.getLimits = function() {
-    if (state.currentProfile && STAFF_ROLES.indexOf(state.currentProfile.role) !== -1) return PLAN_LIMITS.staff;
-    const plan = (state.currentProfile && state.currentProfile.plan) || 'free';
-    return PLAN_LIMITS[plan] || PLAN_LIMITS.free;
-};
-window.canCreateProject = function() { return state.projectsCache.length < window.getLimits().projects; };
-window.canCreateConnection = function() { return state.connectionsCache.length < window.getLimits().connections; };
-window.getTeamSeatsUsed = function() { return 1 + state.teamCache.filter(m => m.status === 'active').length; };
+// 4. Limits & Permissions Helpers (Bind them to window so HTML onclicks can use them)
+window.getLimits = getLimits;
+window.getTeamSeatsUsed = getTeamSeatsUsed;
+window.canCreateProject = function() { return state.projectsCache.length < getLimits().projects; };
+window.canCreateConnection = function() { return state.connectionsCache.length < getLimits().connections; };
 
 // 5. Core UI & Routing
 function initTheme() {
@@ -96,7 +92,6 @@ async function showDashboardView(user) {
     await Projects.loadTeam(); 
     await Projects.loadProjects();
     
-    // Set the top-right upgrade pill
     const planNameEl = document.getElementById('nav-plan-name');
     if (planNameEl && state.currentProfile) {
         planNameEl.textContent = (state.currentProfile.plan || 'free').toUpperCase() + ' Plan';
@@ -155,17 +150,13 @@ CREATE TABLE appointments (
 );
 
 -- RLS enabled automatically
-ALTER TABLE appointments ENABLE ROW LEVEL SECURITY;
-
--- Public Form Endpoint generated
--- https://api.ukmbase.com/form/salon-booking`,
+ALTER TABLE appointments ENABLE ROW LEVEL SECURITY;`,
     "shop": `-- 🪄 Ukmbase AI generated this schema in 0.9s
 CREATE TABLE products (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   price DECIMAL(10,2) NOT NULL,
   inventory_count INT DEFAULT 0,
-  image_url TEXT,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -175,9 +166,7 @@ CREATE TABLE orders (
   total_amount DECIMAL(10,2),
   status TEXT DEFAULT 'cart',
   created_at TIMESTAMPTZ DEFAULT now()
-);
-
--- Stripe & EcoCash hooks attached.`,
+);`,
     "default": `-- 🪄 Ukmbase AI generated this schema in 1.1s
 CREATE TABLE users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -191,11 +180,8 @@ CREATE TABLE items (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   owner_id UUID REFERENCES users(id),
   title TEXT NOT NULL,
-  metadata JSONB,
   created_at TIMESTAMPTZ DEFAULT now()
-);
-
--- Real-time sync enabled. Offline-first ready.`
+);`
 };
 
 let demoRunning = false;
@@ -240,7 +226,7 @@ document.getElementById('demo-prompt')?.addEventListener('keypress', function (e
 
 
 // ============================================
-// 7. WINDOW BINDINGS (Moved ABOVE init to prevent race conditions)
+// 7. WINDOW BINDINGS
 // ============================================
 
 // Core UI
@@ -290,7 +276,7 @@ window.clearChat = AI.clearChat;
 window.sendPrompt = AI.sendPrompt;
 window.handleChatKeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); AI.sendChat(); } };
 
-// UkmData (Data Engine)
+// UkmData
 window.populateUkmDataProjectSelect = UkmData.populateUkmDataProjectSelect;
 window.onUkmDataProjectChange = UkmData.onUkmDataProjectChange;
 window.enableUkmData = UkmData.enableUkmData;
@@ -345,7 +331,7 @@ window.copyApiSnippet = UkmData.copyApiSnippet;
 window.openSeedDataModal = UkmData.openSeedDataModal;
 window.generateAndSeedData = UkmData.generateAndSeedData;
 
-// Database (UkmTables / UkmQuery / UkmSync)
+// Database
 window.loadConnections = Database.loadConnections;
 window.populateConnectProjectSelect = Database.populateConnectProjectSelect;
 window.switchConnectTab = Database.switchConnectTab;
@@ -402,7 +388,7 @@ window.loadPublicForm = Billing.loadPublicForm;
 window.copyFormLink = Billing.copyFormLink;
 
 // ============================================
-// 8. Initialization (Moved to the very bottom)
+// 8. Initialization
 // ============================================
 async function init() {
     initTheme();
