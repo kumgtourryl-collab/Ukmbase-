@@ -7,7 +7,15 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+
+<!-- PWA Setup -->
+<link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0B1020">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
 <style>
     :root {
         --bg: #0B1020; --surface: #1C2333; --surface-2: #0F1626; --border: #2A3347;
@@ -83,78 +91,31 @@
 <!-- PUBLIC VIEWS -->
 <div id="public-checkout-view" class="hidden min-h-screen flex items-center justify-center p-6 bg-[#0B1020]">
     <div class="w-full max-w-md rounded-2xl p-8 glow" style="background: var(--surface); border: 1px solid var(--border);">
-        <div id="checkout-loading" class="text-center py-12">
-            <div class="inline-block w-8 h-8 border-4 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent); border-top-color: transparent;"></div>
-            <p class="mt-4 text-sm" style="color: var(--text-muted);">Loading checkout...</p>
-        </div>
-        <div id="checkout-content" class="hidden">
-            <div class="text-center mb-8">
-                <div class="text-2xl font-extrabold tracking-tighter mb-2" style="color: var(--text);">Ukm<span style="color: var(--accent);">base</span></div>
-                <p class="text-sm" style="color: var(--text-muted);">Powered by Ukmbase Storefronts</p>
-            </div>
-            <div class="rounded-xl p-6 mb-6 text-center" style="background: var(--bg); border: 1px solid var(--border);">
-                <p class="text-xs uppercase font-bold tracking-wider mb-2" style="color: var(--cyan);" id="checkout-project-name">Project Name</p>
-                <h1 class="text-2xl font-extrabold mb-1" style="color: var(--text);" id="checkout-plan-name">Plan Name</h1>
-                <div class="text-4xl font-extrabold mono mt-4 mb-2" style="color: var(--text);">
-                    <span id="checkout-currency">USD</span> <span id="checkout-price">0.00</span>
-                </div>
-                <p class="text-sm" style="color: var(--text-muted);">Billed <span id="checkout-interval">monthly</span></p>
-            </div>
-            <button id="checkout-pay-btn" class="w-full font-bold py-4 rounded-xl text-white text-lg transition-transform hover:scale-105" style="background: var(--accent);">Pay Now</button>
-        </div>
-        <div id="checkout-error" class="hidden text-center py-8">
-            <svg class="w-12 h-12 mx-auto mb-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-            <h2 class="text-lg font-bold mb-2" style="color: var(--text);">Plan not found</h2>
-            <p class="text-sm" style="color: var(--text-muted);">This checkout link is invalid or the plan was removed.</p>
-        </div>
+        <div id="checkout-loading" class="text-center py-12"><div class="inline-block w-8 h-8 border-4 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent);"></div></div>
+        <div id="checkout-content" class="hidden"><h1 class="text-2xl font-bold mb-4" id="checkout-project-name">Project</h1><button class="w-full bg-[var(--accent)] text-white py-3 rounded-lg">Pay</button></div>
     </div>
 </div>
 
 <div id="public-form-view" class="hidden min-h-screen flex items-center justify-center p-4 bg-[#0B1020]">
-    <div class="w-full max-w-md rounded-2xl p-8 glow my-8" style="background: var(--surface); border: 1px solid var(--border);">
-        <div class="text-center mb-8">
-            <div class="text-2xl font-extrabold tracking-tighter mb-2" style="color: var(--text);">Ukm<span style="color: var(--accent);">base</span> Forms</div>
-            <h1 id="form-title" class="text-xl font-bold mb-1" style="color: var(--text);">Loading...</h1>
-        </div>
-        <div id="form-loading" class="text-center py-8">
-            <div class="inline-block w-8 h-8 border-4 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent); border-top-color: transparent;"></div>
-        </div>
-        <form id="dynamic-form" class="hidden space-y-4"></form>
-        <div id="form-success" class="hidden text-center py-8">
-            <svg class="w-12 h-12 mx-auto mb-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-            <h2 class="text-lg font-bold mb-2" style="color: var(--text);">Thank you!</h2>
-        </div>
+    <div class="w-full max-w-md rounded-2xl p-8 glow" style="background: var(--surface); border: 1px solid var(--border);">
+        <h1 id="form-title" class="text-xl font-bold mb-4">Form</h1>
+        <form id="dynamic-form" class="space-y-4"></form>
     </div>
 </div>
 
 <div id="public-page-view" class="hidden min-h-screen bg-[#0B1020] p-6">
-    <div class="max-w-5xl mx-auto">
-        <header class="text-center mb-10 mt-6">
-            <h1 id="page-title" class="text-3xl font-extrabold mb-2" style="color: var(--text);">Loading...</h1>
-        </header>
-        <div id="page-loading" class="text-center py-20">
-            <div class="inline-block w-8 h-8 border-4 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent); border-top-color: transparent;"></div>
-        </div>
-        <div id="page-content" class="hidden grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6"></div>
-        <div id="page-empty" class="hidden text-center py-20">
-            <p class="text-sm" style="color: var(--text-muted);">No items to display yet.</p>
-        </div>
-    </div>
+    <div class="max-w-5xl mx-auto"><h1 id="page-title" class="text-3xl font-bold">Page</h1><div id="page-content" class="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-8"></div></div>
 </div>
 
+<!-- TEAM INVITE BANNER -->
 <div id="team-invite-banner" class="hidden fixed top-16 left-1/2 -translate-x-1/2 z-[9999] w-[90%] max-w-md p-4 rounded-xl shadow-2xl flex flex-col gap-3" style="background: var(--surface); border: 2px solid var(--accent);">
     <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style="background: rgba(79,70,229,0.2); color: var(--accent);">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-        </div>
-        <div>
-            <p class="text-sm font-bold" style="color: var(--text);">Team Invitation</p>
-            <p class="text-xs" style="color: var(--text-muted);" id="invite-banner-text">You have been invited to join a team.</p>
-        </div>
+        <div class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style="background: rgba(79,70,229,0.2); color: var(--accent);">✉️</div>
+        <div><p class="text-sm font-bold" style="color: var(--text);">Team Invitation</p><p class="text-xs" style="color: var(--text-muted);" id="invite-banner-text">You have been invited.</p></div>
     </div>
     <div class="flex gap-2">
-        <button onclick="window.acceptTeamInvite()" class="flex-1 font-bold py-2 rounded-lg text-white text-sm" style="background: var(--accent);">Accept Invite</button>
-        <button onclick="window.declineTeamInvite()" class="flex-1 font-bold py-2 rounded-lg text-sm" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">Decline</button>
+        <button onclick="acceptTeamInvite()" class="flex-1 font-bold py-2 rounded-lg text-white text-sm" style="background: var(--accent);">Accept</button>
+        <button onclick="declineTeamInvite()" class="flex-1 font-bold py-2 rounded-lg text-sm" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">Decline</button>
     </div>
 </div>
 
@@ -162,61 +123,27 @@
 <div id="landing-view" class="min-h-screen flex flex-col items-center justify-center p-6 text-center">
     <nav class="w-full max-w-5xl flex justify-between items-center mb-16">
         <div class="text-2xl font-extrabold tracking-tighter text-white">Ukm<span class="text-[#4F46E5]">base</span></div>
-        <button onclick="window.showAuthView()" class="text-sm font-medium text-[#94A3B8] hover:text-white cursor-pointer bg-transparent border-none">Login</button>
+        <button onclick="showAuthView()" class="text-sm font-medium text-[#94A3B8] hover:text-white bg-transparent border-none">Login</button>
     </nav>
     <main class="max-w-3xl w-full">
-        <div class="inline-flex items-center gap-2 bg-[#4F46E5]/10 border border-[#4F46E5]/30 text-[#06B6D4] px-4 py-1.5 rounded-full text-xs font-semibold mb-6">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-            Built entirely on a phone. $0 budget.
-        </div>
-        <h1 class="text-4xl md:text-6xl font-extrabold tracking-tight mb-6 leading-tight text-white">
-            Forge your backend.<br>
-            <span class="text-transparent bg-clip-text bg-gradient-to-r from-[#4F46E5] to-[#06B6D4]">Ship your SaaS.</span>
-        </h1>
+        <div class="inline-flex items-center gap-2 bg-[#4F46E5]/10 border border-[#4F46E5]/30 text-[#06B6D4] px-4 py-1.5 rounded-full text-xs font-semibold mb-6">⚡ Built entirely on a phone. $0 budget.</div>
+        <h1 class="text-4xl md:text-6xl font-extrabold tracking-tight mb-6 leading-tight text-white">Forge your backend.<br><span class="text-transparent bg-clip-text bg-gradient-to-r from-[#4F46E5] to-[#06B6D4]">Ship your SaaS.</span></h1>
         <p class="text-[#94A3B8] text-lg md:text-xl mb-8 max-w-xl mx-auto">The AI-native backend platform for mobile-first founders. Offline-first sync, full-stack AI generation, and built-in mobile money.</p>
         
-        <!-- DEMO -->
         <div class="w-full max-w-2xl mx-auto mb-16 text-left">
-            <div class="rounded-xl p-5" style="background: var(--surface); border: 1px solid var(--border); box-shadow: 0 10px 40px -10px rgba(0,0,0,0.5);">
+            <div class="rounded-xl p-5" style="background: var(--surface); border: 1px solid var(--border);">
                 <div class="flex items-center justify-between mb-3">
-                    <div class="flex items-center gap-2">
-                        <div class="w-6 h-6 rounded bg-[#F59E0B]/20 flex items-center justify-center">
-                            <svg class="w-3.5 h-3.5 text-[#F59E0B]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                        </div>
-                        <span class="text-xs font-bold text-white tracking-wider uppercase">UkmAI Live Demo</span>
-                    </div>
-                    <span class="text-[10px] font-bold text-[#06B6D4] bg-[#06B6D4]/10 px-2 py-1 rounded">Try it</span>
+                    <span class="text-xs font-bold text-white tracking-wider uppercase">UkmAI Live Demo</span>
                 </div>
-                
                 <div class="flex flex-col sm:flex-row gap-2">
-                    <input type="text" id="demo-prompt" placeholder="e.g. Build a booking system for a hair salon..." class="flex-1 rounded-lg px-4 py-3 text-sm text-white focus:outline-none focus:border-[#4F46E5]" style="background: #0B1020; border: 1px solid #2A3347;">
-                    <button onclick="window.runLandingDemo()" id="demo-btn" class="text-sm font-bold text-white px-6 py-3 rounded-lg transition-colors flex items-center justify-center gap-2" style="background: var(--accent);">Generate</button>
+                    <input type="text" id="demo-prompt" placeholder="e.g. Build a booking system..." class="flex-1 rounded-lg px-4 py-3 text-sm text-white focus:outline-none" style="background: #0B1020; border: 1px solid #2A3347;">
+                    <button onclick="runLandingDemo()" id="demo-btn" class="text-sm font-bold text-white px-6 py-3 rounded-lg" style="background: var(--accent);">Generate</button>
                 </div>
-
                 <div id="demo-output" class="hidden mt-4 rounded-lg p-4 mono text-[11px] overflow-x-auto" style="background: #0B1020; border: 1px solid #2A3347; color: #A78BFA; max-height: 250px;"></div>
-
                 <div id="demo-cta" class="hidden mt-4 pt-4 flex items-center justify-between border-t border-[#2A3347]">
                     <span class="text-xs text-[#94A3B8]">Want to run this in a real database?</span>
-                    <button onclick="window.showAuthView()" class="text-xs font-bold text-white px-4 py-2 rounded-lg" style="background: var(--green);">Sign up free →</button>
+                    <button onclick="showAuthView()" class="text-xs font-bold text-white px-4 py-2 rounded-lg" style="background: var(--green);">Sign up free →</button>
                 </div>
-            </div>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-left">
-            <div class="bg-[#1C2333] border border-[#2A3347] p-5 rounded-xl">
-                <svg class="w-6 h-6 text-[#06B6D4] mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-                <h3 class="font-bold text-white mb-1">UkmSync</h3>
-                <p class="text-[#94A3B8] text-sm">Offline-first engine. Build apps that work on 2G or zero connection.</p>
-            </div>
-            <div class="bg-[#1C2333] border border-[#2A3347] p-5 rounded-xl">
-                <svg class="w-6 h-6 text-[#F59E0B] mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path></svg>
-                <h3 class="font-bold text-white mb-1">UkmAI</h3>
-                <p class="text-[#94A3B8] text-sm">Describe your app. Get a full-stack schema, API, and UI in seconds.</p>
-            </div>
-            <div class="bg-[#1C2333] border border-[#2A3347] p-5 rounded-xl">
-                <svg class="w-6 h-6 text-[#06B6D4] mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
-                <h3 class="font-bold text-white mb-1">UkmPay</h3>
-                <p class="text-[#94A3B8] text-sm">Built-in Stripe, Paystack, and EcoCash integrations. Monetize from Day 1.</p>
             </div>
         </div>
     </main>
@@ -227,15 +154,12 @@
     <div class="w-full max-w-md rounded-2xl p-8 glow" style="background: var(--surface); border: 1px solid var(--border);">
         <div class="text-center mb-6">
             <div class="text-3xl font-extrabold tracking-tighter" style="color: var(--text);">Ukm<span style="color: var(--accent);">base</span></div>
-            <p class="text-sm mt-2" style="color: var(--text-muted);">Forge your backend. Ship your SaaS.</p>
         </div>
         <div class="flex mb-6" style="border-bottom: 1px solid var(--border);">
-            <button id="tab-login" onclick="window.setAuthMode('login')" class="auth-tab active flex-1 py-3 text-sm font-semibold border-b-2 border-transparent -mb-px" style="color: var(--text-muted);">Sign In</button>
-            <button id="tab-signup" onclick="window.setAuthMode('signup')" class="auth-tab flex-1 py-3 text-sm font-semibold border-b-2 border-transparent -mb-px" style="color: var(--text-muted);">Create Account</button>
+            <button id="tab-login" onclick="setAuthMode('login')" class="auth-tab active flex-1 py-3 text-sm font-semibold border-b-2 border-transparent -mb-px" style="color: var(--text-muted);">Sign In</button>
+            <button id="tab-signup" onclick="setAuthMode('signup')" class="auth-tab flex-1 py-3 text-sm font-semibold border-b-2 border-transparent -mb-px" style="color: var(--text-muted);">Create Account</button>
         </div>
         <div id="auth-error" class="hidden bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-3 rounded-lg mb-4"></div>
-        <div id="auth-success" class="hidden bg-green-500/10 border border-green-500/30 text-green-400 text-xs p-3 rounded-lg mb-4"></div>
-        
         <div class="space-y-4">
             <div id="field-fullname" class="hidden">
                 <label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Full Name</label>
@@ -247,20 +171,14 @@
             </div>
             <div>
                 <label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Password</label>
-                <div class="relative">
-                    <input type="password" id="auth-password" oninput="window.updateStrength()" placeholder="••••••••" class="w-full rounded-lg px-4 py-3 pr-12 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
-                </div>
-                <div class="flex justify-end mt-2">
-                    <button type="button" onclick="window.showForgotPasswordView()" class="text-xs font-medium" style="color: var(--cyan);">Forgot password?</button>
-                </div>
+                <input type="password" id="auth-password" placeholder="••••••••" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
             </div>
             <div id="field-confirm" class="hidden">
                 <label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Confirm Password</label>
                 <input type="password" id="auth-confirm" placeholder="••••••••" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
             </div>
-            <button id="auth-submit" onclick="window.handleAuthSubmit()" class="w-full font-bold py-3 rounded-lg transition-colors mt-2 glow text-white" style="background: var(--accent);">Sign In</button>
-            
-            <button onclick="window.showLandingView()" class="w-full text-center text-xs mt-2" style="color: var(--text-dim);">← Back to home</button>
+            <button id="auth-submit" onclick="handleAuthSubmit()" class="w-full font-bold py-3 rounded-lg text-white" style="background: var(--accent);">Sign In</button>
+            <button onclick="showLandingView()" class="w-full text-center text-xs mt-2" style="color: var(--text-dim);">← Back to home</button>
         </div>
     </div>
 </div>
@@ -269,18 +187,15 @@
 <div id="dashboard-view" class="hidden min-h-screen flex flex-col">
     <nav class="px-4 py-3 flex justify-between items-center sticky top-0 z-50" style="background: var(--bg); border-bottom: 1px solid var(--border);">
         <div class="flex items-center gap-3">
-            <button onclick="window.toggleSidebar()" class="p-1" style="color: var(--text-muted);">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
-            </button>
+            <button onclick="toggleSidebar()" class="p-1" style="color: var(--text-muted);"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg></button>
             <div class="text-xl font-extrabold tracking-tighter" style="color: var(--text);">Ukm<span style="color: var(--accent);">base</span></div>
             <span id="role-badge" class="hidden text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded">User</span>
         </div>
         <div class="flex items-center gap-2">
-            <button onclick="window.switchView('billing')" class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold" style="background: rgba(79,70,229,0.1); border: 1px solid rgba(79,70,229,0.3); color: var(--accent);">
-                <span id="nav-plan-name">Free Plan</span>
-                <span class="bg-[var(--accent)] text-white px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wider ml-1">Upgrade</span>
+            <button onclick="switchView('billing')" class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold" style="background: rgba(79,70,229,0.1); border: 1px solid rgba(79,70,229,0.3); color: var(--accent);">
+                <span id="nav-plan-name">Free Plan</span><span class="bg-[var(--accent)] text-white px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wider ml-1">Upgrade</span>
             </button>
-            <button id="theme-toggle" onclick="window.toggleTheme()" class="theme-btn p-2 rounded-lg" style="background: var(--surface); border: 1px solid var(--border); color: var(--text-muted);" title="Toggle theme">
+            <button id="theme-toggle" onclick="toggleTheme()" class="theme-btn p-2 rounded-lg" style="background: var(--surface); border: 1px solid var(--border); color: var(--text-muted);">
                 <svg id="theme-icon-sun" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
                 <svg id="theme-icon-moon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
             </button>
@@ -291,11 +206,17 @@
     <div class="flex flex-1 overflow-hidden">
         <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-64 transform -translate-x-full transition-transform duration-200 ease-in-out md:relative md:translate-x-0 mt-14 md:mt-0" style="background: var(--surface); border-right: 1px solid var(--border);">
             <div class="p-4 space-y-1">
-                <a href="#" onclick="window.switchView('overview')" id="nav-overview" class="flex items-center gap-3 px-3 py-2.5 rounded-lg sidebar-active text-sm font-medium" style="color: var(--text);">Overview</a>
-                <a href="#" onclick="window.switchView('ukmai')" id="nav-ukmai" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors" style="color: var(--text-muted);">UkmAI Copilot</a>
-                <a href="#" onclick="window.switchView('ukmdata')" id="nav-ukmdata" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors" style="color: var(--text-muted);">Ukmbase Data</a>
-                <a href="#" onclick="window.switchView('billing')" id="nav-billing" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors" style="color: var(--text-muted);">Billing</a>
-                <a href="#" onclick="window.switchView('settings')" id="nav-settings" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors" style="color: var(--text-muted);">Settings</a>
+                <a href="#" onclick="switchView('overview')" id="nav-overview" class="flex items-center gap-3 px-3 py-2.5 rounded-lg sidebar-active text-sm font-medium" style="color: var(--text);">Overview</a>
+                <a href="#" onclick="switchView('ukmai')" id="nav-ukmai" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors" style="color: var(--text-muted);">UkmAI Copilot</a>
+                <a href="#" onclick="switchView('ukmquery')" id="nav-ukmquery" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors" style="color: var(--text-muted);">UkmQuery</a>
+                <a href="#" onclick="switchView('ukmsync')" id="nav-ukmsync" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors" style="color: var(--text-muted);">UkmSync</a>
+                <a href="#" onclick="switchView('ukmdata')" id="nav-ukmdata" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors" style="color: var(--text-muted);">Ukmbase Data</a>
+                <a href="#" onclick="switchView('ukmtables')" id="nav-ukmtables" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors" style="color: var(--text-muted);">UkmTables</a>
+                <a href="#" onclick="switchView('connect')" id="nav-connect" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors" style="color: var(--text-muted);">Connect App</a>
+                <a href="#" onclick="switchView('ukmpay')" id="nav-ukmpay" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors" style="color: var(--text-muted);">UkmPay</a>
+                <a href="#" onclick="switchView('team')" id="nav-team" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors" style="color: var(--text-muted);">Team</a>
+                <a href="#" onclick="switchView('billing')" id="nav-billing" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors" style="color: var(--text-muted);">Billing</a>
+                <a href="#" onclick="switchView('settings')" id="nav-settings" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors" style="color: var(--text-muted);">Settings</a>
             </div>
         </aside>
 
@@ -303,74 +224,91 @@
             <!-- OVERVIEW -->
             <div id="view-overview" class="flex-1 overflow-y-auto p-4 md:p-8">
                 <div class="max-w-6xl mx-auto">
-                    <div class="mb-8">
-                        <h1 class="text-2xl font-bold mb-1" style="color: var(--text);">Welcome back, Founder</h1>
-                        <p class="text-sm" style="color: var(--text-muted);">Here is what's happening with your projects today.</p>
-                    </div>
-
-                    <div id="onboarding-checklist" class="mb-8 rounded-xl p-5" style="background: var(--surface); border: 1px solid var(--accent); box-shadow: 0 4px 20px rgba(79,70,229,0.1);">
-                        <div class="flex items-center justify-between mb-4">
-                            <div>
-                                <h2 class="text-lg font-bold" style="color: var(--text);">🚀 Welcome to Ukmbase</h2>
-                                <p class="text-xs" style="color: var(--text-muted);">Complete these steps to ship your first backend.</p>
-                            </div>
-                            <button onclick="document.getElementById('onboarding-checklist').style.display='none'" class="text-xs" style="color: var(--text-dim);">Dismiss</button>
-                        </div>
+                    <div class="mb-8"><h1 class="text-2xl font-bold mb-1" style="color: var(--text);">Welcome back, Founder</h1></div>
+                    <div id="onboarding-checklist" class="mb-8 rounded-xl p-5" style="background: var(--surface); border: 1px solid var(--accent);">
+                        <div class="flex items-center justify-between mb-4"><h2 class="text-lg font-bold" style="color: var(--text);">🚀 Welcome to Ukmbase</h2></div>
                         <div class="space-y-3">
-                            <div class="flex items-center gap-3 cursor-pointer" onclick="window.openProjectModal()">
+                            <div class="flex items-center gap-3 cursor-pointer" onclick="openProjectModal()">
                                 <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold" id="step-1-icon" style="background: var(--bg); border: 1px solid var(--border); color: var(--text-muted);">1</div>
                                 <span class="text-sm font-medium" id="step-1-text" style="color: var(--text);">Create your first project</span>
                             </div>
-                            <div class="flex items-center gap-3 cursor-pointer" onclick="window.switchView('ukmdata')">
+                            <div class="flex items-center gap-3 cursor-pointer" onclick="switchView('ukmdata')">
                                 <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold" id="step-2-icon" style="background: var(--bg); border: 1px solid var(--border); color: var(--text-muted);">2</div>
                                 <span class="text-sm font-medium" id="step-2-text" style="color: var(--text-muted);">Enable Ukmbase Data</span>
                             </div>
-                            <div class="flex items-center gap-3 cursor-pointer" onclick="window.switchView('ukmai')">
-                                <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold" id="step-3-icon" style="background: var(--bg); border: 1px solid var(--border); color: var(--text-muted);">3</div>
-                                <span class="text-sm font-medium" id="step-3-text" style="color: var(--text-muted);">Generate a database with AI</span>
-                            </div>
                         </div>
                     </div>
-
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+                        <div class="p-5 rounded-xl" style="background: var(--surface); border: 1px solid var(--border);"><span class="text-xs font-medium" style="color: var(--text-muted);">AI Tokens Used</span><div id="stat-tokens" class="text-2xl font-bold mono" style="color: var(--text);">0</div></div>
+                        <div class="p-5 rounded-xl" style="background: var(--surface); border: 1px solid var(--border);"><span class="text-xs font-medium" style="color: var(--text-muted);">Sync Operations</span><div id="stat-syncs" class="text-2xl font-bold mono" style="color: var(--text);">0</div></div>
+                        <div class="p-5 rounded-xl" style="background: var(--surface); border: 1px solid var(--border);"><span class="text-xs font-medium" style="color: var(--text-muted);">Revenue Logged</span><div id="stat-revenue" class="text-2xl font-bold mono" style="color: var(--text);">$0</div></div>
+                    </div>
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-bold" style="color: var(--text);">Your Projects</h2>
+                        <button onclick="openProjectModal()" class="text-xs font-bold py-2 px-4 rounded-lg text-white" style="background: var(--accent);">New Project</button>
+                    </div>
                     <div id="empty-state" class="hidden rounded-xl p-12 text-center" style="background: var(--surface); border: 1px dashed var(--border);">
                         <h3 class="font-bold mb-1" style="color: var(--text);">No projects yet</h3>
-                        <p class="text-sm mb-4" style="color: var(--text-muted);">Forge your first backend and start shipping.</p>
-                        <button onclick="window.openProjectModal()" class="text-xs font-bold py-2 px-4 rounded-lg transition-colors text-white" style="background: var(--accent);">Create your first project</button>
+                        <button onclick="openProjectModal()" class="text-xs font-bold py-2 px-4 rounded-lg text-white mt-4" style="background: var(--accent);">Create your first project</button>
                     </div>
                     <div id="projects-grid" class="hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
                 </div>
             </div>
-
+            
             <!-- UKMAI -->
             <div id="view-ukmai" class="hidden flex-1 flex flex-col overflow-hidden">
-                <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4">
-                    <div class="text-center py-8">
-                        <h3 class="font-bold mb-1" style="color: var(--text);">Describe your app. Get a full backend.</h3>
-                    </div>
-                </div>
+                <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4"><div class="text-center py-8"><h3 class="font-bold" style="color: var(--text);">Describe your app. Get a full backend.</h3></div></div>
                 <div class="p-3" style="background: var(--bg); border-top: 1px solid var(--border);">
                     <div class="flex gap-2 items-end max-w-4xl mx-auto">
-                        <textarea id="chat-input" rows="1" placeholder="Describe your app..." onkeydown="window.handleChatKeydown(event)" class="flex-1 rounded-lg px-4 py-3 focus:outline-none resize-none text-sm" style="background: var(--surface); border: 1px solid var(--border); color: var(--text); max-height: 120px;"></textarea>
-                        <button id="chat-send" onclick="window.sendChat()" class="p-3 rounded-lg transition-colors glow disabled:opacity-50 text-white" style="background: var(--accent);">Send</button>
+                        <textarea id="chat-input" rows="1" placeholder="Describe your app..." onkeydown="handleChatKeydown(event)" class="flex-1 rounded-lg px-4 py-3 focus:outline-none resize-none text-sm" style="background: var(--surface); border: 1px solid var(--border); color: var(--text);"></textarea>
+                        <button id="chat-send" onclick="sendChat()" class="p-3 rounded-lg text-white" style="background: var(--accent);">Send</button>
                     </div>
                 </div>
             </div>
 
-            <!-- Placeholder for other views to prevent crashes -->
-            <div id="view-ukmdata" class="hidden flex-1 p-8"><h1>Ukmbase Data</h1></div>
-            <div id="view-billing" class="hidden flex-1 p-8"><h1>Billing</h1></div>
-            <div id="view-settings" class="hidden flex-1 p-8"><h1>Settings</h1></div>
+            <!-- OTHER VIEWS (Placeholders to prevent crashes) -->
+            <div id="view-ukmquery" class="hidden flex-1 p-8"><h1 class="text-2xl font-bold">UkmQuery</h1></div>
+            <div id="view-ukmsync" class="hidden flex-1 p-8"><h1 class="text-2xl font-bold">UkmSync</h1></div>
+            <div id="view-ukmtables" class="hidden flex-1 p-8"><h1 class="text-2xl font-bold">UkmTables</h1></div>
+            <div id="view-connect" class="hidden flex-1 p-8"><h1 class="text-2xl font-bold">Connect App</h1></div>
+            <div id="view-ukmpay" class="hidden flex-1 p-8"><h1 class="text-2xl font-bold">UkmPay</h1></div>
+            <div id="view-team" class="hidden flex-1 p-8"><h1 class="text-2xl font-bold">Team</h1></div>
+            
+            <!-- UKMBASE DATA -->
+            <div id="view-ukmdata" class="hidden flex-1 overflow-y-auto p-4 md:p-8">
+                <div class="max-w-4xl mx-auto">
+                    <h1 class="text-2xl font-bold mb-4">Ukmbase Data</h1>
+                    <div class="rounded-xl p-4 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
+                        <select id="ukmdata-project-select" onchange="onUkmDataProjectChange()" class="w-full rounded-lg px-4 py-3" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></select>
+                    </div>
+                    <div id="ukmdata-empty" class="hidden rounded-xl p-12 text-center" style="background: var(--surface); border: 1px dashed var(--border);"><p class="text-sm" style="color: var(--text-muted);">Create a project first.</p></div>
+                    <div id="ukmdata-panel" class="hidden">
+                        <div id="ukmdata-enable-card" class="rounded-xl p-6 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
+                            <h3 class="font-bold mb-2" style="color: var(--text);">Enable Ukmbase Data</h3>
+                            <button id="ukmdata-enable-btn" onclick="enableUkmData()" class="w-full font-bold py-3 rounded-lg text-white mt-4" style="background: var(--accent);">Enable for this project</button>
+                        </div>
+                        <div id="ukmdata-tables-card" class="hidden rounded-xl p-5" style="background: var(--surface); border: 1px solid var(--border);">
+                            <h3 class="font-bold mb-4" style="color: var(--text);">Tables</h3>
+                            <div id="ukmdata-tables-list" class="space-y-2"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BILLING & SETTINGS (Placeholders) -->
+            <div id="view-billing" class="hidden flex-1 p-8"><h1 class="text-2xl font-bold">Billing</h1></div>
+            <div id="view-settings" class="hidden flex-1 p-8"><h1 class="text-2xl font-bold">Settings</h1></div>
         </main>
     </div>
 </div>
 
-<!-- Project Modal -->
+<!-- PROJECT MODAL -->
 <div id="project-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
     <div class="w-full max-w-md rounded-2xl p-6 glow" style="background: var(--surface); border: 1px solid var(--border);">
         <h2 class="text-lg font-bold mb-4" style="color: var(--text);">Forge a new project</h2>
         <input type="text" id="project-name" placeholder="Project Name" class="w-full rounded-lg px-4 py-3 mb-4" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
-        <button id="create-project-btn" onclick="window.createProject()" class="w-full font-bold py-3 rounded-lg text-white" style="background: var(--accent);">Forge Project</button>
-        <button onclick="window.closeProjectModal()" class="w-full mt-2 text-xs">Cancel</button>
+        <button id="create-project-btn" onclick="createProject()" class="w-full font-bold py-3 rounded-lg text-white" style="background: var(--accent);">Forge Project</button>
+        <button onclick="closeProjectModal()" class="w-full mt-2 text-xs" style="color: var(--text-dim);">Cancel</button>
     </div>
 </div>
 
