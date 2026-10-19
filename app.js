@@ -1,4 +1,4 @@
-// UKMBASE APP.JS — FINAL BUILD (v622)
+// UKMBASE APP.JS — FINAL BUILD (v622 - Full)
 
 // ✅ GLOBAL ERROR CATCHER
 window.onerror = function(msg, url, line) {
@@ -1259,6 +1259,162 @@ supabase.channel('custom-channel')
 -H "apikey: ${SUPABASE_ANON_KEY}" \\
 -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \\
 -H "Accept-Profile: ${proj.slug.replace(/-/g, '_')}"`;
+}
+
+// ============================================
+// BILLING & UPGRADE
+// ============================================
+function renderBilling() {
+    if (!currentProfile) return;
+    const plan = STAFF_ROLES.indexOf(currentProfile.role) !== -1 ? currentProfile.role : (currentProfile.plan || 'free');
+    const price = PLAN_PRICES[plan] || PLAN_PRICES.free;
+    document.getElementById('billing-plan-name').textContent = plan;
+    document.getElementById('billing-plan-price').textContent = price.label;
+    const roleTag = document.getElementById('billing-role-tag');
+    if (STAFF_ROLES.indexOf(currentProfile.role) !== -1) { roleTag.classList.remove('hidden'); roleTag.classList.add('role-' + currentProfile.role); roleTag.textContent = currentProfile.role; }
+    else roleTag.classList.add('hidden');
+    const limits = getLimits();
+    document.getElementById('billing-projects-label').textContent = projectsCache.length + ' / ' + (limits.projects >= 999 ? '∞' : limits.projects);
+    document.getElementById('billing-projects-bar').style.width = (limits.projects >= 999 ? 5 : Math.min(100, (projectsCache.length / limits.projects) * 100)) + '%';
+    document.getElementById('billing-connections-label').textContent = connectionsCache.length + ' / ' + (limits.connections >= 999 ? '∞' : limits.connections);
+    document.getElementById('billing-connections-bar').style.width = (limits.connections >= 999 ? 5 : Math.min(100, (connectionsCache.length / limits.connections) * 100)) + '%';
+    const reposLinked = projectsCache.filter(p => p.github_repo && p.owner_id === currentUser.id).length;
+    document.getElementById('billing-repos-label').textContent = reposLinked + ' / ' + (limits.repos >= 999 ? '∞' : limits.repos);
+    document.getElementById('billing-repos-bar').style.width = (limits.repos >= 999 ? 5 : Math.min(100, (reposLinked / limits.repos) * 100)) + '%';
+    const seatsUsed = getTeamSeatsUsed() + teamCache.filter(m => m.status === 'pending').length;
+    document.getElementById('billing-seats-label').textContent = seatsUsed + ' / ' + (limits.seats >= 999 ? '∞' : limits.seats);
+    document.getElementById('billing-seats-bar').style.width = (limits.seats >= 999 ? 5 : Math.min(100, (seatsUsed / limits.seats) * 100)) + '%';
+    const tokensUsed = projectsCache.reduce((s, p) => s + (Number(p.ai_tokens_used) || 0), 0);
+    const tokenLimit = STAFF_ROLES.indexOf(currentProfile.role) !== -1 ? 999999 : (currentProfile.plan === 'pro' ? 500000 : currentProfile.plan === 'team' ? 2000000 : 100000);
+    document.getElementById('billing-tokens-label').textContent = tokensUsed.toLocaleString() + ' / ' + (tokenLimit >= 999999 ? '∞' : (tokenLimit / 1000) + 'k');
+    document.getElementById('billing-tokens-bar').style.width = Math.min(100, (tokensUsed / tokenLimit) * 100) + '%';
+}
+
+function openUpgradeModal(plan, price) {
+    currentUpgradePlan = { plan: plan, price: price };
+    document.getElementById('upgrade-plan-name').textContent = plan.charAt(0).toUpperCase() + plan.slice(1);
+    document.getElementById('upgrade-plan-detail').textContent = price ? '$' + price + '/mo billed monthly' : 'Custom pricing';
+    document.getElementById('upgrade-error').classList.add('hidden');
+    document.getElementById('upgrade-name').value = (currentProfile && currentProfile.full_name) || '';
+    document.getElementById('upgrade-contact').value = (currentProfile && (currentProfile.phone || currentProfile.email)) || (currentUser && currentUser.email) || '';
+    document.getElementById('upgrade-notes').value = '';
+    const btn = document.getElementById('submit-upgrade-btn'); btn.disabled = false; btn.textContent = 'Send Request';
+    const helpEl = document.getElementById('upgrade-support-line');
+    if (helpEl) helpEl.innerHTML = 'Questions? WhatsApp <a href="' + supportWhatsAppLink('Hi, I have a question about the ' + plan + ' plan') + '" target="_blank" style="color: var(--cyan);">' + SUPPORT_WA_INTL + '</a> or email <a href="' + supportEmailLink('Question about ' + plan) + '" style="color: var(--cyan);">' + SUPPORT_EMAIL + '</a>';
+    document.getElementById('upgrade-modal').classList.remove('hidden');
+}
+
+function closeUpgradeModal() { document.getElementById('upgrade-modal').classList.add('hidden'); currentUpgradePlan = null; }
+
+async function submitUpgradeRequest() {
+    const btn = document.getElementById('submit-upgrade-btn'); if (btn.disabled) return;
+    const name = document.getElementById('upgrade-name').value.trim(); const contact = document.getElementById('upgrade-contact').value.trim();
+    const notes = document.getElementById('upgrade-notes').value.trim(); const errEl = document.getElementById('upgrade-error');
+    errEl.classList.add('hidden');
+    if (!name || !contact || !currentUpgradePlan) { errEl.textContent = 'Name and contact required.'; errEl.classList.remove('hidden'); return; }
+    btn.textContent = 'Sending...'; btn.disabled = true;
+    try {
+        const { error } = await supabaseClient.from('upgrade_requests').insert([{ user_id: currentUser.id, requested_plan: currentUpgradePlan.plan, amount: currentUpgradePlan.price, currency: 'USD', contact_method: contact.indexOf('@') !== -1 ? 'email' : 'whatsapp', contact_value: contact, notes: 'Name: ' + name + (notes ? ' | ' + notes : ''), status: 'pending' }]);
+        if (error) throw error;
+        closeUpgradeModal(); showToast("Request sent! We'll reach out on WhatsApp (" + contact + ") within 24 hours", 'success', 5000);
+        try { await loadMyUpgradeRequests(); } catch (reloadErr) { console.warn('[upgrade] reload failed', reloadErr); }
+    } catch (err) {
+        errEl.innerHTML = escapeHtml(err.message) + '<br><span style="font-size:10px;opacity:0.75;">Still stuck? WhatsApp <a href="' + supportWhatsAppLink('I need help upgrading') + '" target="_blank" style="color: var(--cyan);">+' + SUPPORT_WA_INTL + '</a> or email <a href="' + supportEmailLink('Upgrade error') + '" style="color: var(--cyan);">' + SUPPORT_EMAIL + '</a>.</span>';
+        errEl.classList.remove('hidden');
+    } finally { btn.disabled = false; btn.textContent = 'Send Request'; }
+}
+
+async function loadMyUpgradeRequests() {
+    if (!currentUser) return;
+    const wrap = document.getElementById('billing-my-requests'); const list = document.getElementById('billing-requests-list');
+    if (!wrap || !list) return;
+    try {
+        const { data, error } = await supabaseClient.from('upgrade_requests').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false });
+        if (error) return console.warn(error.message);
+        if (!data || data.length === 0) { wrap.classList.add('hidden'); return; }
+        wrap.classList.remove('hidden');
+        list.innerHTML = data.map(r => `<div class="rounded-lg p-3 flex items-center justify-between" style="background: var(--bg); border: 1px solid var(--border);"><div><p class="text-sm font-medium capitalize" style="color: var(--text);">${escapeHtml(r.requested_plan)}</p><p class="text-xs mono" style="color: var(--text-dim);">${new Date(r.created_at).toLocaleDateString()}</p></div><span class="text-[10px] uppercase font-bold ${r.status === 'approved' ? 'text-green-400' : r.status === 'pending' ? 'text-yellow-400' : 'text-red-400'}">${r.status}</span></div>`).join('');
+    } catch (err) { console.warn('[upgrade] list failed', err); }
+}
+
+// ============================================
+// UKMPAY
+// ============================================
+function switchPayTab(tab) {
+    const plansPanel = document.getElementById('pay-plans-panel'); const payPanel = document.getElementById('pay-payments-panel');
+    const plansTab = document.getElementById('pay-tab-plans'); const payTab = document.getElementById('pay-tab-payments');
+    if (tab === 'plans') { plansPanel.classList.remove('hidden'); payPanel.classList.add('hidden'); plansTab.style.color = 'var(--text)'; plansTab.style.borderBottom = '2px solid var(--accent)'; payTab.style.color = 'var(--text-muted)'; payTab.style.borderBottom = 'none'; }
+    else { plansPanel.classList.add('hidden'); payPanel.classList.remove('hidden'); payTab.style.color = 'var(--text)'; payTab.style.borderBottom = '2px solid var(--accent)'; plansTab.style.color = 'var(--text-muted)'; plansTab.style.borderBottom = 'none'; }
+}
+function openPlanModal() {
+    if (projectsCache.filter(p => p.owner_id === currentUser.id).length === 0) return showToast('Create a project first', 'error');
+    document.getElementById('plan-modal').classList.remove('hidden'); document.getElementById('plan-error').classList.add('hidden');
+    populateProjectSelects(); ['plan-name', 'plan-price', 'plan-url'].forEach(id => document.getElementById(id).value = '');
+}
+function closePlanModal() { document.getElementById('plan-modal').classList.add('hidden'); }
+function populateProjectSelects() {
+    const ownProjects = projectsCache.filter(p => p.owner_id === currentUser.id); let options = '';
+    ownProjects.forEach(p => { options += '<option value="' + p.id + '">' + escapeHtml(p.name) + '</option>'; });
+    ['plan-project', 'pay-project'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = options; });
+}
+async function loadPlans() {
+    if (!currentUser) return;
+    const { data, error } = await supabaseClient.from('plans').select('*').order('created_at', { ascending: false });
+    if (error) return console.error(error.message);
+    const empty = document.getElementById('pay-empty-plans'); const grid = document.getElementById('pay-plans-grid');
+    if (!data || data.length === 0) { empty.classList.remove('hidden'); grid.classList.add('hidden'); document.getElementById('pay-plans-count').textContent = '0'; return; }
+    empty.classList.add('hidden'); grid.classList.remove('hidden');
+    grid.innerHTML = data.map(pl => `<div class="rounded-xl p-5" style="background: var(--surface); border: 1px solid var(--border);"><div class="flex items-start justify-between mb-3"><span class="text-[10px] font-bold uppercase px-2 py-1 rounded" style="background: rgba(79,70,229,0.1); color: var(--accent);">${escapeHtml(pl.provider)}</span><span class="text-[10px]" style="color: var(--text-dim);">${escapeHtml(pl.interval)}</span></div><h3 class="font-bold mb-1" style="color: var(--text);">${escapeHtml(pl.name)}</h3><div class="text-2xl font-extrabold mono mb-3" style="color: var(--text);">${escapeHtml(pl.currency)} ${Number(pl.price_amount).toFixed(2)}</div>${pl.checkout_url ? '<button onclick="copyCheckout(\'' + escapeHtml(pl.checkout_url) + '\')" class="w-full text-xs font-bold py-2 rounded-lg" style="background: rgba(79,70,229,0.1); border: 1px solid rgba(79,70,229,0.3); color: var(--cyan);">Copy Checkout Link</button>' : '<p class="text-xs" style="color: var(--text-dim);">No checkout link</p>'}</div>`).join('');
+    document.getElementById('pay-plans-count').textContent = data.length;
+    const payPlanSelect = document.getElementById('pay-plan'); let planOpts = '<option value="">— none —</option>';
+    data.forEach(pl => { planOpts += '<option value="' + pl.id + '">' + escapeHtml(pl.name) + '</option>'; });
+    payPlanSelect.innerHTML = planOpts;
+}
+function copyCheckout(url) { navigator.clipboard.writeText(url); showToast('Checkout link copied', 'success'); }
+async function createPlan() {
+    const project_id = document.getElementById('plan-project').value; const name = document.getElementById('plan-name').value.trim();
+    const price_amount = parseFloat(document.getElementById('plan-price').value); const currency = document.getElementById('plan-currency').value;
+    const interval = document.getElementById('plan-interval').value; const provider = document.getElementById('plan-provider').value;
+    const checkout_url = document.getElementById('plan-url').value.trim(); const errEl = document.getElementById('plan-error'); const btn = document.getElementById('create-plan-btn');
+    errEl.classList.add('hidden');
+    if (!project_id || !name || isNaN(price_amount)) { errEl.textContent = 'Project, name, and price are required.'; errEl.classList.remove('hidden'); return; }
+    btn.innerText = 'Creating...'; btn.disabled = true;
+    const { error } = await supabaseClient.from('plans').insert([{ project_id, name, price_amount, currency, interval, provider, checkout_url: checkout_url || null, active: true }]);
+    btn.innerText = 'Create Plan'; btn.disabled = false;
+    if (error) { errEl.textContent = error.message; errEl.classList.remove('hidden'); return; }
+    closePlanModal(); await loadPlans(); showToast('Plan created', 'success');
+}
+function openPaymentModal() {
+    if (projectsCache.filter(p => p.owner_id === currentUser.id).length === 0) return showToast('Create a project first', 'error');
+    document.getElementById('payment-modal').classList.remove('hidden'); document.getElementById('payment-error').classList.add('hidden');
+    populateProjectSelects(); ['pay-email', 'pay-amount'].forEach(id => document.getElementById(id).value = '');
+}
+function closePaymentModal() { document.getElementById('payment-modal').classList.add('hidden'); }
+async function loadPayments() {
+    if (!currentUser) return;
+    const { data, error } = await supabaseClient.from('payments').select('*').order('paid_at', { ascending: false });
+    if (error) return console.error(error.message);
+    const paid = (data || []).filter(p => p.status === 'paid'); const total = paid.reduce((s, p) => s + Number(p.amount), 0);
+    const now = new Date(); const monthly = paid.filter(p => { const d = new Date(p.paid_at); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); }).reduce((s, p) => s + Number(p.amount), 0);
+    document.getElementById('pay-total').textContent = '$' + total.toFixed(2); document.getElementById('pay-month').textContent = '$' + monthly.toFixed(2);
+    const statRev = document.getElementById('stat-revenue'); if (statRev) statRev.textContent = '$' + total.toFixed(2);
+    const empty = document.getElementById('pay-empty-payments'); const list = document.getElementById('pay-payments-list');
+    if (!data || data.length === 0) { empty.classList.remove('hidden'); list.classList.add('hidden'); return; }
+    empty.classList.add('hidden'); list.classList.remove('hidden');
+    list.innerHTML = data.map(p => `<div class="rounded-xl p-4 flex items-center justify-between" style="background: var(--surface); border: 1px solid var(--border);"><div class="min-w-0"><p class="text-sm font-medium truncate" style="color: var(--text);">${escapeHtml(p.customer_email || 'Anonymous')}</p><p class="text-xs mono" style="color: var(--text-dim);">${new Date(p.paid_at).toLocaleDateString()} · ${escapeHtml(p.provider || 'manual')}</p></div><div class="text-right flex-shrink-0"><div class="font-bold mono" style="color: var(--text);">${escapeHtml(p.currency)} ${Number(p.amount).toFixed(2)}</div><span class="text-[10px] uppercase font-bold ${p.status === 'paid' ? 'text-green-400' : 'text-yellow-400'}">${p.status}</span></div></div>`).join('');
+}
+async function createPayment() {
+    const project_id = document.getElementById('pay-project').value; const plan_id = document.getElementById('pay-plan').value || null;
+    const customer_email = document.getElementById('pay-email').value.trim(); const amount = parseFloat(document.getElementById('pay-amount').value);
+    const currency = document.getElementById('pay-currency').value; const provider = document.getElementById('pay-provider').value;
+    const errEl = document.getElementById('payment-error'); const btn = document.getElementById('create-payment-btn');
+    errEl.classList.add('hidden');
+    if (!project_id || isNaN(amount)) { errEl.textContent = 'Project and amount are required.'; errEl.classList.remove('hidden'); return; }
+    btn.innerText = 'Logging...'; btn.disabled = true;
+    const { error } = await supabaseClient.from('payments').insert([{ project_id, plan_id, customer_email: customer_email || null, amount, currency, provider, status: 'paid', paid_at: new Date().toISOString() }]);
+    btn.innerText = 'Log Payment'; btn.disabled = false;
+    if (error) { errEl.textContent = error.message; errEl.classList.remove('hidden'); return; }
+    closePaymentModal(); await loadPayments(); showToast('Payment logged', 'success');
 }
 
 // ============================================
