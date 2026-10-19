@@ -88,7 +88,7 @@
 
 <div id="toast-container"></div>
 
-<!-- PUBLIC CHECKOUT VIEW -->
+<!-- PUBLIC VIEWS -->
 <div id="public-checkout-view" class="hidden min-h-screen flex items-center justify-center p-6 bg-[#0B1020]">
     <div class="w-full max-w-md rounded-2xl p-8 glow" style="background: var(--surface); border: 1px solid var(--border);">
         <div id="checkout-loading" class="text-center py-12">
@@ -109,7 +109,6 @@
                 <p class="text-sm" style="color: var(--text-muted);">Billed <span id="checkout-interval">monthly</span></p>
             </div>
             <button id="checkout-pay-btn" class="w-full font-bold py-4 rounded-xl text-white text-lg transition-transform hover:scale-105" style="background: var(--accent);">Pay Now</button>
-            <p class="text-center text-xs mt-6" style="color: var(--text-dim);">Secure checkout. You will be redirected to complete your payment.</p>
         </div>
         <div id="checkout-error" class="hidden text-center py-8">
             <svg class="w-12 h-12 mx-auto mb-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
@@ -119,13 +118,11 @@
     </div>
 </div>
 
-<!-- PUBLIC FORM VIEW -->
 <div id="public-form-view" class="hidden min-h-screen flex items-center justify-center p-4 bg-[#0B1020]">
     <div class="w-full max-w-md rounded-2xl p-8 glow my-8" style="background: var(--surface); border: 1px solid var(--border);">
         <div class="text-center mb-8">
             <div class="text-2xl font-extrabold tracking-tighter mb-2" style="color: var(--text);">Ukm<span style="color: var(--accent);">base</span> Forms</div>
             <h1 id="form-title" class="text-xl font-bold mb-1" style="color: var(--text);">Loading...</h1>
-            <p id="form-subtitle" class="text-xs" style="color: var(--text-muted);">Please fill out the form below.</p>
         </div>
         <div id="form-loading" class="text-center py-8">
             <div class="inline-block w-8 h-8 border-4 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent); border-top-color: transparent;"></div>
@@ -134,17 +131,14 @@
         <div id="form-success" class="hidden text-center py-8">
             <svg class="w-12 h-12 mx-auto mb-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
             <h2 class="text-lg font-bold mb-2" style="color: var(--text);">Thank you!</h2>
-            <p class="text-sm" style="color: var(--text-muted);">Your response has been recorded.</p>
         </div>
     </div>
 </div>
 
-<!-- PUBLIC DYNAMIC PAGE VIEW -->
 <div id="public-page-view" class="hidden min-h-screen bg-[#0B1020] p-6">
     <div class="max-w-5xl mx-auto">
         <header class="text-center mb-10 mt-6">
             <h1 id="page-title" class="text-3xl font-extrabold mb-2" style="color: var(--text);">Loading...</h1>
-            <p class="text-sm" style="color: var(--text-muted);">Powered by Ukmbase</p>
         </header>
         <div id="page-loading" class="text-center py-20">
             <div class="inline-block w-8 h-8 border-4 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent); border-top-color: transparent;"></div>
@@ -156,7 +150,6 @@
     </div>
 </div>
 
-<!-- TEAM INVITE BANNER -->
 <div id="team-invite-banner" class="hidden fixed top-16 left-1/2 -translate-x-1/2 z-[9999] w-[90%] max-w-md p-4 rounded-xl shadow-2xl flex flex-col gap-3" style="background: var(--surface); border: 2px solid var(--accent);">
     <div class="flex items-center gap-3">
         <div class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style="background: rgba(79,70,229,0.2); color: var(--accent);">
@@ -190,7 +183,7 @@
         </h1>
         <p class="text-[#94A3B8] text-lg md:text-xl mb-8 max-w-xl mx-auto">The AI-native backend platform for mobile-first founders. Offline-first sync, full-stack AI generation, and built-in mobile money.</p>
         
-        <!-- 🚀 INTERACTIVE AI DEMO -->
+        <!-- INTERACTIVE AI DEMO -->
         <div class="w-full max-w-2xl mx-auto mb-16 text-left">
             <div class="rounded-xl p-5" style="background: var(--surface); border: 1px solid var(--border); box-shadow: 0 10px 40px -10px rgba(0,0,0,0.5);">
                 <div class="flex items-center justify-between mb-3">
@@ -205,16 +198,11 @@
                 
                 <div class="flex flex-col sm:flex-row gap-2">
                     <input type="text" id="demo-prompt" placeholder="e.g. Build a booking system for a hair salon..." class="flex-1 rounded-lg px-4 py-3 text-sm text-white focus:outline-none focus:border-[#4F46E5]" style="background: #0B1020; border: 1px solid #2A3347;">
-                    <button onclick="window.runLandingDemo()" id="demo-btn" class="text-sm font-bold text-white px-6 py-3 rounded-lg transition-colors flex items-center justify-center gap-2" style="background: var(--accent);">
-                        Generate
-                    </button>
+                    <button onclick="window.runLandingDemo()" id="demo-btn" class="text-sm font-bold text-white px-6 py-3 rounded-lg transition-colors flex items-center justify-center gap-2" style="background: var(--accent);">Generate</button>
                 </div>
 
-                <!-- AI Output Box -->
-                <div id="demo-output" class="hidden mt-4 rounded-lg p-4 mono text-[11px] overflow-x-auto" style="background: #0B1020; border: 1px solid #2A3347; color: #A78BFA; max-height: 250px;">
-                </div>
+                <div id="demo-output" class="hidden mt-4 rounded-lg p-4 mono text-[11px] overflow-x-auto" style="background: #0B1020; border: 1px solid #2A3347; color: #A78BFA; max-height: 250px;"></div>
 
-                <!-- CTA appears after demo -->
                 <div id="demo-cta" class="hidden mt-4 pt-4 flex items-center justify-between border-t border-[#2A3347]">
                     <span class="text-xs text-[#94A3B8]">Want to run this in a real database?</span>
                     <button onclick="window.showAuthView()" class="text-xs font-bold text-white px-4 py-2 rounded-lg" style="background: var(--green);">Sign up free →</button>
@@ -314,16 +302,11 @@
                     Continue with GitHub
                 </button>
             </div>
-            <div class="text-center text-[10px] mt-4" style="color: var(--text-dim);">
-                By continuing, you agree to our <a href="terms.html" class="text-[var(--accent)] hover:underline">Terms</a> and <a href="privacy.html" class="text-[var(--accent)] hover:underline">Privacy Policy</a>.
-            </div>
             <button onclick="window.showLandingView()" class="w-full text-center text-xs mt-2" style="color: var(--text-dim);">← Back to home</button>
         </div>
 
-        <!-- FORGOT PASSWORD VIEW -->
         <div id="forgot-password-view" class="hidden mt-6 pt-6" style="border-top: 1px solid var(--border);">
             <h3 class="text-sm font-bold mb-2" style="color: var(--text);">Reset your password</h3>
-            <p class="text-xs mb-4" style="color: var(--text-muted);">Enter your email address and we'll send you a link to reset your password.</p>
             <div id="reset-error" class="hidden bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-3 rounded-lg mb-4"></div>
             <div id="reset-success" class="hidden bg-green-500/10 border border-green-500/30 text-green-400 text-xs p-3 rounded-lg mb-4"></div>
             <div class="space-y-4">
@@ -336,10 +319,8 @@
             </div>
         </div>
 
-        <!-- NEW PASSWORD VIEW -->
         <div id="new-password-view" class="hidden mt-6 pt-6" style="border-top: 1px solid var(--border);">
             <h3 class="text-sm font-bold mb-2" style="color: var(--text);">Create new password</h3>
-            <p class="text-xs mb-4" style="color: var(--text-muted);">Your new password must be different from previously used passwords.</p>
             <div id="new-pass-error" class="hidden bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-3 rounded-lg mb-4"></div>
             <div class="space-y-4">
                 <div>
@@ -363,7 +344,6 @@
             <span id="role-badge" class="hidden text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded">User</span>
         </div>
         <div class="flex items-center gap-2">
-            <!-- UPGRADE PILL -->
             <button onclick="window.switchView('billing')" class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold" style="background: rgba(79,70,229,0.1); border: 1px solid rgba(79,70,229,0.3); color: var(--accent);">
                 <span id="nav-plan-name">Free Plan</span>
                 <span class="bg-[var(--accent)] text-white px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wider ml-1">Upgrade</span>
@@ -512,15 +492,53 @@
                     <div id="projects-grid" class="hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
                 </div>
             </div>
-            
-            <!-- REST OF YOUR DASHBOARD VIEWS (UKMAI, UKMDATA, BILLING, ETC) GO HERE -->
-            <!-- (Leave these exactly as they were in your previous index.html) -->
+
+            <!-- UKMAI -->
+            <div id="view-ukmai" class="hidden flex-1 flex flex-col overflow-hidden">
+                <div class="px-4 py-3 flex items-center justify-between" style="background: var(--bg); border-bottom: 1px solid var(--border);">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-lg bg-[#F59E0B]/10 border border-[#F59E0B]/30 flex items-center justify-center">
+                            <svg class="w-4 h-4 text-[#F59E0B]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path></svg>
+                        </div>
+                        <div>
+                            <h2 class="font-bold text-sm" style="color: var(--text);">UkmAI Copilot</h2>
+                            <p class="text-[10px] mono" style="color: var(--text-dim);">Powered by Groq</p>
+                        </div>
+                    </div>
+                    <button onclick="window.clearChat()" class="text-xs" style="color: var(--text-muted);">Clear</button>
+                </div>
+                <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4">
+                    <div class="text-center py-8">
+                        <div class="w-12 h-12 mx-auto mb-3 rounded-xl bg-[#F59E0B]/10 border border-[#F59E0B]/30 flex items-center justify-center">
+                            <svg class="w-6 h-6 text-[#F59E0B]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path></svg>
+                        </div>
+                        <h3 class="font-bold mb-1" style="color: var(--text);">Describe your app. Get a full backend.</h3>
+                        <p class="text-xs mb-6" style="color: var(--text-muted);">UkmAI generates schemas, RLS policies, endpoints, and sample queries.</p>
+                        <div class="flex flex-wrap gap-2 justify-center max-w-lg mx-auto">
+                            <button onclick="window.sendPrompt('Build a booking system for a hair salon')" class="text-xs px-3 py-2 rounded-lg transition-colors" style="background: var(--surface); border: 1px solid var(--border); color: var(--text-muted);">Hair salon booking</button>
+                            <button onclick="window.sendPrompt('Build a school management system')" class="text-xs px-3 py-2 rounded-lg transition-colors" style="background: var(--surface); border: 1px solid var(--border); color: var(--text-muted);">School management</button>
+                            <button onclick="window.sendPrompt('Build a mobile money wallet')" class="text-xs px-3 py-2 rounded-lg transition-colors" style="background: var(--surface); border: 1px solid var(--border); color: var(--text-muted);">Mobile money wallet</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-3" style="background: var(--bg); border-top: 1px solid var(--border);">
+                    <div class="flex gap-2 items-end max-w-4xl mx-auto">
+                        <textarea id="chat-input" rows="1" placeholder="Describe your app..." onkeydown="window.handleChatKeydown(event)" class="flex-1 rounded-lg px-4 py-3 focus:outline-none resize-none text-sm" style="background: var(--surface); border: 1px solid var(--border); color: var(--text); max-height: 120px;"></textarea>
+                        <button id="chat-send" onclick="window.sendChat()" class="p-3 rounded-lg transition-colors glow disabled:opacity-50 text-white" style="background: var(--accent);">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- OTHER VIEWS (UKMQUERY, UKMSYNC, UKMDATA, UKMTABLES, CONNECT, UKMPAY, TEAM, BILLING, SETTINGS, OWNER) -->
+            <!-- (Copy these from your previous index.html file. They were not changed in this update.) -->
             
         </main>
     </div>
 </div>
 
-<!-- Modals go here (Leave them exactly as they were in your previous index.html) -->
+<!-- MODALS -->
 <div id="project-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
     <div class="w-full max-w-md rounded-2xl p-6 glow" style="background: var(--surface); border: 1px solid var(--border);">
         <div class="flex items-center justify-between mb-6"><h2 class="text-lg font-bold" style="color: var(--text);">Forge a new project</h2><button onclick="window.closeProjectModal()" style="color: var(--text-muted);"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button></div>
@@ -534,23 +552,19 @@
     </div>
 </div>
 
-<!-- SCRIPTS -->
+<!-- (Copy the rest of your modals from the previous index.html: project-detail, edit, connect, upgrade, create-table, chart, etc.) -->
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<!-- THE MODULE ENTRY POINT -->
 <script type="module" src="app.js"></script>
 
-<!-- Service Worker Registration (PWA) -->
 <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-            navigator.serviceWorker.register('sw.js')
-                .then(reg => console.log('Service Worker registered!'))
-                .catch(err => console.log('Service Worker failed:', err));
+            navigator.serviceWorker.register('sw.js').catch(err => console.log('SW failed:', err));
         });
     }
 </script>
