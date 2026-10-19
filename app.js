@@ -1,4 +1,4 @@
-// UKMBASE APP.JS — v618 (Master Build: Data, AI, CRM, Pages, Forms, Crons)
+// UKMBASE APP.JS — v619 (Master Build + Fixes)
 
 const SUPABASE_URL = 'https://dwjyzqsrzdgnpwibnyjn.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_4vcPyg62OqmfwNaHxx0CGA_a7O0_NJV';
@@ -658,20 +658,39 @@ async function onUkmDataProjectChange() {
 }
 async function loadUkmDataState() {
     if (!currentUkmDataProjectId || !currentUser) return;
+    
     const { data: schemaRow } = await supabaseClient.from('project_schemas').select('*').eq('project_id', currentUkmDataProjectId).maybeSingle();
+    
+    const cardIds = ['info', 'tables', 'sql', 'auth', 'storage', 'pages', 'crons', 'webhooks', 'mail', 'logs', 'apikeys'];
+    
     if (!schemaRow) {
         ukmDataSchema = null;
         document.getElementById('ukmdata-enable-card').classList.remove('hidden');
-        ['info', 'tables', 'sql', 'auth', 'storage', 'pages', 'crons', 'webhooks', 'mail', 'logs', 'apikeys'].forEach(id => document.getElementById('ukmdata-' + id + '-card').classList.add('hidden'));
+        cardIds.forEach(id => {
+            const el = document.getElementById('ukmdata-' + id + '-card');
+            if (el) el.classList.add('hidden');
+        });
         return;
     }
+    
     ukmDataSchema = schemaRow.schema_name;
     document.getElementById('ukmdata-enable-card').classList.add('hidden');
-    ['info', 'tables', 'sql', 'auth', 'storage', 'pages', 'crons', 'webhooks', 'mail', 'logs', 'apikeys'].forEach(id => document.getElementById('ukmdata-' + id + '-card').classList.remove('hidden'));
+    cardIds.forEach(id => {
+        const el = document.getElementById('ukmdata-' + id + '-card');
+        if (el) el.classList.remove('hidden');
+    });
     document.getElementById('ukmdata-schema-name').textContent = ukmDataSchema;
     
-    await loadUkmDataTables(); await loadUkmDataUsers(); await loadUkmDataFiles(); await loadApiKeys();
-    await loadCronJobs(); await loadUkmDataWebhooks(); await loadEmailLogs(); await loadActivityLogs(); await loadProjectPages();
+    // Wrap these in try/catch to prevent one missing DB table from breaking everything
+    try { await loadUkmDataTables(); } catch(e) { console.warn('Tables missing', e); }
+    try { await loadUkmDataUsers(); } catch(e) { console.warn('Users missing', e); }
+    try { await loadUkmDataFiles(); } catch(e) { console.warn('Files missing', e); }
+    try { await loadApiKeys(); } catch(e) { console.warn('API keys missing', e); }
+    try { await loadCronJobs(); } catch(e) { console.warn('Crons missing', e); }
+    try { await loadUkmDataWebhooks(); } catch(e) { console.warn('Webhooks missing', e); }
+    try { await loadEmailLogs(); } catch(e) { console.warn('Emails missing', e); }
+    try { await loadActivityLogs(); } catch(e) { console.warn('Logs missing', e); }
+    try { await loadProjectPages(); } catch(e) { console.warn('Pages missing', e); }
 }
 async function enableUkmData() {
     if (!currentUkmDataProjectId) return;
@@ -824,13 +843,27 @@ async function deleteTableRow(tableName, rowId) {
     await fetch(SUPABASE_URL + '/functions/v1/ukmdata', { method: 'POST', headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'delete_row', project_id: currentUkmDataProjectId, table_name: tableName, row_id: rowId }) });
     viewTableData(tableName);
 }
-async function exportTableCSV() {
+async function exportTableCSV(btn) {
     const tableName = document.getElementById('data-viewer-title').textContent;
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    const res = await fetch(SUPABASE_URL + '/functions/v1/ukmdata', { method: 'POST', headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'fetch_rows', project_id: currentUkmDataProjectId, table_name: tableName }) });
-    const data = await res.json(); if (!data.rows || data.rows.length === 0) return;
-    const headers = Object.keys(data.rows[0]); const csv = [headers.join(','), ...data.rows.map(r => headers.map(h => `"${String(r[h] || '').replace(/"/g, '""')}"`).join(','))].join('\n');
-    const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); link.download = `${tableName}.csv`; link.click();
+    if (!tableName) return;
+    const originalHtml = btn.innerHTML;
+    btn.innerHTML = 'Exporting...'; btn.disabled = true;
+    
+    try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        const res = await fetch(SUPABASE_URL + '/functions/v1/ukmdata', { method: 'POST', headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'fetch_rows', project_id: currentUkmDataProjectId, table_name: tableName }) });
+        const data = await res.json(); 
+        if (!data.rows || data.rows.length === 0) return showToast('No data to export', 'error');
+        
+        const headers = Object.keys(data.rows[0]); 
+        const csv = [headers.join(','), ...data.rows.map(r => headers.map(h => `"${String(r[h] || '').replace(/"/g, '""')}"`).join(','))].join('\n');
+        const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); link.download = `${tableName}.csv`; link.click();
+        showToast('CSV downloaded', 'success');
+    } catch(e) {
+        showToast(e.message, 'error');
+    } finally {
+        btn.innerHTML = originalHtml; btn.disabled = false;
+    }
 }
 
 // ============================================
