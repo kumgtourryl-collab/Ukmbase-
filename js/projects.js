@@ -1,4 +1,4 @@
-import { showToast, escapeHtml } from './utils.js';
+import { showToast, escapeHtml, getLimits } from './utils.js';
 import { state } from './state.js';
 
 export async function loadProjects() {
@@ -84,12 +84,10 @@ export async function checkForPendingInvites() {
     }
 }
 
-// --- ONBOARDING CHECKLIST ---
 export function updateOnboardingChecklist() {
     const checklist = document.getElementById('onboarding-checklist');
     if (!checklist) return;
 
-    // Check Step 1: Project created?
     const hasProjects = state.projectsCache.length > 0;
     const icon1 = document.getElementById('step-1-icon');
     const text1 = document.getElementById('step-1-text');
@@ -102,7 +100,6 @@ export function updateOnboardingChecklist() {
         text1.style.color = hasProjects ? 'var(--text-dim)' : 'var(--text)';
     }
 
-    // Check Step 2: UkmData enabled?
     const hasData = state.ukmDataSchema !== null;
     const icon2 = document.getElementById('step-2-icon');
     const text2 = document.getElementById('step-2-text');
@@ -115,7 +112,6 @@ export function updateOnboardingChecklist() {
         text2.style.color = hasData ? 'var(--text-dim)' : 'var(--text)';
     }
 
-    // Check Step 3: AI used?
     const hasChatted = state.chatHistory.length > 0;
     const icon3 = document.getElementById('step-3-icon');
     const text3 = document.getElementById('step-3-text');
@@ -128,7 +124,6 @@ export function updateOnboardingChecklist() {
         text3.style.color = hasChatted ? 'var(--text-dim)' : 'var(--text)';
     }
 
-    // Hide checklist if all 3 are done
     if (hasProjects && hasData && hasChatted) {
         checklist.style.display = 'none';
     }
