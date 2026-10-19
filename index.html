@@ -178,6 +178,7 @@
     </div>
 </div>
 
+<!-- LANDING VIEW -->
 <div id="landing-view" class="min-h-screen flex flex-col items-center justify-center p-6 text-center">
     <nav class="w-full max-w-5xl flex justify-between items-center mb-16">
         <div class="text-2xl font-extrabold tracking-tighter text-white">Ukm<span class="text-[#4F46E5]">base</span></div>
@@ -192,12 +193,35 @@
             Forge your backend.<br>
             <span class="text-transparent bg-clip-text bg-gradient-to-r from-[#4F46E5] to-[#06B6D4]">Ship your SaaS.</span>
         </h1>
-        <p class="text-[#94A3B8] text-lg md:text-xl mb-10 max-w-xl mx-auto">The AI-native backend platform for mobile-first founders. Offline-first sync, full-stack AI generation, and built-in mobile money.</p>
-        <div id="waitlist-form" class="flex flex-col sm:flex-row gap-3 max-w-md mx-auto mb-16">
-            <input type="email" id="email-input" placeholder="founder@startup.com" class="flex-1 bg-[#1C2333] border border-[#2A3347] rounded-lg px-4 py-3 text-white placeholder-[#64748B] focus:outline-none focus:border-[#4F46E5]">
-            <button id="submit-btn" onclick="joinWaitlist()" class="bg-[#4F46E5] hover:bg-[#4338CA] text-white font-bold py-3 px-6 rounded-lg transition-colors glow">Join Waitlist</button>
+        <p class="text-[#94A3B8] text-lg md:text-xl mb-8 max-w-xl mx-auto">The AI-native backend platform for mobile-first founders. Offline-first sync, full-stack AI generation, and built-in mobile money.</p>
+        
+        <!-- NEW: INTERACTIVE AI DEMO -->
+        <div class="w-full max-w-2xl mx-auto mb-16 text-left">
+            <div class="rounded-xl p-5" style="background: var(--surface); border: 1px solid var(--border); box-shadow: 0 10px 40px -10px rgba(0,0,0,0.5);">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-2">
+                        <div class="w-6 h-6 rounded bg-[#F59E0B]/20 flex items-center justify-center">
+                            <svg class="w-3.5 h-3.5 text-[#F59E0B]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                        </div>
+                        <span class="text-xs font-bold text-white tracking-wider uppercase">UkmAI Live Demo</span>
+                    </div>
+                    <span class="text-[10px] font-bold text-[#06B6D4] bg-[#06B6D4]/10 px-2 py-1 rounded">Try it</span>
+                </div>
+                
+                <div class="flex flex-col sm:flex-row gap-2">
+                    <input type="text" id="demo-prompt" placeholder="e.g. Build a booking system for a hair salon..." class="flex-1 rounded-lg px-4 py-3 text-sm text-white focus:outline-none focus:border-[#4F46E5]" style="background: #0B1020; border: 1px solid #2A3347;">
+                    <button onclick="runLandingDemo()" id="demo-btn" class="text-sm font-bold text-white px-6 py-3 rounded-lg transition-colors flex items-center justify-center gap-2" style="background: var(--accent);">Generate</button>
+                </div>
+
+                <div id="demo-output" class="hidden mt-4 rounded-lg p-4 mono text-[11px] overflow-x-auto" style="background: #0B1020; border: 1px solid #2A3347; color: #A78BFA; max-height: 250px;"></div>
+
+                <div id="demo-cta" class="hidden mt-4 pt-4 flex items-center justify-between border-t border-[#2A3347]">
+                    <span class="text-xs text-[#94A3B8]">Want to run this in a real database?</span>
+                    <button onclick="showAuthView()" class="text-xs font-bold text-white px-4 py-2 rounded-lg" style="background: var(--green);">Sign up free →</button>
+                </div>
+            </div>
         </div>
-        <div id="waitlist-success" class="hidden text-[#06B6D4] font-semibold mb-16">You're on the list!</div>
+
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-left">
             <div class="bg-[#1C2333] border border-[#2A3347] p-5 rounded-xl">
                 <svg class="w-6 h-6 text-[#06B6D4] mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
@@ -223,6 +247,7 @@
     </footer>
 </div>
 
+<!-- AUTH VIEW -->
 <div id="auth-view" class="hidden min-h-screen flex items-center justify-center p-6">
     <div class="w-full max-w-md rounded-2xl p-8 glow" style="background: var(--surface); border: 1px solid var(--border);">
         <div class="text-center mb-6">
@@ -327,6 +352,7 @@
     </div>
 </div>
 
+<!-- DASHBOARD VIEW -->
 <div id="dashboard-view" class="hidden min-h-screen flex flex-col">
     <nav class="px-4 py-3 flex justify-between items-center sticky top-0 z-50" style="background: var(--bg); border-bottom: 1px solid var(--border);">
         <div class="flex items-center gap-3">
@@ -337,6 +363,11 @@
             <span id="role-badge" class="hidden text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded">User</span>
         </div>
         <div class="flex items-center gap-2">
+            <!-- NEW: UPGRADE PILL -->
+            <button onclick="switchView('billing')" class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold" style="background: rgba(79,70,229,0.1); border: 1px solid rgba(79,70,229,0.3); color: var(--accent);">
+                <span id="nav-plan-name">Free Plan</span>
+                <span class="bg-[var(--accent)] text-white px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wider ml-1">Upgrade</span>
+            </button>
             <button id="theme-toggle" onclick="toggleTheme()" class="theme-btn p-2 rounded-lg" style="background: var(--surface); border: 1px solid var(--border); color: var(--text-muted);" title="Toggle theme">
                 <svg id="theme-icon-sun" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
                 <svg id="theme-icon-moon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
@@ -412,6 +443,32 @@
                         <h1 class="text-2xl font-bold mb-1" style="color: var(--text);">Welcome back, Founder</h1>
                         <p class="text-sm" style="color: var(--text-muted);">Here is what's happening with your projects today.</p>
                     </div>
+                    
+                    <!-- NEW: ONBOARDING CHECKLIST -->
+                    <div id="onboarding-checklist" class="mb-8 rounded-xl p-5" style="background: var(--surface); border: 1px solid var(--accent); box-shadow: 0 4px 20px rgba(79,70,229,0.1);">
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h2 class="text-lg font-bold" style="color: var(--text);">🚀 Welcome to Ukmbase</h2>
+                                <p class="text-xs" style="color: var(--text-muted);">Complete these steps to ship your first backend.</p>
+                            </div>
+                            <button onclick="document.getElementById('onboarding-checklist').style.display='none'" class="text-xs" style="color: var(--text-dim);">Dismiss</button>
+                        </div>
+                        <div class="space-y-3">
+                            <div class="flex items-center gap-3 cursor-pointer" onclick="openProjectModal()">
+                                <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold" id="step-1-icon" style="background: var(--bg); border: 1px solid var(--border); color: var(--text-muted);">1</div>
+                                <span class="text-sm font-medium" id="step-1-text" style="color: var(--text);">Create your first project</span>
+                            </div>
+                            <div class="flex items-center gap-3 cursor-pointer" onclick="switchView('ukmdata')">
+                                <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold" id="step-2-icon" style="background: var(--bg); border: 1px solid var(--border); color: var(--text-muted);">2</div>
+                                <span class="text-sm font-medium" id="step-2-text" style="color: var(--text-muted);">Enable Ukmbase Data</span>
+                            </div>
+                            <div class="flex items-center gap-3 cursor-pointer" onclick="switchView('ukmai')">
+                                <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold" id="step-3-icon" style="background: var(--bg); border: 1px solid var(--border); color: var(--text-muted);">3</div>
+                                <span class="text-sm font-medium" id="step-3-text" style="color: var(--text-muted);">Generate a database with AI</span>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
                         <div class="p-5 rounded-xl" style="background: var(--surface); border: 1px solid var(--border);">
                             <div class="flex items-center justify-between mb-2">
@@ -1151,12 +1208,12 @@
 
 <div id="github-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
     <div class="w-full max-w-md rounded-2xl p-6 glow" style="background: var(--surface); border: 1px solid var(--border);">
-        <div class="flex items-center justify-between mb-6"><h2 class="text-lg font-bold" style="color: var(--text);">Link GitHub repo</h2><button onclick="closeGithubModal()" style="color: var(--text-muted);"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button></div>
+        <div class="flex items-center justify-between mb-6"><h2 class="text-lg font-bold" style="color: var(--text);">Link GitHub repo</h2><button onclick="document.getElementById('github-modal').classList.add('hidden')" style="color: var(--text-muted);"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button></div>
         <div id="gh-error" class="hidden bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-3 rounded-lg mb-4"></div>
         <div class="space-y-4">
             <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Repository</label><input type="text" id="gh-repo" placeholder="kumgtourryl-collab/Ukmbase-" class="w-full rounded-lg px-4 py-3 mono text-sm focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></div>
             <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Branch</label><input type="text" id="gh-branch" value="main" class="w-full rounded-lg px-4 py-3 mono text-sm focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></div>
-            <button id="save-gh-btn" onclick="saveGithubLink()" class="w-full font-bold py-3 rounded-lg text-white" style="background: var(--accent);">Link Repository</button>
+            <button id="save-gh-btn" onclick="document.getElementById('github-modal').classList.add('hidden')" class="w-full font-bold py-3 rounded-lg text-white" style="background: var(--accent);">Link Repository</button>
         </div>
     </div>
 </div>
@@ -1268,7 +1325,7 @@
         <div class="space-y-6">
             <div><div class="flex items-center justify-between mb-2"><h3 class="text-sm font-bold" style="color: var(--text);">JavaScript (Supabase Client)</h3><button onclick="copyApiSnippet('js')" class="text-xs font-bold px-3 py-1 rounded text-white" style="background: var(--accent);">Copy</button></div><pre id="api-snippet-js" class="mono text-[11px] p-4 rounded-lg" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></pre></div>
             <div><div class="flex items-center justify-between mb-2"><h3 class="text-sm font-bold" style="color: var(--text);">cURL (REST API)</h3><button onclick="copyApiSnippet('curl')" class="text-xs font-bold px-3 py-1 rounded text-white" style="background: var(--accent);">Copy</button></div><pre id="api-snippet-curl" class="mono text-[11px] p-4 rounded-lg overflow-x-auto" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></pre></div>
-            <div><div class="flex items-center justify-between mb-2"><h3 class="text-sm font-bold flex items-center gap-2" style="color: var(--text);"><span class="w-2 h-2 rounded-full bg-[var(--cyan)] animate-pulse"></span> Realtime Listener (Live Data)</h3><button onclick="navigator.clipboard.writeText(document.getElementById('api-snippet-realtime').textContent); showToast('Realtime code copied!', 'success');" class="text-xs font-bold px-3 py-1 rounded text-white" style="background: var(--accent);">Copy</button></div><pre id="api-snippet-realtime" class="mono text-[11px] p-4 rounded-lg overflow-x-auto" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></pre></div>
+            <div><div class="flex items-center justify-between mb-2"><h3 class="text-sm font-bold flex items-center gap-2" style="color: var(--text);"><span class="w-2 h-2 rounded-full bg-[var(--cyan)] animate-pulse"></span> Realtime Listener (Live Data)</h3><button onclick="copyApiSnippet('realtime')" class="text-xs font-bold px-3 py-1 rounded text-white" style="background: var(--accent);">Copy</button></div><pre id="api-snippet-realtime" class="mono text-[11px] p-4 rounded-lg overflow-x-auto" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></pre></div>
             <div class="rounded-lg p-3 text-xs" style="background: var(--bg); border: 1px solid var(--border);"><p style="color: var(--text-muted);">Connection URL: <span class="mono text-[var(--cyan)]">https://dwjyzqsrzdgnpwibnyjn.supabase.co</span></p><p style="color: var(--text-muted); mt-1">Anon Key: <span class="mono text-[var(--cyan)]">sb_publishable_4vcPyg62OqmfwNaHxx0CGA_a7O0_NJV</span></p></div>
         </div>
     </div>
