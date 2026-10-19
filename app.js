@@ -1,7 +1,4 @@
-// UKMBASE APP.JS — v616 (UkmSync + Ukmbase Data + Per-Project Auth + Storage)
-// + DOMPurify sanitize on AI markdown
-// + Idempotent dashboard view (kills double-render)
-// + Skip TOKEN_REFRESHED reloads
+// UKMBASE APP.JS — v617 (Full BaaS + SQL Editor + CSV + Data Viewer + RLS)
 
 const SUPABASE_URL = 'https://dwjyzqsrzdgnpwibnyjn.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_4vcPyg62OqmfwNaHxx0CGA_a7O0_NJV';
@@ -45,7 +42,8 @@ const userEmailDisplay = document.getElementById('user-email');
 
 let currentUser = null;
 let currentProfile = null;
-let showingDashboardFor = null;   // ✅ v616: guard against double-render
+let showingDashboardFor = null;   // Guard against double-render
+let pendingInvite = null;
 let chatHistory = [];
 let projectsCache = [];
 let connectionsCache = [];
@@ -204,7 +202,7 @@ function updateStrength() {
 // ============================================
 
 function showLandingView() {
-    showingDashboardFor = null;   // ✅ v616: reset guard on sign-out
+    showingDashboardFor = null;
     landingView.classList.remove('hidden');
     authView.classList.add('hidden');
     dashboardView.classList.add('hidden');
@@ -219,7 +217,6 @@ function showAuthView() {
 
 async function showDashboardView(user) {
     if (!user) return;
-    // ✅ v616: idempotent — if we're already showing this user's dashboard, do nothing.
     if (showingDashboardFor === user.id && !dashboardView.classList.contains('hidden')) {
         return;
     }
@@ -236,6 +233,9 @@ async function showDashboardView(user) {
     loadConnections().then(function() { populateQueryConnections(); });
     loadMyUpgradeRequests();
     loadQueryHistory();
+    
+    checkForPendingInvites(); 
+    
     switchView('overview');
 }
 
@@ -388,6 +388,86 @@ async function handleLogout() {
 }
 
 // ============================================
+// PASSWORD RESET
+// ============================================
+
+function showForgotPasswordView() {
+    document.getElementById('auth-email').parentElement.classList.add('hidden');
+    document.getElementById('auth-password').parentElement.parentElement.classList.add('hidden');
+    document.getElementById('auth-submit').classList.add('hidden');
+    document.getElementById('forgot-password-view').classList.remove('hidden');
+    document.getElementById('reset-error').classList.add('hidden');
+    document.getElementById('reset-success').classList.add('hidden');
+}
+
+function hideForgotPasswordView() {
+    document.getElementById('auth-email').parentElement.classList.remove('hidden');
+    document.getElementById('auth-password').parentElement.parentElement.classList.remove('hidden');
+    document.getElementById('auth-submit').classList.remove('hidden');
+    document.getElementById('forgot-password-view').classList.add('hidden');
+}
+
+async function sendPasswordReset() {
+    const email = document.getElementById('reset-email').value.trim();
+    const errEl = document.getElementById('reset-error');
+    const succEl = document.getElementById('reset-success');
+    const btn = document.getElementById('reset-submit-btn');
+    
+    errEl.classList.add('hidden'); succEl.classList.add('hidden');
+    
+    if (!email) {
+        errEl.textContent = 'Please enter your email address.';
+        errEl.classList.remove('hidden');
+        return;
+    }
+    
+    btn.textContent = 'Sending...'; btn.disabled = true;
+    
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin + window.location.pathname + '?type=recovery',
+    });
+    
+    btn.textContent = 'Send Reset Link'; btn.disabled = false;
+    
+    if (error) {
+        errEl.textContent = error.message;
+        errEl.classList.remove('hidden');
+    } else {
+        succEl.textContent = 'Check your email! We sent a link to ' + email;
+        succEl.classList.remove('hidden');
+    }
+}
+
+async function updatePassword() {
+    const newPassword = document.getElementById('new-password').value;
+    const errEl = document.getElementById('new-pass-error');
+    const btn = document.getElementById('new-pass-submit-btn');
+    
+    errEl.classList.add('hidden');
+    
+    if (!newPassword || newPassword.length < 8) {
+        errEl.textContent = 'Password must be at least 8 characters.';
+        errEl.classList.remove('hidden');
+        return;
+    }
+    
+    btn.textContent = 'Updating...'; btn.disabled = true;
+    
+    const { error } = await supabaseClient.auth.updateUser({ password: newPassword });
+    
+    btn.textContent = 'Update Password'; btn.disabled = false;
+    
+    if (error) {
+        errEl.textContent = error.message;
+        errEl.classList.remove('hidden');
+    } else {
+        showToast('Password updated successfully!', 'success');
+        window.history.replaceState({}, document.title, window.location.pathname);
+        showDashboardView(currentUser);
+    }
+}
+
+// ============================================
 // WAITLIST
 // ============================================
 
@@ -411,7 +491,76 @@ async function joinWaitlist() {
 function toggleSidebar() { document.getElementById('sidebar').classList.toggle('-translate-x-full'); }
 
 // ============================================
-// TEAM
+// TEAM INVITES (Accepting)
+// ============================================
+
+async function checkForPendingInvites() {
+    if (!currentUser || !currentUser.email) return;
+    
+    const { data, error } = await supabaseClient
+        .from('team_members')
+        .select('*, profiles:owner_id(full_name, email)')
+        .eq('invite_email', currentUser.email)
+        .eq('status', 'pending')
+        .maybeSingle();
+
+    if (error) {
+        console.error('Invite check error:', error.message);
+        return;
+    }
+
+    if (data) {
+        pendingInvite = data;
+        const banner = document.getElementById('team-invite-banner');
+        const textEl = document.getElementById('invite-banner-text');
+        const ownerName = data.profiles?.full_name || data.profiles?.email || 'A user';
+        
+        textEl.innerHTML = `<strong>${escapeHtml(ownerName)}</strong> has invited you to join their team as a <strong>${escapeHtml(data.role)}</strong>.`;
+        banner.classList.remove('hidden');
+    } else {
+        document.getElementById('team-invite-banner').classList.add('hidden');
+    }
+}
+
+async function acceptTeamInvite() {
+    if (!pendingInvite) return;
+    const { error } = await supabaseClient
+        .from('team_members')
+        .update({ status: 'active' })
+        .eq('id', pendingInvite.id);
+
+    if (error) {
+        showToast('Failed to accept invite: ' + error.message, 'error');
+        return;
+    }
+
+    showToast('Invite accepted! You are now part of the team.', 'success');
+    document.getElementById('team-invite-banner').classList.add('hidden');
+    pendingInvite = null;
+    await loadProjects();
+}
+
+async function declineTeamInvite() {
+    if (!pendingInvite) return;
+    if (!confirm('Are you sure you want to decline this invite?')) return;
+    
+    const { error } = await supabaseClient
+        .from('team_members')
+        .delete()
+        .eq('id', pendingInvite.id);
+
+    if (error) {
+        showToast('Failed to decline invite: ' + error.message, 'error');
+        return;
+    }
+
+    showToast('Invite declined.', 'success');
+    document.getElementById('team-invite-banner').classList.add('hidden');
+    pendingInvite = null;
+}
+
+// ============================================
+// TEAM MANAGEMENT
 // ============================================
 
 async function loadTeam() {
@@ -619,9 +768,19 @@ async function createProject() {
     if (!name || !slug) { errEl.textContent = 'Project name is required.'; errEl.classList.remove('hidden'); return; }
     if (!canCreateProject()) { errEl.textContent = 'Plan limit reached.'; errEl.classList.remove('hidden'); return; }
     btn.innerText = 'Forging...'; btn.disabled = true;
+    
     const { error } = await supabaseClient.from('projects').insert([{ owner_id: currentUser.id, name: name, slug: slug, description: description || null, status: 'active' }]);
     btn.innerText = 'Forge Project'; btn.disabled = false;
-    if (error) { errEl.textContent = error.message.indexOf('duplicate') !== -1 ? 'That slug is already taken.' : error.message; errEl.classList.remove('hidden'); return; }
+    
+    if (error) {
+        if (error.message.includes('Plan limit reached')) {
+            errEl.innerHTML = '⚠️ ' + error.message + '<br><br><button type="button" onclick="closeProjectModal(); switchView(\'billing\');" class="w-full bg-[#4F46E5] text-white font-bold py-2 rounded-lg mt-2">Upgrade Plan</button>';
+        } else {
+            errEl.textContent = error.message.indexOf('duplicate') !== -1 ? 'That slug is already taken.' : error.message;
+        }
+        errEl.classList.remove('hidden');
+        return;
+    }
     closeProjectModal(); await loadProjects(); showToast('Project forged', 'success');
 }
 
@@ -823,7 +982,6 @@ function appendMessage(role, content) {
         wrapper.innerHTML = '<div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background: rgba(79,70,229,0.2); border: 1px solid rgba(79,70,229,0.4);"><svg class="w-4 h-4" style="color: var(--accent);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg></div>' +
             '<div class="rounded-2xl rounded-tr-sm px-4 py-2.5 max-w-[80%] text-sm text-white" style="background: var(--accent);">' + escapeHtml(content) + '</div>';
     } else {
-        // ✅ v616: DOMPurify sanitizes marked output — prevents XSS from AI responses
         wrapper.innerHTML = '<div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background: rgba(245,158,11,0.2); border: 1px solid rgba(245,158,11,0.4);"><svg class="w-4 h-4 text-[#F59E0B]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path></svg></div>' +
             '<div class="rounded-2xl rounded-tl-sm px-4 py-3 max-w-[85%] text-sm chat-message" style="background: var(--surface); border: 1px solid var(--border); color: var(--text);">' + DOMPurify.sanitize(marked.parse(content)) + '</div>';
     }
@@ -1156,6 +1314,7 @@ async function loadUkmDataState() {
         document.getElementById('ukmdata-tables-card').classList.add('hidden');
         document.getElementById('ukmdata-auth-card').classList.add('hidden');
         document.getElementById('ukmdata-storage-card').classList.add('hidden');
+        document.getElementById('ukmdata-sql-card').classList.add('hidden');
         return;
     }
 
@@ -1165,6 +1324,7 @@ async function loadUkmDataState() {
     document.getElementById('ukmdata-tables-card').classList.remove('hidden');
     document.getElementById('ukmdata-auth-card').classList.remove('hidden');
     document.getElementById('ukmdata-storage-card').classList.remove('hidden');
+    document.getElementById('ukmdata-sql-card').classList.remove('hidden');
     document.getElementById('ukmdata-schema-name').textContent = ukmDataSchema;
 
     await loadUkmDataTables();
@@ -1223,15 +1383,59 @@ async function loadUkmDataTables() {
                     '<div class="min-w-0"><p class="text-sm font-bold truncate mono" style="color: var(--text);">' + escapeHtml(t.table_name) + '</p>' +
                     '<p class="text-[10px] mono truncate" style="color: var(--text-dim);">' + escapeHtml(ukmDataSchema) + '_' + escapeHtml(t.table_name) + '</p></div>' +
                 '</div>' +
-                '<button onclick="dropUkmDataTable(\'' + t.table_name + '\')" class="p-2" style="color: var(--text-muted);">' +
-                    '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22"></path></svg>' +
-                '</button>' +
+                '<div class="flex items-center gap-2">' +
+                    '<div class="flex items-center gap-1 mr-2 px-2 py-1 rounded border border-[var(--border)] bg-[var(--bg)]">' +
+                        '<span class="text-[9px] font-bold uppercase" style="color: ' + (t.rls_enabled ? 'var(--green)' : 'var(--text-dim)') + '">Lock</span>' +
+                        '<label class="switch" style="width: 32px; height: 18px;">' +
+                            '<input type="checkbox" ' + (t.rls_enabled ? 'checked' : '') + ' onchange="toggleTableRLS(\'' + t.table_name + '\', this.checked)">' +
+                            '<span class="slider" style="border-radius: 18px;"></span>' +
+                        '</label>' +
+                    '</div>' +
+                    '<button onclick="viewTableData(\'' + t.table_name + '\')" class="text-[10px] font-bold px-3 py-1.5 rounded-lg flex items-center gap-1" style="background: rgba(139,92,246,0.1); color: #8B5CF6; border: 1px solid rgba(139,92,246,0.3);">View</button>' +
+                    '<input type="file" id="csv-input-' + t.table_name + '" accept=".csv" class="hidden" onchange="handleCsvUpload(event, \'' + t.table_name + '\')">' +
+                    '<button onclick="document.getElementById(\'csv-input-' + t.table_name + '\').click()" class="text-[10px] font-bold px-2 py-1.5 rounded-lg flex items-center gap-1" style="background: rgba(16,185,129,0.1); color: var(--green); border: 1px solid rgba(16,185,129,0.3);">CSV</button>' +
+                    '<button onclick="showTableApi(\'' + t.table_name + '\')" class="text-[10px] font-bold px-2 py-1.5 rounded-lg flex items-center gap-1" style="background: rgba(6,182,212,0.1); color: var(--cyan); border: 1px solid rgba(6,182,212,0.3);">API</button>' +
+                    '<button onclick="dropUkmDataTable(\'' + t.table_name + '\')" class="p-2" style="color: var(--text-muted);">' +
+                        '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22"></path></svg>' +
+                    '</button>' +
+                '</div>' +
             '</div>';
         });
         list.innerHTML = html;
     } catch (err) {
         loading.classList.add('hidden');
         showToast('Network error: ' + err.message, 'error');
+    }
+}
+
+async function toggleTableRLS(tableName, isEnabled) {
+    try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        const res = await fetch(SUPABASE_URL + '/functions/v1/ukmdata', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'toggle_rls',
+                project_id: currentUkmDataProjectId,
+                table_name: tableName,
+                enable: isEnabled
+            })
+        });
+
+        const data = await res.json();
+        
+        if (data.error) {
+            showToast('Failed to toggle RLS: ' + data.error, 'error');
+            loadUkmDataTables(); 
+            return;
+        }
+
+        showToast(isEnabled ? 'Table is now locked (Private)' : 'Table is now public', 'success');
+        await loadUkmDataTables(); 
+
+    } catch (err) {
+        showToast('Network error: ' + err.message, 'error');
+        loadUkmDataTables();
     }
 }
 
@@ -1418,24 +1622,37 @@ function generateAuthSnippet() {
     if (!el || !currentUkmDataProjectId) return;
     const proj = projectsCache.find(function(p) { return p.id === currentUkmDataProjectId; });
     const slug = proj ? proj.slug : 'unknown';
-    const snippet = '// Signup\n' +
-        'const r = await fetch("' + SUPABASE_URL + '/functions/v1/ukmauth", {\n' +
-        '  method: "POST",\n' +
-        '  headers: { "Content-Type": "application/json" },\n' +
-        '  body: JSON.stringify({\n' +
-        '    action: "signup",\n' +
-        '    project_slug: "' + slug + '",\n' +
-        '    email: "user@example.com",\n' +
-        '    password: "secret123"\n' +
-        '  })\n' +
-        '});\n' +
-        'const { user, token } = await r.json();\n\n' +
-        '// Login\n' +
-        '// action: "login"  (returns same shape)\n\n' +
-        '// Me (verify session)\n' +
-        '// action: "me", token: "..."\n\n' +
-        '// Logout\n' +
-        '// action: "logout", token: "..."';
+    
+    const snippet = `const API_URL = "${SUPABASE_URL}/functions/v1/ukmauth";
+
+// 1. Signup
+const signup = await fetch(API_URL, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    action: "signup",
+    project_slug: "${slug}",
+    email: "user@example.com",
+    password: "secret123"
+  })
+});
+const { user, token } = await signup.json();
+// Save the 'token' to localStorage!
+
+// 2. Login
+// Same as above, but action: "login"
+
+// 3. Get Current User (Verify Token)
+const me = await fetch(API_URL, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    action: "me",
+    project_slug: "${slug}",
+    token: token
+  })
+});`;
+
     el.textContent = snippet;
 }
 
@@ -1444,6 +1661,65 @@ function copyAuthSnippet() {
     if (!el) return;
     navigator.clipboard.writeText(el.textContent);
     showToast('Auth snippet copied', 'success');
+}
+
+// ============================================
+// AUTH PLAYGROUND
+// ============================================
+
+async function runAuthTest() {
+    const email = document.getElementById('test-auth-email').value.trim();
+    const password = document.getElementById('test-auth-password').value;
+    const btn = document.getElementById('test-auth-btn');
+    const responseEl = document.getElementById('test-auth-response');
+    
+    if (!email || !password) {
+        showToast('Enter a test email and password first', 'error');
+        return;
+    }
+
+    btn.textContent = 'Sending...';
+    btn.disabled = true;
+    responseEl.classList.add('hidden');
+
+    const proj = projectsCache.find(function(p) { return p.id === currentUkmDataProjectId; });
+    const slug = proj ? proj.slug : 'unknown';
+
+    try {
+        const res = await fetch(SUPABASE_URL + '/functions/v1/ukmauth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'signup',
+                project_slug: slug,
+                email: email,
+                password: password
+            })
+        });
+
+        const data = await res.json();
+        
+        btn.textContent = 'Send Signup Request';
+        btn.disabled = false;
+        
+        responseEl.textContent = JSON.stringify(data, null, 2);
+        responseEl.classList.remove('hidden');
+        
+        if (data.error) {
+            responseEl.style.color = 'var(--red)';
+        } else {
+            responseEl.style.color = 'var(--green)';
+            showToast('Test user created successfully!', 'success');
+            await loadUkmDataUsers(); 
+        }
+        
+    } catch (err) {
+        btn.textContent = 'Send Signup Request';
+        btn.disabled = false;
+        responseEl.textContent = 'Network Error:\n' + err.message;
+        responseEl.style.color = 'var(--red)';
+        responseEl.classList.remove('hidden');
+    }
 }
 
 // ============================================
@@ -1638,6 +1914,295 @@ function copyStorageSnippet() {
     if (!el) return;
     navigator.clipboard.writeText(el.textContent);
     showToast('Storage snippet copied', 'success');
+}
+
+// ============================================
+// CSV IMPORT
+// ============================================
+
+async function handleCsvUpload(event, tableName) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (file.type !== 'text/csv' && !file.name.endsWith('.csv')) {
+        showToast('Please upload a valid .csv file', 'error');
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        const text = e.target.result;
+        const rows = parseCSV(text);
+
+        if (rows.length === 0) {
+            showToast('CSV is empty or invalid format', 'error');
+            return;
+        }
+
+        showToast('Importing ' + rows.length + ' rows...', 'success');
+
+        try {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            const res = await fetch(SUPABASE_URL + '/functions/v1/ukmdata', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'bulk_insert',
+                    project_id: currentUkmDataProjectId,
+                    table_name: tableName,
+                    rows: rows
+                })
+            });
+
+            const data = await res.json();
+            event.target.value = ''; 
+
+            if (data.error) {
+                showToast('Import failed: ' + data.error, 'error');
+                return;
+            }
+
+            showToast('Successfully imported ' + data.count + ' rows!', 'success');
+            await loadUkmDataTables();
+
+        } catch (err) {
+            event.target.value = '';
+            showToast('Network error: ' + err.message, 'error');
+        }
+    };
+    reader.readAsText(file);
+}
+
+function parseCSV(text) {
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+    if (lines.length < 2) return []; 
+
+    const splitRegex = /,(?=(?:(?:[^"]*"){2})*[^"]*$)/;
+    const headers = lines[0].split(splitRegex).map(h => h.trim().replace(/^"|"$/g, ''));
+    
+    const result = [];
+    for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(splitRegex).map(v => v.trim().replace(/^"|"$/g, ''));
+        const rowObj = {};
+        
+        headers.forEach((header, index) => {
+            let val = values[index];
+            if (val === undefined || val === '' || val === 'null') {
+                val = null; 
+            } else if (val === 'true') val = true;
+            else if (val === 'false') val = false;
+            rowObj[header] = val;
+        });
+        
+        result.push(rowObj);
+    }
+    return result;
+}
+
+// ============================================
+// DATA VIEWER
+// ============================================
+
+async function viewTableData(tableName) {
+    document.getElementById('data-viewer-title').textContent = tableName;
+    document.getElementById('data-viewer-modal').classList.remove('hidden');
+    document.getElementById('data-viewer-loading').classList.remove('hidden');
+    document.getElementById('data-viewer-content').classList.add('hidden');
+    document.getElementById('data-viewer-empty').classList.add('hidden');
+    
+    const head = document.getElementById('data-viewer-head');
+    const body = document.getElementById('data-viewer-body');
+    head.innerHTML = '';
+    body.innerHTML = '';
+
+    try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        const res = await fetch(SUPABASE_URL + '/functions/v1/ukmdata', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'fetch_rows',
+                project_id: currentUkmDataProjectId,
+                table_name: tableName
+            })
+        });
+
+        const data = await res.json();
+        document.getElementById('data-viewer-loading').classList.add('hidden');
+
+        if (data.error) {
+            showToast(data.error, 'error');
+            document.getElementById('data-viewer-modal').classList.add('hidden');
+            return;
+        }
+
+        const rows = data.rows || [];
+        
+        if (rows.length === 0) {
+            document.getElementById('data-viewer-empty').classList.remove('hidden');
+            return;
+        }
+
+        document.getElementById('data-viewer-content').classList.remove('hidden');
+
+        const columns = Object.keys(rows[0]);
+        let headHtml = '<tr>';
+        columns.forEach(col => {
+            headHtml += `<th class="p-3 border-b border-r border-[var(--border)] text-[var(--cyan)] font-bold whitespace-nowrap">${escapeHtml(col)}</th>`;
+        });
+        headHtml += '</tr>';
+        head.innerHTML = headHtml;
+
+        let bodyHtml = '';
+        rows.forEach(row => {
+            bodyHtml += '<tr class="hover:bg-[var(--surface-2)]">';
+            columns.forEach(col => {
+                let val = row[col];
+                if (val === null || val === undefined) {
+                    val = '<span class="text-[var(--text-dim)] italic">null</span>';
+                } else if (typeof val === 'object') {
+                    val = escapeHtml(JSON.stringify(val));
+                } else {
+                    val = escapeHtml(String(val));
+                }
+                bodyHtml += `<td class="p-3 border-b border-r border-[var(--border)] max-w-xs truncate" title="${val.replace(/"/g, '&quot;')}">${val}</td>`;
+            });
+            bodyHtml += '</tr>';
+        });
+        body.innerHTML = bodyHtml;
+
+    } catch (err) {
+        document.getElementById('data-viewer-loading').classList.add('hidden');
+        showToast('Network error: ' + err.message, 'error');
+        document.getElementById('data-viewer-modal').classList.add('hidden');
+    }
+}
+
+// ============================================
+// SQL EDITOR
+// ============================================
+
+async function executeRawSQL() {
+    if (!currentUkmDataProjectId) return;
+    
+    const query = document.getElementById('sql-editor-input').value.trim();
+    if (!query) return;
+
+    const btn = document.getElementById('sql-run-btn');
+    const resultsWrap = document.getElementById('sql-results-wrap');
+    const errMsg = document.getElementById('sql-error-msg');
+    const head = document.getElementById('sql-results-head');
+    const body = document.getElementById('sql-results-body');
+
+    btn.textContent = 'Running...';
+    btn.disabled = true;
+    resultsWrap.classList.remove('hidden');
+    errMsg.classList.add('hidden');
+    head.innerHTML = '';
+    body.innerHTML = '<tr><td colspan="100" class="p-4 text-center">Executing...</td></tr>';
+
+    try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        const res = await fetch(SUPABASE_URL + '/functions/v1/ukmdata', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'execute_sql',
+                project_id: currentUkmDataProjectId,
+                sql_query: query
+            })
+        });
+
+        const data = await res.json();
+        btn.textContent = 'Run Query';
+        btn.disabled = false;
+
+        if (data.error) {
+            errMsg.textContent = data.error;
+            errMsg.classList.remove('hidden');
+            body.innerHTML = '';
+            return;
+        }
+
+        const rows = data.data || [];
+        if (rows.length === 0) {
+            body.innerHTML = '<tr><td colspan="100" class="p-4 text-center text-[var(--text-muted)]">Query executed successfully. 0 rows returned.</td></tr>';
+            return;
+        }
+
+        const columns = Object.keys(rows[0]);
+        
+        let headHtml = '<tr>';
+        columns.forEach(col => {
+            headHtml += `<th class="p-2 border-b border-[var(--border)] text-[var(--cyan)] font-bold">${escapeHtml(col)}</th>`;
+        });
+        headHtml += '</tr>';
+        head.innerHTML = headHtml;
+
+        let bodyHtml = '';
+        rows.forEach(row => {
+            bodyHtml += '<tr class="border-b border-[var(--border)] hover:bg-[var(--surface)]">';
+            columns.forEach(col => {
+                let val = row[col];
+                if (val === null) val = '<span class="text-[var(--text-dim)] italic">null</span>';
+                else if (typeof val === 'object') val = JSON.stringify(val);
+                else val = escapeHtml(String(val));
+                bodyHtml += `<td class="p-2 border-r border-[var(--border)] max-w-xs truncate">${val}</td>`;
+            });
+            bodyHtml += '</tr>';
+        });
+        body.innerHTML = bodyHtml;
+
+    } catch (err) {
+        btn.textContent = 'Run Query';
+        btn.disabled = false;
+        errMsg.textContent = err.message;
+        errMsg.classList.remove('hidden');
+        body.innerHTML = '';
+    }
+}
+
+// ============================================
+// API DOCS GENERATOR
+// ============================================
+
+function showTableApi(tableName) {
+    if (!ukmDataSchema) return;
+    
+    document.getElementById('api-table-name').textContent = tableName;
+
+    const jsSnippet = `import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  'https://dwjyzqsrzdgnpwibnyjn.supabase.co',
+  '${SUPABASE_ANON_KEY}'
+)
+
+// Fetch all rows from ${tableName}
+const { data, error } = await supabase
+  .schema('${ukmDataSchema}')
+  .from('${tableName}')
+  .select('*')
+  .limit(10)`;
+    
+    document.getElementById('api-snippet-js').textContent = jsSnippet;
+
+    const curlSnippet = `curl 'https://dwjyzqsrzdgnpwibnyjn.supabase.co/rest/v1/${tableName}?select=*' \\
+-H "apikey: ${SUPABASE_ANON_KEY}" \\
+-H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \\
+-H "Accept-Profile: ${ukmDataSchema}"`;
+    
+    document.getElementById('api-snippet-curl').textContent = curlSnippet;
+
+    document.getElementById('api-docs-modal').classList.remove('hidden');
+}
+
+function copyApiSnippet(type) {
+    const el = document.getElementById(type === 'js' ? 'api-snippet-js' : 'api-snippet-curl');
+    if (!el) return;
+    
+    navigator.clipboard.writeText(el.textContent);
+    showToast('Code copied to clipboard!', 'success');
 }
 
 // ============================================
@@ -1847,7 +2412,15 @@ async function createConnection() {
     } catch (err) { btn.innerText = 'Connect'; btn.disabled = false; errEl.textContent = err.message; errEl.classList.remove('hidden'); return; }
     const { error } = await supabaseClient.from('connected_databases').insert([{ owner_id: currentUser.id, name: name, supabase_url: url, supabase_anon_key: key }]);
     btn.innerText = 'Connect'; btn.disabled = false;
-    if (error) { errEl.textContent = error.message; errEl.classList.remove('hidden'); return; }
+    if (error) {
+        if (error.message.includes('Plan limit reached')) {
+            errEl.innerHTML = '⚠️ ' + error.message + '<br><br><button type="button" onclick="closeConnectModal(); switchView(\'billing\');" class="w-full bg-[#4F46E5] text-white font-bold py-2 rounded-lg mt-2">Upgrade Plan</button>';
+        } else {
+            errEl.textContent = error.message;
+        }
+        errEl.classList.remove('hidden');
+        return;
+    }
     closeConnectModal(); await loadConnections(); populateQueryConnections(); showToast('Database connected', 'success');
 }
 
@@ -2022,12 +2595,10 @@ function openUpgradeModal(plan, price) {
         (currentUser && currentUser.email) || '';
     document.getElementById('upgrade-notes').value = '';
 
-    // ALWAYS reset the submit button
     const btn = document.getElementById('submit-upgrade-btn');
     btn.disabled = false;
     btn.textContent = 'Send Request';
 
-    // Inject support contacts
     const helpEl = document.getElementById('upgrade-support-line');
     if (helpEl) {
         helpEl.innerHTML =
@@ -2234,6 +2805,18 @@ async function loadAllRequestsForOwner() {
     data.forEach(function(r) {
         const u = userMap[r.user_id] || {};
         const statusBg = r.status === 'approved' ? 'text-green-400 bg-green-400/10' : r.status === 'pending' ? 'text-yellow-400 bg-yellow-400/10' : 'text-red-400 bg-red-400/10';
+        
+        let contactBtn = '';
+        if (r.contact_value) {
+            if (r.contact_value.includes('@')) {
+                contactBtn = `<a href="mailto:${r.contact_value}?subject=Your Ukmbase Upgrade Request" class="text-xs font-bold text-[var(--cyan)] hover:underline px-3 py-1 bg-[var(--cyan)]/10 rounded border border-[var(--cyan)]/30">Email User</a>`;
+            } else {
+                const cleanPhone = r.contact_value.replace(/\D/g,'');
+                const waMsg = encodeURIComponent(`Hi! I saw your Ukmbase upgrade request for the ${r.requested_plan} plan. Let's get you set up!`);
+                contactBtn = `<a href="https://wa.me/${cleanPhone}?text=${waMsg}" target="_blank" class="text-xs font-bold text-green-400 hover:underline px-3 py-1 bg-green-400/10 rounded border border-green-400/30">WhatsApp User</a>`;
+            }
+        }
+
         html += '<div class="rounded-xl p-4" style="background: var(--surface); border: 1px solid var(--border);">' +
             '<div class="flex items-start justify-between mb-3"><div class="min-w-0">' +
             '<p class="font-bold truncate" style="color: var(--text);">' + escapeHtml(u.full_name || u.username || 'Unknown') + '</p>' +
@@ -2241,10 +2824,11 @@ async function loadAllRequestsForOwner() {
             '<span class="text-[10px] font-bold uppercase px-2 py-1 rounded flex-shrink-0 ' + statusBg + '">' + r.status + '</span></div>' +
             '<div class="rounded-lg p-3 mb-3 text-xs" style="background: var(--bg); border: 1px solid var(--border);">' +
             '<p class="font-bold capitalize mb-1" style="color: var(--text);">Wants: ' + escapeHtml(r.requested_plan) + (r.amount ? ' — $' + r.amount + '/mo' : '') + '</p>' +
-            (r.contact_value ? '<p style="color: var(--text-muted);">Contact: <span class="mono">' + escapeHtml(r.contact_value) + '</span></p>' : '') +
-            (r.notes ? '<p class="mt-1" style="color: var(--text-muted);">' + escapeHtml(r.notes) + '</p>' : '') + '</div>' +
+            (r.contact_value ? '<div class="flex items-center justify-between mt-2"><p style="color: var(--text-muted);">Contact: <span class="mono">' + escapeHtml(r.contact_value) + '</span></p>' + contactBtn + '</div>' : '') +
+            (r.notes ? '<p class="mt-2 pt-2 border-t border-[var(--border)]" style="color: var(--text-muted);">' + escapeHtml(r.notes) + '</p>' : '') + '</div>' +
+            
             (r.status === 'pending' ?
-                '<div class="flex gap-2"><button onclick="approveUpgrade(\'' + r.id + '\', \'' + r.user_id + '\', \'' + r.requested_plan + '\')" class="flex-1 bg-green-500/20 hover:bg-green-500/30 border border-green-500/40 text-green-400 font-bold py-2 rounded-lg text-xs">Approve</button>' +
+                '<div class="flex gap-2"><button onclick="approveUpgrade(\'' + r.id + '\', \'' + r.user_id + '\', \'' + r.requested_plan + '\')" class="flex-1 bg-green-500/20 hover:bg-green-500/30 border border-green-500/40 text-green-400 font-bold py-2 rounded-lg text-xs">Approve Plan</button>' +
                 '<button onclick="rejectUpgrade(\'' + r.id + '\')" class="flex-1 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 font-bold py-2 rounded-lg text-xs">Reject</button></div>' : '') + '</div>';
     });
     list.innerHTML = html;
@@ -2343,7 +2927,7 @@ function escapeHtml(str) {
 
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
-        ['project-modal','project-detail-modal','project-edit-modal','github-modal','plan-modal','payment-modal','connect-modal','upgrade-modal','create-table-modal'].forEach(function(id) {
+        ['project-modal','project-detail-modal','project-edit-modal','github-modal','plan-modal','payment-modal','connect-modal','upgrade-modal','create-table-modal','api-docs-modal','data-viewer-modal'].forEach(function(id) {
             const el = document.getElementById(id);
             if (el && !el.classList.contains('hidden')) el.classList.add('hidden');
         });
@@ -2357,12 +2941,22 @@ document.addEventListener('keydown', function(e) {
 async function init() {
     initTheme();
     const { data: { session } } = await supabaseClient.auth.getSession();
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('type') === 'recovery') {
+        showAuthView();
+        document.getElementById('auth-email').parentElement.classList.add('hidden');
+        document.getElementById('auth-password').parentElement.parentElement.classList.add('hidden');
+        document.getElementById('auth-submit').classList.add('hidden');
+        document.getElementById('new-password-view').classList.remove('hidden');
+        return; 
+    }
+
     if (session) showDashboardView(session.user);
     else showLandingView();
 }
 
 supabaseClient.auth.onAuthStateChange(function(event, session) {
-    // ✅ v616: ignore token refresh — no need to reload the whole dashboard
     if (event === 'TOKEN_REFRESHED') return;
     if (session) showDashboardView(session.user);
     else showLandingView();
