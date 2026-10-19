@@ -88,6 +88,23 @@
 
 <div id="toast-container"></div>
 
+<!-- TEAM INVITE BANNER -->
+<div id="team-invite-banner" class="hidden fixed top-16 left-1/2 -translate-x-1/2 z-[9999] w-[90%] max-w-md p-4 rounded-xl shadow-2xl flex flex-col gap-3" style="background: var(--surface); border: 2px solid var(--accent);">
+    <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style="background: rgba(79,70,229,0.2); color: var(--accent);">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+        </div>
+        <div>
+            <p class="text-sm font-bold" style="color: var(--text);">Team Invitation</p>
+            <p class="text-xs" style="color: var(--text-muted);" id="invite-banner-text">You have been invited to join a team.</p>
+        </div>
+    </div>
+    <div class="flex gap-2">
+        <button onclick="acceptTeamInvite()" class="flex-1 font-bold py-2 rounded-lg text-white text-sm" style="background: var(--accent);">Accept Invite</button>
+        <button onclick="declineTeamInvite()" class="flex-1 font-bold py-2 rounded-lg text-sm" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">Decline</button>
+    </div>
+</div>
+
 <!-- ================= LANDING ================= -->
 <div id="landing-view" class="min-h-screen flex flex-col items-center justify-center p-6 text-center">
     <nav class="w-full max-w-5xl flex justify-between items-center mb-16">
@@ -147,6 +164,7 @@
         </div>
         <div id="auth-error" class="hidden bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-3 rounded-lg mb-4"></div>
         <div id="auth-success" class="hidden bg-green-500/10 border border-green-500/30 text-green-400 text-xs p-3 rounded-lg mb-4"></div>
+        
         <div class="space-y-4">
             <div id="field-fullname" class="hidden">
                 <label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Full Name</label>
@@ -163,6 +181,9 @@
                     <button type="button" onclick="togglePassword('auth-password', this)" class="absolute right-3 top-1/2 -translate-y-1/2 p-1" style="color: var(--text-dim);">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
                     </button>
+                </div>
+                <div class="flex justify-end mt-2">
+                    <button type="button" onclick="showForgotPasswordView()" class="text-xs font-medium" style="color: var(--cyan);">Forgot password?</button>
                 </div>
                 <div id="strength-meter" class="hidden mt-2">
                     <div class="flex gap-1 mb-1">
@@ -185,13 +206,13 @@
                 </div>
             </div>
             <button id="auth-submit" onclick="handleAuthSubmit()" class="w-full font-bold py-3 rounded-lg transition-colors mt-2 glow text-white" style="background: var(--accent);">Sign In</button>
+            
             <div class="flex items-center gap-3 my-2">
                 <div class="flex-1 h-px" style="background: var(--border);"></div>
                 <span class="text-[10px] uppercase tracking-wider" style="color: var(--text-dim);">Or continue with</span>
                 <div class="flex-1 h-px" style="background: var(--border);"></div>
             </div>
             <div>
-                <!-- GitHub Only -->
                 <button onclick="signInWithProvider('github')" class="w-full flex items-center justify-center gap-2 font-medium py-3 rounded-lg transition-colors" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
                     <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
                     Continue with GitHub
@@ -201,6 +222,36 @@
                 By continuing, you agree to our <a href="terms.html" class="text-[var(--accent)] hover:underline">Terms</a> and <a href="privacy.html" class="text-[var(--accent)] hover:underline">Privacy Policy</a>.
             </div>
             <button onclick="showLandingView()" class="w-full text-center text-xs mt-2" style="color: var(--text-dim);">← Back to home</button>
+        </div>
+
+        <!-- FORGOT PASSWORD VIEW -->
+        <div id="forgot-password-view" class="hidden mt-6 pt-6" style="border-top: 1px solid var(--border);">
+            <h3 class="text-sm font-bold mb-2" style="color: var(--text);">Reset your password</h3>
+            <p class="text-xs mb-4" style="color: var(--text-muted);">Enter your email address and we'll send you a link to reset your password.</p>
+            <div id="reset-error" class="hidden bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-3 rounded-lg mb-4"></div>
+            <div id="reset-success" class="hidden bg-green-500/10 border border-green-500/30 text-green-400 text-xs p-3 rounded-lg mb-4"></div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Email</label>
+                    <input type="email" id="reset-email" placeholder="founder@startup.com" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
+                </div>
+                <button id="reset-submit-btn" onclick="sendPasswordReset()" class="w-full font-bold py-3 rounded-lg text-white" style="background: var(--accent);">Send Reset Link</button>
+                <button onclick="hideForgotPasswordView()" class="w-full text-center text-xs mt-2" style="color: var(--text-dim);">Cancel</button>
+            </div>
+        </div>
+
+        <!-- NEW PASSWORD VIEW -->
+        <div id="new-password-view" class="hidden mt-6 pt-6" style="border-top: 1px solid var(--border);">
+            <h3 class="text-sm font-bold mb-2" style="color: var(--text);">Create new password</h3>
+            <p class="text-xs mb-4" style="color: var(--text-muted);">Your new password must be different from previously used passwords.</p>
+            <div id="new-pass-error" class="hidden bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-3 rounded-lg mb-4"></div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">New Password</label>
+                    <input type="password" id="new-password" placeholder="••••••••" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
+                </div>
+                <button id="new-pass-submit-btn" onclick="updatePassword()" class="w-full font-bold py-3 rounded-lg text-white" style="background: var(--accent);">Update Password</button>
+            </div>
         </div>
     </div>
 </div>
@@ -547,6 +598,7 @@
                             </div>
                             <p class="text-[10px] mt-3" style="color: var(--text-dim);">Use these with any Supabase client, or hit the auth/storage endpoints directly.</p>
                         </div>
+                        
                         <div id="ukmdata-tables-card" class="hidden rounded-xl p-5 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
                             <div class="flex items-center justify-between mb-4">
                                 <h3 class="font-bold" style="color: var(--text);">Tables</h3>
@@ -559,6 +611,33 @@
                                 <div class="inline-block w-5 h-5 border-2 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent); border-top-color: transparent;"></div>
                             </div>
                             <div id="ukmdata-tables-list" class="space-y-2"></div>
+                        </div>
+
+                        <!-- SQL EDITOR CARD -->
+                        <div id="ukmdata-sql-card" class="hidden rounded-xl p-5 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
+                            <div class="flex items-center justify-between mb-4">
+                                <div>
+                                    <h3 class="font-bold" style="color: var(--text);">SQL Editor</h3>
+                                    <p class="text-xs mt-1" style="color: var(--text-muted);">Run queries directly against your project's PostgreSQL schema.</p>
+                                </div>
+                            </div>
+                            
+                            <textarea id="sql-editor-input" rows="6" placeholder="SELECT * FROM customers LIMIT 10;" class="w-full rounded-lg p-4 mono text-sm focus:outline-none resize-y" style="background: var(--bg); border: 1px solid var(--border); color: var(--cyan); min-height: 120px;"></textarea>
+                            
+                            <div class="flex items-center justify-between mt-3 mb-4">
+                                <p class="text-[10px]" style="color: var(--red);">⚠️ Destructive queries (DROP, DELETE) cannot be undone.</p>
+                                <button id="sql-run-btn" onclick="executeRawSQL()" class="text-xs font-bold px-6 py-2 rounded-lg text-white" style="background: var(--accent);">Run Query</button>
+                            </div>
+
+                            <div id="sql-results-wrap" class="hidden rounded-lg overflow-hidden" style="border: 1px solid var(--border);">
+                                <div id="sql-error-msg" class="hidden p-3 text-xs bg-red-500/10 text-red-400 border-b border-red-500/30"></div>
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-left text-xs mono" style="color: var(--text);">
+                                        <thead id="sql-results-head" style="background: var(--surface-2);"></thead>
+                                        <tbody id="sql-results-body"></tbody>
+                                    </table>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- AUTH CARD -->
@@ -577,12 +656,30 @@
                                 <p class="text-sm" style="color: var(--text-muted);">No users yet. Your app's end-users will appear here once they sign up.</p>
                             </div>
                             <div id="ukmdata-auth-list" class="space-y-2 mb-4"></div>
-                            <div class="rounded-lg p-3 text-xs" style="background: var(--bg); border: 1px solid var(--border);">
+                            
+                            <div class="rounded-lg p-3 text-xs mb-4" style="background: var(--bg); border: 1px solid var(--border);">
                                 <div class="flex items-center justify-between mb-2">
                                     <p class="font-bold" style="color: var(--text);">How to use it in your app</p>
                                     <button onclick="copyAuthSnippet()" class="text-[10px] font-bold px-2 py-1 rounded" style="background: rgba(79,70,229,0.1); color: var(--accent);">Copy snippet</button>
                                 </div>
-                                <pre id="ukmauth-snippet" class="mono text-[10px]"></pre>
+                                <pre id="ukmauth-snippet" class="mono text-[10px] max-h-48 overflow-y-auto"></pre>
+                            </div>
+
+                            <div class="rounded-lg p-4 text-xs" style="background: rgba(79,70,229,0.05); border: 1px dashed rgba(79,70,229,0.3);">
+                                <h4 class="font-bold mb-2 flex items-center gap-2" style="color: var(--text);">
+                                    <svg class="w-4 h-4 text-[var(--accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                    Test the Auth API
+                                </h4>
+                                <p class="mb-3" style="color: var(--text-muted);">Create a test user to see the exact JSON response.</p>
+                                
+                                <div class="space-y-2 mb-3">
+                                    <input type="email" id="test-auth-email" placeholder="test@example.com" class="w-full rounded px-3 py-2 text-xs focus:outline-none mono" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
+                                    <input type="password" id="test-auth-password" placeholder="Password123!" class="w-full rounded px-3 py-2 text-xs focus:outline-none mono" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
+                                </div>
+                                
+                                <button onclick="runAuthTest()" id="test-auth-btn" class="w-full font-bold py-2 rounded text-white mb-3" style="background: var(--accent);">Send Signup Request</button>
+                                
+                                <pre id="test-auth-response" class="mono text-[10px] p-2 rounded hidden overflow-x-auto" style="background: var(--bg); border: 1px solid var(--border); color: var(--green);"></pre>
                             </div>
                         </div>
 
@@ -606,7 +703,6 @@
                                 </div>
                             </div>
 
-                            <!-- Upload zone -->
                             <div id="ukmdata-upload-zone" onclick="document.getElementById('ukmdata-file-input').click()" class="rounded-lg p-6 mb-4 text-center cursor-pointer" style="background: var(--bg); border: 2px dashed var(--border);">
                                 <input type="file" id="ukmdata-file-input" class="hidden" onchange="uploadUkmDataFile(this)">
                                 <svg class="w-8 h-8 mx-auto mb-2" style="color: var(--text-dim);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
@@ -617,11 +713,9 @@
                             <div id="ukmdata-storage-loading" class="hidden text-center py-6">
                                 <div class="inline-block w-5 h-5 border-2 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent); border-top-color: transparent;"></div>
                             </div>
-
                             <div id="ukmdata-storage-empty" class="hidden text-center py-6">
                                 <p class="text-sm" style="color: var(--text-muted);">No files yet. Upload one to get started.</p>
                             </div>
-
                             <div id="ukmdata-storage-list" class="space-y-2 mb-4"></div>
 
                             <div class="rounded-lg p-3 text-xs" style="background: var(--bg); border: 1px solid var(--border);">
@@ -863,6 +957,7 @@
                     <div id="owner-payments-panel" class="hidden"><div class="text-center py-12"><div class="inline-block w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent); border-top-color: transparent;"></div></div><div id="owner-payments-list" class="hidden space-y-3"></div></div>
                     <div id="owner-requests-panel" class="hidden"><div class="text-center py-12"><div class="inline-block w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent); border-top-color: transparent;"></div></div><div id="owner-requests-list" class="hidden space-y-3"></div></div>
                     <div id="owner-teams-panel" class="hidden"><div class="text-center py-12"><div class="inline-block w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent); border-top-color: transparent;"></div></div><div id="owner-teams-list" class="hidden space-y-3"></div></div>
+                    
                     <p class="text-[10px] mt-10 text-center" style="color: var(--text-dim);">
                         Platform owner: <a href="mailto:kumgtourryl@gmail.com" style="color: var(--cyan);">kumgtourryl@gmail.com</a>
                     </p>
@@ -1090,11 +1185,82 @@
     </div>
 </div>
 
+<!-- API DOCS MODAL -->
+<div id="api-docs-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+    <div class="w-full max-w-2xl rounded-2xl p-6 glow max-h-[90vh] overflow-y-auto" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex items-center justify-between mb-6">
+            <div>
+                <h2 class="text-lg font-bold" style="color: var(--text);">API Docs: <span id="api-table-name" class="mono text-[var(--cyan)]"></span></h2>
+                <p class="text-xs mt-1" style="color: var(--text-muted);">Use this code in your app to query this table.</p>
+            </div>
+            <button onclick="document.getElementById('api-docs-modal').classList.add('hidden')" style="color: var(--text-muted);">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+
+        <div class="space-y-6">
+            <div>
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="text-sm font-bold" style="color: var(--text);">JavaScript (Supabase Client)</h3>
+                    <button onclick="copyApiSnippet('js')" class="text-xs font-bold px-3 py-1 rounded text-white" style="background: var(--accent);">Copy</button>
+                </div>
+                <pre id="api-snippet-js" class="mono text-[11px] p-4 rounded-lg" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></pre>
+            </div>
+
+            <div>
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="text-sm font-bold" style="color: var(--text);">cURL (REST API)</h3>
+                    <button onclick="copyApiSnippet('curl')" class="text-xs font-bold px-3 py-1 rounded text-white" style="background: var(--accent);">Copy</button>
+                </div>
+                <pre id="api-snippet-curl" class="mono text-[11px] p-4 rounded-lg overflow-x-auto" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></pre>
+            </div>
+
+            <div class="rounded-lg p-3 text-xs" style="background: var(--bg); border: 1px solid var(--border);">
+                <p style="color: var(--text-muted);">Connection URL: <span class="mono text-[var(--cyan)]">https://dwjyzqsrzdgnpwibnyjn.supabase.co</span></p>
+                <p style="color: var(--text-muted); mt-1">Anon Key: <span class="mono text-[var(--cyan)]">sb_publishable_4vcPyg62OqmfwNaHxx0CGA_a7O0_NJV</span></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- DATA VIEWER MODAL -->
+<div id="data-viewer-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+    <div class="w-full max-w-6xl rounded-2xl p-6 glow max-h-[90vh] flex flex-col" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex items-center justify-between mb-4 flex-shrink-0">
+            <div>
+                <h2 class="text-lg font-bold flex items-center gap-2" style="color: var(--text);">
+                    <svg class="w-5 h-5 text-[#8B5CF6]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7-4h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                    <span id="data-viewer-title" class="mono">table_name</span>
+                </h2>
+                <p class="text-xs mt-1" style="color: var(--text-muted);">Showing up to 100 rows.</p>
+            </div>
+            <button onclick="document.getElementById('data-viewer-modal').classList.add('hidden')" style="color: var(--text-muted);">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+
+        <div id="data-viewer-loading" class="flex-1 flex items-center justify-center py-12">
+            <div class="inline-block w-8 h-8 border-4 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent); border-top-color: transparent;"></div>
+        </div>
+
+        <div id="data-viewer-content" class="hidden flex-1 overflow-auto rounded-lg" style="border: 1px solid var(--border);">
+            <table class="w-full text-left text-xs mono" style="color: var(--text);">
+                <thead id="data-viewer-head" class="sticky top-0" style="background: var(--surface-2); z-10;"></thead>
+                <tbody id="data-viewer-body"></tbody>
+            </table>
+        </div>
+        
+        <div id="data-viewer-empty" class="hidden flex-1 flex flex-col items-center justify-center py-12">
+            <p class="text-sm" style="color: var(--text-muted);">This table has no data yet.</p>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-<script src="app.js?v=616"></script>
+<script src="app.js?v=617"></script>
 
 <!-- Service Worker Registration (PWA) -->
 <script>
@@ -1107,4 +1273,4 @@
     }
 </script>
 </body>
-</html>
+    </html>
