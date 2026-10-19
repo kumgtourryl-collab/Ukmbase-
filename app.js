@@ -239,40 +239,8 @@ document.getElementById('demo-prompt')?.addEventListener('keypress', function (e
 });
 
 
-// 7. Initialization & Auth Listener
-async function init() {
-    initTheme();
-    const urlParams = new URLSearchParams(window.location.search);
-    
-    if (urlParams.has('pay') && urlParams.has('plan')) return window.loadPublicCheckout(urlParams.get('pay'), urlParams.get('plan'));
-    if (urlParams.has('form') && urlParams.has('project')) return window.loadPublicForm(urlParams.get('project'), urlParams.get('form'));
-    if (urlParams.has('page')) return window.loadPublicPage(urlParams.get('page'));
-    
-    if (urlParams.has('type') && urlParams.get('type') === 'recovery') {
-        state.inRecoveryMode = true;
-        showLandingView(); showAuthView(); window.showNewPasswordView();
-        return;
-    }
-    
-    const { data: { session } } = await window.supabaseClient.auth.getSession();
-    if (session) showDashboardView(session.user); else showLandingView();
-}
-
-window.supabaseClient.auth.onAuthStateChange((event, session) => {
-    if (event === 'TOKEN_REFRESHED') return;
-    if (event === 'PASSWORD_RECOVERY') {
-        state.inRecoveryMode = true;
-        showLandingView(); showAuthView(); window.showNewPasswordView();
-        return;
-    }
-    if (state.inRecoveryMode) return;
-    if (session) showDashboardView(session.user); else showLandingView();
-});
-
-init();
-
 // ============================================
-// 8. WINDOW BINDINGS (The Magic Glue)
+// 7. WINDOW BINDINGS (Moved ABOVE init to prevent race conditions)
 // ============================================
 
 // Core UI
@@ -432,3 +400,37 @@ window.loadPublicCheckout = Billing.loadPublicCheckout;
 window.loadPublicPage = Billing.loadPublicPage;
 window.loadPublicForm = Billing.loadPublicForm;
 window.copyFormLink = Billing.copyFormLink;
+
+// ============================================
+// 8. Initialization (Moved to the very bottom)
+// ============================================
+async function init() {
+    initTheme();
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    if (urlParams.has('pay') && urlParams.has('plan')) return window.loadPublicCheckout(urlParams.get('pay'), urlParams.get('plan'));
+    if (urlParams.has('form') && urlParams.has('project')) return window.loadPublicForm(urlParams.get('project'), urlParams.get('form'));
+    if (urlParams.has('page')) return window.loadPublicPage(urlParams.get('page'));
+    
+    if (urlParams.has('type') && urlParams.get('type') === 'recovery') {
+        state.inRecoveryMode = true;
+        showLandingView(); showAuthView(); window.showNewPasswordView();
+        return;
+    }
+    
+    const { data: { session } } = await window.supabaseClient.auth.getSession();
+    if (session) showDashboardView(session.user); else showLandingView();
+}
+
+window.supabaseClient.auth.onAuthStateChange((event, session) => {
+    if (event === 'TOKEN_REFRESHED') return;
+    if (event === 'PASSWORD_RECOVERY') {
+        state.inRecoveryMode = true;
+        showLandingView(); showAuthView(); window.showNewPasswordView();
+        return;
+    }
+    if (state.inRecoveryMode) return;
+    if (session) showDashboardView(session.user); else showLandingView();
+});
+
+init();
