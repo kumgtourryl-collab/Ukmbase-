@@ -88,6 +88,79 @@
 
 <div id="toast-container"></div>
 
+<!-- ================= PUBLIC VIEWS ================= -->
+
+<!-- PUBLIC CHECKOUT VIEW -->
+<div id="public-checkout-view" class="hidden min-h-screen flex items-center justify-center p-6 bg-[#0B1020]">
+    <div class="w-full max-w-md rounded-2xl p-8 glow" style="background: var(--surface); border: 1px solid var(--border);">
+        <div id="checkout-loading" class="text-center py-12">
+            <div class="inline-block w-8 h-8 border-4 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent); border-top-color: transparent;"></div>
+            <p class="mt-4 text-sm" style="color: var(--text-muted);">Loading checkout...</p>
+        </div>
+        <div id="checkout-content" class="hidden">
+            <div class="text-center mb-8">
+                <div class="text-2xl font-extrabold tracking-tighter mb-2" style="color: var(--text);">Ukm<span style="color: var(--accent);">base</span></div>
+                <p class="text-sm" style="color: var(--text-muted);">Powered by Ukmbase Storefronts</p>
+            </div>
+            <div class="rounded-xl p-6 mb-6 text-center" style="background: var(--bg); border: 1px solid var(--border);">
+                <p class="text-xs uppercase font-bold tracking-wider mb-2" style="color: var(--cyan);" id="checkout-project-name">Project Name</p>
+                <h1 class="text-2xl font-extrabold mb-1" style="color: var(--text);" id="checkout-plan-name">Plan Name</h1>
+                <div class="text-4xl font-extrabold mono mt-4 mb-2" style="color: var(--text);">
+                    <span id="checkout-currency">USD</span> <span id="checkout-price">0.00</span>
+                </div>
+                <p class="text-sm" style="color: var(--text-muted);">Billed <span id="checkout-interval">monthly</span></p>
+            </div>
+            <button id="checkout-pay-btn" class="w-full font-bold py-4 rounded-xl text-white text-lg transition-transform hover:scale-105" style="background: var(--accent);">Pay Now</button>
+            <p class="text-center text-xs mt-6" style="color: var(--text-dim);">Secure checkout. You will be redirected to complete your payment.</p>
+        </div>
+        <div id="checkout-error" class="hidden text-center py-8">
+            <svg class="w-12 h-12 mx-auto mb-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            <h2 class="text-lg font-bold mb-2" style="color: var(--text);">Plan not found</h2>
+            <p class="text-sm" style="color: var(--text-muted);">This checkout link is invalid or the plan was removed.</p>
+        </div>
+    </div>
+</div>
+
+<!-- PUBLIC FORM VIEW -->
+<div id="public-form-view" class="hidden min-h-screen flex items-center justify-center p-4 bg-[#0B1020]">
+    <div class="w-full max-w-md rounded-2xl p-8 glow my-8" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="text-center mb-8">
+            <div class="text-2xl font-extrabold tracking-tighter mb-2" style="color: var(--text);">Ukm<span style="color: var(--accent);">base</span> Forms</div>
+            <h1 id="form-title" class="text-xl font-bold mb-1" style="color: var(--text);">Loading...</h1>
+            <p id="form-subtitle" class="text-xs" style="color: var(--text-muted);">Please fill out the form below.</p>
+        </div>
+        <div id="form-loading" class="text-center py-8">
+            <div class="inline-block w-8 h-8 border-4 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent); border-top-color: transparent;"></div>
+        </div>
+        <form id="dynamic-form" class="hidden space-y-4"></form>
+        <div id="form-success" class="hidden text-center py-8">
+            <svg class="w-12 h-12 mx-auto mb-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            <h2 class="text-lg font-bold mb-2" style="color: var(--text);">Thank you!</h2>
+            <p class="text-sm" style="color: var(--text-muted);">Your response has been recorded.</p>
+        </div>
+    </div>
+</div>
+
+<!-- PUBLIC DYNAMIC PAGE VIEW -->
+<div id="public-page-view" class="hidden min-h-screen bg-[#0B1020] p-6">
+    <div class="max-w-5xl mx-auto">
+        <header class="text-center mb-10 mt-6">
+            <h1 id="page-title" class="text-3xl font-extrabold mb-2" style="color: var(--text);">Loading...</h1>
+            <p class="text-sm" style="color: var(--text-muted);">Powered by Ukmbase</p>
+        </header>
+        <div id="page-loading" class="text-center py-20">
+            <div class="inline-block w-8 h-8 border-4 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent); border-top-color: transparent;"></div>
+        </div>
+        <div id="page-content" class="hidden grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6"></div>
+        <div id="page-empty" class="hidden text-center py-20">
+            <p class="text-sm" style="color: var(--text-muted);">No items to display yet.</p>
+        </div>
+    </div>
+</div>
+
+
+<!-- ================= APP VIEWS ================= -->
+
 <!-- TEAM INVITE BANNER -->
 <div id="team-invite-banner" class="hidden fixed top-16 left-1/2 -translate-x-1/2 z-[9999] w-[90%] max-w-md p-4 rounded-xl shadow-2xl flex flex-col gap-3" style="background: var(--surface); border: 2px solid var(--accent);">
     <div class="flex items-center gap-3">
@@ -105,7 +178,6 @@
     </div>
 </div>
 
-<!-- ================= LANDING ================= -->
 <div id="landing-view" class="min-h-screen flex flex-col items-center justify-center p-6 text-center">
     <nav class="w-full max-w-5xl flex justify-between items-center mb-16">
         <div class="text-2xl font-extrabold tracking-tighter text-white">Ukm<span class="text-[#4F46E5]">base</span></div>
@@ -151,7 +223,6 @@
     </footer>
 </div>
 
-<!-- ================= AUTH ================= -->
 <div id="auth-view" class="hidden min-h-screen flex items-center justify-center p-6">
     <div class="w-full max-w-md rounded-2xl p-8 glow" style="background: var(--surface); border: 1px solid var(--border);">
         <div class="text-center mb-6">
@@ -256,7 +327,6 @@
     </div>
 </div>
 
-<!-- ================= DASHBOARD ================= -->
 <div id="dashboard-view" class="hidden min-h-screen flex flex-col">
     <nav class="px-4 py-3 flex justify-between items-center sticky top-0 z-50" style="background: var(--bg); border-bottom: 1px solid var(--border);">
         <div class="flex items-center gap-3">
@@ -301,6 +371,10 @@
                 <a href="#" onclick="switchView('ukmtables')" id="nav-ukmtables" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors" style="color: var(--text-muted);">
                     <svg class="w-5 h-5 text-[#06B6D4]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
                     UkmTables
+                </a>
+                <a href="#" onclick="switchView('connect')" id="nav-connect" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors" style="color: var(--text-muted);">
+                    <svg class="w-5 h-5 text-[#10B981]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                    Connect App
                 </a>
                 <a href="#" onclick="switchView('ukmpay')" id="nav-ukmpay" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors" style="color: var(--text-muted);">
                     <svg class="w-5 h-5 text-[#06B6D4]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
@@ -602,130 +676,180 @@
                         <div id="ukmdata-tables-card" class="hidden rounded-xl p-5 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
                             <div class="flex items-center justify-between mb-4">
                                 <h3 class="font-bold" style="color: var(--text);">Tables</h3>
-                                <button onclick="openCreateTableModal()" class="text-xs font-bold px-3 py-2 rounded-lg text-white" style="background: var(--accent);">+ Create table</button>
+                                <div class="flex gap-2">
+                                    <input type="file" id="import-json-input" accept=".json" class="hidden" onchange="handleProjectImport(event)">
+                                    <button onclick="document.getElementById('import-json-input').click()" id="import-project-btn" class="text-xs font-bold px-3 py-2 rounded-lg flex items-center gap-1" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">Import</button>
+                                    <button onclick="exportProjectData()" id="export-project-btn" class="text-xs font-bold px-3 py-2 rounded-lg flex items-center gap-1" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">Export</button>
+                                    <button onclick="openCreateTableModal()" class="text-xs font-bold px-3 py-2 rounded-lg text-white" style="background: var(--accent);">+ Create table</button>
+                                </div>
                             </div>
-                            <div id="ukmdata-tables-empty" class="hidden text-center py-8">
-                                <p class="text-sm" style="color: var(--text-muted);">No tables yet. Create one to get started.</p>
-                            </div>
-                            <div id="ukmdata-tables-loading" class="hidden text-center py-8">
-                                <div class="inline-block w-5 h-5 border-2 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent); border-top-color: transparent;"></div>
-                            </div>
+                            <div id="ukmdata-tables-empty" class="hidden text-center py-8"><p class="text-sm" style="color: var(--text-muted);">No tables yet. Create one to get started.</p></div>
+                            <div id="ukmdata-tables-loading" class="hidden text-center py-8"><div class="inline-block w-5 h-5 border-2 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent); border-top-color: transparent;"></div></div>
                             <div id="ukmdata-tables-list" class="space-y-2"></div>
                         </div>
 
-                        <!-- SQL EDITOR CARD -->
-                        <div id="ukmdata-sql-card" class="hidden rounded-xl p-5 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
+                        <div id="ukmdata-apikeys-card" class="hidden rounded-xl p-5 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
                             <div class="flex items-center justify-between mb-4">
                                 <div>
-                                    <h3 class="font-bold" style="color: var(--text);">SQL Editor</h3>
-                                    <p class="text-xs mt-1" style="color: var(--text-muted);">Run queries directly against your project's PostgreSQL schema.</p>
+                                    <h3 class="font-bold" style="color: var(--text);">API Keys</h3>
+                                    <p class="text-xs mt-1" style="color: var(--text-muted);">Secure keys for your frontend to access this project.</p>
                                 </div>
+                                <button onclick="generateApiKey()" class="text-xs font-bold px-3 py-2 rounded-lg text-white" style="background: var(--accent);">+ Generate Key</button>
                             </div>
-                            
+                            <div id="apikeys-list" class="space-y-2"><p class="text-xs text-center py-4" style="color: var(--text-muted);">Loading keys...</p></div>
+                        </div>
+
+                        <div id="ukmdata-sql-card" class="hidden rounded-xl p-5 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
+                            <div class="flex items-center justify-between mb-4">
+                                <div><h3 class="font-bold" style="color: var(--text);">SQL Editor</h3><p class="text-xs mt-1" style="color: var(--text-muted);">Run queries directly against your project's PostgreSQL schema.</p></div>
+                            </div>
                             <textarea id="sql-editor-input" rows="6" placeholder="SELECT * FROM customers LIMIT 10;" class="w-full rounded-lg p-4 mono text-sm focus:outline-none resize-y" style="background: var(--bg); border: 1px solid var(--border); color: var(--cyan); min-height: 120px;"></textarea>
-                            
                             <div class="flex items-center justify-between mt-3 mb-4">
                                 <p class="text-[10px]" style="color: var(--red);">⚠️ Destructive queries (DROP, DELETE) cannot be undone.</p>
                                 <button id="sql-run-btn" onclick="executeRawSQL()" class="text-xs font-bold px-6 py-2 rounded-lg text-white" style="background: var(--accent);">Run Query</button>
                             </div>
-
                             <div id="sql-results-wrap" class="hidden rounded-lg overflow-hidden" style="border: 1px solid var(--border);">
                                 <div id="sql-error-msg" class="hidden p-3 text-xs bg-red-500/10 text-red-400 border-b border-red-500/30"></div>
-                                <div class="overflow-x-auto">
-                                    <table class="w-full text-left text-xs mono" style="color: var(--text);">
-                                        <thead id="sql-results-head" style="background: var(--surface-2);"></thead>
-                                        <tbody id="sql-results-body"></tbody>
-                                    </table>
-                                </div>
+                                <div class="overflow-x-auto"><table class="w-full text-left text-xs mono" style="color: var(--text);"><thead id="sql-results-head" style="background: var(--surface-2);"></thead><tbody id="sql-results-body"></tbody></table></div>
                             </div>
                         </div>
 
-                        <!-- AUTH CARD -->
                         <div id="ukmdata-auth-card" class="hidden rounded-xl p-5 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
                             <div class="flex items-center justify-between mb-4">
-                                <div>
-                                    <h3 class="font-bold" style="color: var(--text);">Authentication</h3>
-                                    <p class="text-xs mt-1" style="color: var(--text-muted);">End-user accounts for your app. Password auth with sessions.</p>
-                                </div>
+                                <div><h3 class="font-bold" style="color: var(--text);">End-User CRM</h3><p class="text-xs mt-1" style="color: var(--text-muted);">Manage the users who sign up to your app.</p></div>
                                 <span id="ukmdata-auth-count" class="text-xs mono px-2 py-1 rounded" style="background: rgba(79,70,229,0.1); color: var(--accent);">0 users</span>
                             </div>
-                            <div id="ukmdata-auth-loading" class="hidden text-center py-6">
-                                <div class="inline-block w-5 h-5 border-2 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent); border-top-color: transparent;"></div>
-                            </div>
-                            <div id="ukmdata-auth-empty" class="hidden text-center py-6">
-                                <p class="text-sm" style="color: var(--text-muted);">No users yet. Your app's end-users will appear here once they sign up.</p>
-                            </div>
+                            <div id="ukmdata-auth-loading" class="hidden text-center py-6"><div class="inline-block w-5 h-5 border-2 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent); border-top-color: transparent;"></div></div>
+                            <div id="ukmdata-auth-empty" class="hidden text-center py-6"><p class="text-sm" style="color: var(--text-muted);">No users yet. Your app's end-users will appear here once they sign up.</p></div>
                             <div id="ukmdata-auth-list" class="space-y-2 mb-4"></div>
-                            
                             <div class="rounded-lg p-3 text-xs mb-4" style="background: var(--bg); border: 1px solid var(--border);">
                                 <div class="flex items-center justify-between mb-2">
                                     <p class="font-bold" style="color: var(--text);">How to use it in your app</p>
-                                    <button onclick="copyAuthSnippet()" class="text-[10px] font-bold px-2 py-1 rounded" style="background: rgba(79,70,229,0.1); color: var(--accent);">Copy snippet</button>
+                                    <div class="flex gap-2">
+                                        <button onclick="generateAuthUI()" class="text-[10px] font-bold px-2 py-1 rounded bg-[var(--accent)] text-white">Get UI Code</button>
+                                        <button onclick="copyAuthSnippet()" class="text-[10px] font-bold px-2 py-1 rounded" style="background: rgba(79,70,229,0.1); color: var(--accent);">Copy snippet</button>
+                                    </div>
                                 </div>
                                 <pre id="ukmauth-snippet" class="mono text-[10px] max-h-48 overflow-y-auto"></pre>
                             </div>
-
                             <div class="rounded-lg p-4 text-xs" style="background: rgba(79,70,229,0.05); border: 1px dashed rgba(79,70,229,0.3);">
-                                <h4 class="font-bold mb-2 flex items-center gap-2" style="color: var(--text);">
-                                    <svg class="w-4 h-4 text-[var(--accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                    Test the Auth API
-                                </h4>
-                                <p class="mb-3" style="color: var(--text-muted);">Create a test user to see the exact JSON response.</p>
-                                
+                                <h4 class="font-bold mb-2 flex items-center gap-2" style="color: var(--text);"><svg class="w-4 h-4 text-[var(--accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> Test the Auth API</h4>
                                 <div class="space-y-2 mb-3">
                                     <input type="email" id="test-auth-email" placeholder="test@example.com" class="w-full rounded px-3 py-2 text-xs focus:outline-none mono" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
                                     <input type="password" id="test-auth-password" placeholder="Password123!" class="w-full rounded px-3 py-2 text-xs focus:outline-none mono" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
                                 </div>
-                                
                                 <button onclick="runAuthTest()" id="test-auth-btn" class="w-full font-bold py-2 rounded text-white mb-3" style="background: var(--accent);">Send Signup Request</button>
-                                
                                 <pre id="test-auth-response" class="mono text-[10px] p-2 rounded hidden overflow-x-auto" style="background: var(--bg); border: 1px solid var(--border); color: var(--green);"></pre>
                             </div>
                         </div>
 
-                        <!-- STORAGE CARD -->
                         <div id="ukmdata-storage-card" class="hidden rounded-xl p-5" style="background: var(--surface); border: 1px solid var(--border);">
                             <div class="flex items-center justify-between mb-4">
-                                <div>
-                                    <h3 class="font-bold" style="color: var(--text);">Storage</h3>
-                                    <p class="text-xs mt-1" style="color: var(--text-muted);">Files for your app. Max 5 MB per file.</p>
-                                </div>
+                                <div><h3 class="font-bold" style="color: var(--text);">Storage</h3><p class="text-xs mt-1" style="color: var(--text-muted);">Files for your app. Max 5 MB per file.</p></div>
                                 <span id="ukmdata-storage-count" class="text-xs mono px-2 py-1 rounded" style="background: rgba(6,182,212,0.1); color: var(--cyan);">0 files</span>
                             </div>
-
                             <div class="rounded-lg p-3 mb-4" style="background: var(--bg); border: 1px solid var(--border);">
-                                <div class="flex items-center justify-between mb-2">
-                                    <span class="text-xs font-medium" style="color: var(--text-muted);">Storage Used</span>
-                                    <span id="ukmdata-storage-size" class="text-xs mono" style="color: var(--text);">0 B / 500 MB</span>
-                                </div>
-                                <div class="w-full rounded-full h-2 overflow-hidden" style="background: var(--surface);">
-                                    <div id="ukmdata-storage-bar" class="usage-bar h-2 rounded-full" style="width: 0%; background: var(--cyan);"></div>
-                                </div>
+                                <div class="flex items-center justify-between mb-2"><span class="text-xs font-medium" style="color: var(--text-muted);">Storage Used</span><span id="ukmdata-storage-size" class="text-xs mono" style="color: var(--text);">0 B / 500 MB</span></div>
+                                <div class="w-full rounded-full h-2 overflow-hidden" style="background: var(--surface);"><div id="ukmdata-storage-bar" class="usage-bar h-2 rounded-full" style="width: 0%; background: var(--cyan);"></div></div>
                             </div>
-
                             <div id="ukmdata-upload-zone" onclick="document.getElementById('ukmdata-file-input').click()" class="rounded-lg p-6 mb-4 text-center cursor-pointer" style="background: var(--bg); border: 2px dashed var(--border);">
                                 <input type="file" id="ukmdata-file-input" class="hidden" onchange="uploadUkmDataFile(this)">
                                 <svg class="w-8 h-8 mx-auto mb-2" style="color: var(--text-dim);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
                                 <p class="text-sm font-medium" style="color: var(--text);">Tap to upload a file</p>
                                 <p class="text-[10px] mt-1" style="color: var(--text-dim);">Images, PDFs, any file up to 5 MB</p>
                             </div>
-
-                            <div id="ukmdata-storage-loading" class="hidden text-center py-6">
-                                <div class="inline-block w-5 h-5 border-2 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent); border-top-color: transparent;"></div>
-                            </div>
-                            <div id="ukmdata-storage-empty" class="hidden text-center py-6">
-                                <p class="text-sm" style="color: var(--text-muted);">No files yet. Upload one to get started.</p>
-                            </div>
-                            <div id="ukmdata-storage-list" class="space-y-2 mb-4"></div>
-
+                            <div id="ukmdata-storage-loading" class="hidden text-center py-6"><div class="inline-block w-5 h-5 border-2 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent); border-top-color: transparent;"></div></div>
+                            <div id="ukmdata-storage-empty" class="hidden text-center py-6"><p class="text-sm" style="color: var(--text-muted);">No files yet. Upload one to get started.</p></div>
+                            <div id="ukmdata-storage-list" class="mb-4"></div>
                             <div class="rounded-lg p-3 text-xs" style="background: var(--bg); border: 1px solid var(--border);">
-                                <div class="flex items-center justify-between mb-2">
-                                    <p class="font-bold" style="color: var(--text);">How to use it in your app</p>
-                                    <button onclick="copyStorageSnippet()" class="text-[10px] font-bold px-2 py-1 rounded" style="background: rgba(79,70,229,0.1); color: var(--accent);">Copy snippet</button>
-                                </div>
+                                <div class="flex items-center justify-between mb-2"><p class="font-bold" style="color: var(--text);">How to use it in your app</p><button onclick="copyStorageSnippet()" class="text-[10px] font-bold px-2 py-1 rounded" style="background: rgba(79,70,229,0.1); color: var(--accent);">Copy snippet</button></div>
                                 <pre id="ukmstore-snippet" class="mono text-[10px]"></pre>
                             </div>
                         </div>
+
+                        <div id="ukmdata-pages-card" class="hidden rounded-xl p-5 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
+                            <div class="flex items-center justify-between mb-4">
+                                <div><h3 class="font-bold" style="color: var(--text);">Public Pages</h3><p class="text-xs mt-1" style="color: var(--text-muted);">Generate a live website from your data.</p></div>
+                                <button onclick="document.getElementById('page-form').classList.toggle('hidden')" class="text-xs font-bold px-3 py-2 rounded-lg text-white" style="background: var(--accent);">+ Create Page</button>
+                            </div>
+                            <div id="page-form" class="hidden rounded-lg p-4 mb-4" style="background: var(--bg); border: 1px dashed var(--border);">
+                                <div class="space-y-3">
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Page Title</label><input type="text" id="page-title-input" placeholder="My Shop" class="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style="background: var(--surface); border: 1px solid var(--border); color: var(--text);"></div>
+                                        <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">URL Slug</label><input type="text" id="page-slug-input" placeholder="my-shop" class="w-full rounded-lg px-3 py-2 text-sm focus:outline-none mono" style="background: var(--surface); border: 1px solid var(--border); color: var(--text);"></div>
+                                    </div>
+                                    <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Source Table</label><select id="page-table" class="w-full rounded-lg px-3 py-2 text-sm focus:outline-none mono" style="background: var(--surface); border: 1px solid var(--border); color: var(--text);"></select></div>
+                                    <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Columns to Show (comma separated)</label><input type="text" id="page-columns" placeholder="name, price, image_url" class="w-full rounded-lg px-3 py-2 text-sm focus:outline-none mono" style="background: var(--surface); border: 1px solid var(--border); color: var(--text);"><p class="text-[10px] mt-1" style="color: var(--text-dim);">The first column will be the title of each card.</p></div>
+                                    <button onclick="createProjectPage()" id="create-page-btn" class="w-full font-bold py-2 rounded-lg text-white text-sm" style="background: var(--accent);">Create Page</button>
+                                </div>
+                            </div>
+                            <div id="pages-list" class="space-y-2"><p class="text-xs text-center py-4" style="color: var(--text-muted);">Loading pages...</p></div>
+                        </div>
+
+                        <div id="ukmdata-crons-card" class="hidden rounded-xl p-5 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
+                            <div class="flex items-center justify-between mb-4">
+                                <div><h3 class="font-bold" style="color: var(--text);">Scheduled Tasks</h3><p class="text-xs mt-1" style="color: var(--text-muted);">Run SQL automatically on a schedule.</p></div>
+                                <button onclick="document.getElementById('cron-form').classList.toggle('hidden')" class="text-xs font-bold px-3 py-2 rounded-lg text-white" style="background: var(--accent);">+ Add Task</button>
+                            </div>
+                            <div id="cron-form" class="hidden rounded-lg p-4 mb-4" style="background: var(--bg); border: 1px dashed var(--border);">
+                                <div class="space-y-3">
+                                    <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Schedule (Cron Syntax)</label><input type="text" id="cron-schedule" placeholder="0 0 * * * (Every day at midnight)" class="w-full rounded-lg px-3 py-2 text-sm focus:outline-none mono" style="background: var(--surface); border: 1px solid var(--border); color: var(--text);"></div>
+                                    <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">SQL Query to Run</label><textarea id="cron-sql" rows="3" placeholder="DELETE FROM logs WHERE created_at < now() - interval '30 days';" class="w-full rounded-lg px-3 py-2 text-sm focus:outline-none mono" style="background: var(--surface); border: 1px solid var(--border); color: var(--text);"></textarea></div>
+                                    <button onclick="createCronJob()" id="create-cron-btn" class="w-full font-bold py-2 rounded-lg text-white text-sm" style="background: var(--accent);">Schedule Task</button>
+                                </div>
+                            </div>
+                            <div id="crons-list" class="space-y-2"><p class="text-xs text-center py-4" style="color: var(--text-muted);">Loading tasks...</p></div>
+                        </div>
+
+                        <div id="ukmdata-webhooks-card" class="hidden rounded-xl p-5 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
+                            <div class="flex items-center justify-between mb-4">
+                                <div><h3 class="font-bold" style="color: var(--text);">Database Webhooks</h3><p class="text-xs mt-1" style="color: var(--text-muted);">Trigger an HTTP POST request when data changes.</p></div>
+                                <button onclick="document.getElementById('webhook-form').classList.toggle('hidden')" class="text-xs font-bold px-3 py-2 rounded-lg text-white" style="background: var(--accent);">+ Add Webhook</button>
+                            </div>
+                            <div id="webhook-form" class="hidden rounded-lg p-4 mb-4" style="background: var(--bg); border: 1px dashed var(--border);">
+                                <div class="space-y-3">
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Table</label><select id="webhook-table" class="w-full rounded-lg px-3 py-2 text-sm focus:outline-none mono" style="background: var(--surface); border: 1px solid var(--border); color: var(--text);"></select></div>
+                                        <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Event</label><select id="webhook-event" class="w-full rounded-lg px-3 py-2 text-sm focus:outline-none mono" style="background: var(--surface); border: 1px solid var(--border); color: var(--text);"><option value="INSERT">INSERT</option><option value="UPDATE">UPDATE</option><option value="DELETE">DELETE</option></select></div>
+                                    </div>
+                                    <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Target URL</label><input type="url" id="webhook-url" placeholder="https://api.yourdomain.com/webhook" class="w-full rounded-lg px-3 py-2 text-sm focus:outline-none mono" style="background: var(--surface); border: 1px solid var(--border); color: var(--text);"></div>
+                                    <button onclick="createWebhook()" class="w-full font-bold py-2 rounded-lg text-white text-sm" style="background: var(--accent);">Save Webhook</button>
+                                </div>
+                            </div>
+                            <div id="webhooks-list" class="space-y-2"></div>
+                        </div>
+
+                        <div id="ukmdata-mail-card" class="hidden rounded-xl p-5 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
+                            <div class="flex items-center justify-between mb-4">
+                                <div><h3 class="font-bold" style="color: var(--text);">Transactional Emails</h3><p class="text-xs mt-1" style="color: var(--text-muted);">Send welcome emails, receipts, or alerts to your users.</p></div>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <div class="rounded-lg p-4" style="background: var(--bg); border: 1px dashed var(--border);">
+                                        <h4 class="text-xs font-bold mb-3" style="color: var(--text);">Test the Email API</h4>
+                                        <div class="space-y-2">
+                                            <input type="email" id="mail-test-to" placeholder="customer@example.com" class="w-full rounded px-3 py-2 text-xs focus:outline-none mono" style="background: var(--surface); border: 1px solid var(--border); color: var(--text);">
+                                            <input type="text" id="mail-test-subject" placeholder="Welcome to my app!" class="w-full rounded px-3 py-2 text-xs focus:outline-none mono" style="background: var(--surface); border: 1px solid var(--border); color: var(--text);">
+                                            <button onclick="sendTestEmail()" id="mail-test-btn" class="w-full font-bold py-2 rounded text-white text-xs" style="background: var(--accent);">Send Test Email</button>
+                                        </div>
+                                        <p class="text-[10px] mt-2" style="color: var(--text-dim);">* Note: You can only send to your own Resend account email until you verify a custom domain.</p>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h4 class="text-xs font-bold mb-3" style="color: var(--text);">Recent Emails</h4>
+                                    <div id="mail-logs-list" class="space-y-2 max-h-48 overflow-y-auto pr-2"><p class="text-xs text-center py-4" style="color: var(--text-muted);">No emails sent yet.</p></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="ukmdata-logs-card" class="hidden rounded-xl p-5 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
+                            <div class="flex items-center justify-between mb-4">
+                                <div><h3 class="font-bold" style="color: var(--text);">Activity Logs</h3><p class="text-xs mt-1" style="color: var(--text-muted);">Live feed of database operations.</p></div>
+                                <button onclick="loadActivityLogs()" class="text-xs font-bold px-3 py-2 rounded-lg" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">Refresh</button>
+                            </div>
+                            <div id="activity-logs-list" class="space-y-2 max-h-64 overflow-y-auto pr-2"><p class="text-xs text-center py-4" style="color: var(--text-muted);">Loading logs...</p></div>
+                        </div>
+
                     </div>
                 </div>
             </div>
@@ -734,40 +858,72 @@
             <div id="view-ukmtables" class="hidden flex-1 overflow-hidden flex flex-col">
                 <div class="px-4 py-3 flex items-center justify-between" style="background: var(--bg); border-bottom: 1px solid var(--border);">
                     <div class="flex items-center gap-3 min-w-0">
-                        <button id="ukmtables-back" onclick="exitTableBrowser()" class="hidden p-1 flex-shrink-0" style="color: var(--text-muted);">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
-                        </button>
-                        <div class="w-8 h-8 rounded-lg bg-[#06B6D4]/10 border border-[#06B6D4]/30 flex items-center justify-center flex-shrink-0">
-                            <svg class="w-4 h-4 text-[#06B6D4]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
-                        </div>
-                        <div class="min-w-0">
-                            <h2 id="ukmtables-title" class="font-bold text-sm truncate" style="color: var(--text);">UkmTables</h2>
-                            <p id="ukmtables-subtitle" class="text-[10px] mono truncate" style="color: var(--text-dim);">Connect any Supabase database</p>
-                        </div>
+                        <button id="ukmtables-back" onclick="exitTableBrowser()" class="hidden p-1 flex-shrink-0" style="color: var(--text-muted);"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg></button>
+                        <div class="w-8 h-8 rounded-lg bg-[#06B6D4]/10 border border-[#06B6D4]/30 flex items-center justify-center flex-shrink-0"><svg class="w-4 h-4 text-[#06B6D4]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg></div>
+                        <div class="min-w-0"><h2 id="ukmtables-title" class="font-bold text-sm truncate" style="color: var(--text);">UkmTables</h2><p id="ukmtables-subtitle" class="text-[10px] mono truncate" style="color: var(--text-dim);">Connect any Supabase database</p></div>
                     </div>
                     <button id="ukmtables-action" onclick="openConnectModal()" class="text-xs font-bold py-2 px-3 rounded-lg flex items-center gap-1 flex-shrink-0 text-white" style="background: var(--accent);">+ Connect</button>
                 </div>
                 <div class="flex-1 overflow-y-auto p-4">
                     <div id="ukmtables-connections-view">
                         <div id="ukmtables-empty" class="max-w-lg mx-auto rounded-xl p-10 text-center mt-8" style="background: var(--surface); border: 1px dashed var(--border);">
-                            <h3 class="font-bold mb-1" style="color: var(--text);">No databases connected</h3>
-                            <p class="text-sm mb-4" style="color: var(--text-muted);">Connect a Supabase project to browse its tables.</p>
+                            <h3 class="font-bold mb-1" style="color: var(--text);">No databases connected</h3><p class="text-sm mb-4" style="color: var(--text-muted);">Connect a Supabase project to browse its tables.</p>
                             <button onclick="openConnectModal()" class="text-xs font-bold py-2 px-4 rounded-lg text-white" style="background: var(--accent);">Connect a database</button>
                         </div>
                         <div id="ukmtables-list" class="hidden space-y-3 max-w-3xl mx-auto"></div>
                     </div>
                     <div id="ukmtables-browser" class="hidden">
-                        <div class="mb-4">
-                            <p class="text-[10px] uppercase font-bold tracking-wider mb-2" style="color: var(--text-dim);">Tables</p>
-                            <div id="ukmtables-pills" class="flex flex-wrap gap-2"></div>
-                        </div>
-                        <div id="ukmtables-rows-empty" class="hidden rounded-xl p-10 text-center" style="background: var(--surface); border: 1px dashed var(--border);">
-                            <p class="text-sm" style="color: var(--text-muted);">No rows.</p>
-                        </div>
-                        <div id="ukmtables-rows-loading" class="hidden text-center py-12">
-                            <div class="inline-block w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent); border-top-color: transparent;"></div>
-                        </div>
+                        <div class="mb-4"><p class="text-[10px] uppercase font-bold tracking-wider mb-2" style="color: var(--text-dim);">Tables</p><div id="ukmtables-pills" class="flex flex-wrap gap-2"></div></div>
+                        <div id="ukmtables-rows-empty" class="hidden rounded-xl p-10 text-center" style="background: var(--surface); border: 1px dashed var(--border);"><p class="text-sm" style="color: var(--text-muted);">No rows.</p></div>
+                        <div id="ukmtables-rows-loading" class="hidden text-center py-12"><div class="inline-block w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent); border-top-color: transparent;"></div></div>
                         <div id="ukmtables-rows" class="hidden space-y-2"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CONNECT -->
+            <div id="view-connect" class="hidden flex-1 overflow-y-auto p-4 md:p-8">
+                <div class="max-w-4xl mx-auto">
+                    <div class="mb-6">
+                        <h1 class="text-2xl font-bold mb-1" style="color: var(--text);">Connect your App</h1>
+                        <p class="text-sm" style="color: var(--text-muted);">Copy-paste code to connect your frontend to this project.</p>
+                    </div>
+                    <div class="rounded-xl p-4 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
+                        <label class="block text-xs font-medium mb-2" style="color: var(--text-muted);">Select project</label>
+                        <select id="connect-project-select" onchange="renderConnectSnippets()" class="w-full rounded-lg px-4 py-3 focus:outline-none text-sm" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></select>
+                    </div>
+                    <div class="rounded-xl p-5 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
+                        <h3 class="font-bold mb-4" style="color: var(--text);">1. Project Credentials</h3>
+                        <div class="space-y-3">
+                            <div><div class="flex items-center justify-between mb-1"><label class="text-xs font-medium" style="color: var(--text-muted);">Project URL</label><button onclick="copyToClipboard('connect-url', this)" class="text-[10px]" style="color: var(--cyan);">Copy</button></div><input type="text" id="connect-url" readonly class="w-full rounded-lg px-3 py-2 mono text-xs focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></div>
+                            <div><div class="flex items-center justify-between mb-1"><label class="text-xs font-medium" style="color: var(--text-muted);">Anon Key</label><button onclick="copyToClipboard('connect-anon', this)" class="text-[10px]" style="color: var(--cyan);">Copy</button></div><input type="text" id="connect-anon" readonly class="w-full rounded-lg px-3 py-2 mono text-xs focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></div>
+                        </div>
+                    </div>
+                    <div class="flex gap-2 mb-4 overflow-x-auto no-scrollbar" style="border-bottom: 1px solid var(--border);">
+                        <button onclick="switchConnectTab('js')" id="connect-tab-js" class="px-4 py-2 text-sm font-medium -mb-px whitespace-nowrap" style="color: var(--text); border-bottom: 2px solid var(--accent);">JavaScript (Supabase Client)</button>
+                        <button onclick="switchConnectTab('curl')" id="connect-tab-curl" class="px-4 py-2 text-sm font-medium -mb-px whitespace-nowrap" style="color: var(--text-muted);">cURL (REST API)</button>
+                    </div>
+                    <div id="connect-content">
+                        <div id="connect-panel-js" class="space-y-4">
+                            <div class="rounded-xl overflow-hidden" style="border: 1px solid var(--border);">
+                                <div class="px-4 py-2 text-xs font-bold" style="background: var(--surface-2); color: var(--text);">Initialize Client</div>
+                                <pre id="connect-snippet-init" class="mono text-[11px] p-4 m-0" style="background: var(--bg); color: var(--text);"></pre>
+                            </div>
+                            <div class="rounded-xl overflow-hidden" style="border: 1px solid var(--border);">
+                                <div class="px-4 py-2 text-xs font-bold" style="background: var(--surface-2); color: var(--text);">Authentication (End-Users)</div>
+                                <pre id="connect-snippet-auth" class="mono text-[11px] p-4 m-0" style="background: var(--bg); color: var(--text);"></pre>
+                            </div>
+                            <div class="rounded-xl overflow-hidden" style="border: 1px solid var(--border);">
+                                <div class="px-4 py-2 text-xs font-bold" style="background: var(--surface-2); color: var(--text);">Realtime & Data Fetch</div>
+                                <pre id="connect-snippet-data" class="mono text-[11px] p-4 m-0" style="background: var(--bg); color: var(--text);"></pre>
+                            </div>
+                        </div>
+                        <div id="connect-panel-curl" class="hidden space-y-4">
+                            <div class="rounded-xl overflow-hidden" style="border: 1px solid var(--border);">
+                                <div class="px-4 py-2 text-xs font-bold" style="background: var(--surface-2); color: var(--text);">Fetch Data (REST)</div>
+                                <pre id="connect-snippet-curl" class="mono text-[11px] p-4 m-0" style="background: var(--bg); color: var(--text);"></pre>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -776,25 +932,13 @@
             <div id="view-ukmpay" class="hidden flex-1 overflow-y-auto p-4 md:p-8">
                 <div class="max-w-6xl mx-auto">
                     <div class="flex items-center justify-between mb-6">
-                        <div>
-                            <h1 class="text-2xl font-bold mb-1" style="color: var(--text);">UkmPay</h1>
-                            <p class="text-sm" style="color: var(--text-muted);">Monetize your projects.</p>
-                        </div>
+                        <div><h1 class="text-2xl font-bold mb-1" style="color: var(--text);">UkmPay</h1><p class="text-sm" style="color: var(--text-muted);">Monetize your projects.</p></div>
                         <button onclick="openPlanModal()" class="text-xs font-bold py-2 px-4 rounded-lg flex items-center gap-2 text-white" style="background: var(--accent);">+ New Plan</button>
                     </div>
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-                        <div class="p-5 rounded-xl" style="background: var(--surface); border: 1px solid var(--border);">
-                            <span class="text-xs font-medium" style="color: var(--text-muted);">Total Revenue</span>
-                            <div id="pay-total" class="text-2xl font-bold mono mt-2" style="color: var(--text);">$0.00</div>
-                        </div>
-                        <div class="p-5 rounded-xl" style="background: var(--surface); border: 1px solid var(--border);">
-                            <span class="text-xs font-medium" style="color: var(--text-muted);">This Month</span>
-                            <div id="pay-month" class="text-2xl font-bold mono mt-2" style="color: var(--text);">$0.00</div>
-                        </div>
-                        <div class="p-5 rounded-xl" style="background: var(--surface); border: 1px solid var(--border);">
-                            <span class="text-xs font-medium" style="color: var(--text-muted);">Active Plans</span>
-                            <div id="pay-plans-count" class="text-2xl font-bold mono mt-2" style="color: var(--text);">0</div>
-                        </div>
+                        <div class="p-5 rounded-xl" style="background: var(--surface); border: 1px solid var(--border);"><span class="text-xs font-medium" style="color: var(--text-muted);">Total Revenue</span><div id="pay-total" class="text-2xl font-bold mono mt-2" style="color: var(--text);">$0.00</div></div>
+                        <div class="p-5 rounded-xl" style="background: var(--surface); border: 1px solid var(--border);"><span class="text-xs font-medium" style="color: var(--text-muted);">This Month</span><div id="pay-month" class="text-2xl font-bold mono mt-2" style="color: var(--text);">$0.00</div></div>
+                        <div class="p-5 rounded-xl" style="background: var(--surface); border: 1px solid var(--border);"><span class="text-xs font-medium" style="color: var(--text-muted);">Active Plans</span><div id="pay-plans-count" class="text-2xl font-bold mono mt-2" style="color: var(--text);">0</div></div>
                     </div>
                     <div class="flex gap-2 mb-4" style="border-bottom: 1px solid var(--border);">
                         <button onclick="switchPayTab('plans')" id="pay-tab-plans" class="px-4 py-2 text-sm font-medium -mb-px" style="color: var(--text); border-bottom: 2px solid var(--accent);">Plans</button>
@@ -802,16 +946,14 @@
                     </div>
                     <div id="pay-plans-panel">
                         <div id="pay-empty-plans" class="rounded-xl p-12 text-center" style="background: var(--surface); border: 1px dashed var(--border);">
-                            <h3 class="font-bold mb-1" style="color: var(--text);">No plans yet</h3>
-                            <p class="text-sm mb-4" style="color: var(--text-muted);">Create your first plan — attach a Stripe or Paystack link.</p>
+                            <h3 class="font-bold mb-1" style="color: var(--text);">No plans yet</h3><p class="text-sm mb-4" style="color: var(--text-muted);">Create your first plan — attach a Stripe or Paystack link.</p>
                             <button onclick="openPlanModal()" class="text-xs font-bold py-2 px-4 rounded-lg text-white" style="background: var(--accent);">Create a plan</button>
                         </div>
                         <div id="pay-plans-grid" class="hidden grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
                     </div>
                     <div id="pay-payments-panel" class="hidden">
                         <div id="pay-empty-payments" class="rounded-xl p-12 text-center" style="background: var(--surface); border: 1px dashed var(--border);">
-                            <h3 class="font-bold mb-1" style="color: var(--text);">No payments logged</h3>
-                            <p class="text-sm mb-4" style="color: var(--text-muted);">Log a payment manually.</p>
+                            <h3 class="font-bold mb-1" style="color: var(--text);">No payments logged</h3><p class="text-sm mb-4" style="color: var(--text-muted);">Log a payment manually.</p>
                             <button onclick="openPaymentModal()" class="text-xs font-bold py-2 px-4 rounded-lg text-white" style="background: var(--accent);">Log a payment</button>
                         </div>
                         <div id="pay-payments-list" class="hidden space-y-3"></div>
@@ -822,18 +964,10 @@
             <!-- TEAM -->
             <div id="view-team" class="hidden flex-1 overflow-y-auto p-4 md:p-8">
                 <div class="max-w-4xl mx-auto">
-                    <div class="mb-6">
-                        <h1 class="text-2xl font-bold mb-1" style="color: var(--text);">Team</h1>
-                        <p class="text-sm" style="color: var(--text-muted);">Invite teammates to collaborate on your projects.</p>
-                    </div>
+                    <div class="mb-6"><h1 class="text-2xl font-bold mb-1" style="color: var(--text);">Team</h1><p class="text-sm" style="color: var(--text-muted);">Invite teammates to collaborate on your projects.</p></div>
                     <div class="rounded-xl p-5 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
-                        <div class="flex items-center justify-between mb-3">
-                            <span class="text-xs font-medium uppercase tracking-wider" style="color: var(--text-muted);">Seats Used</span>
-                            <span id="team-seats-display" class="text-sm font-bold mono" style="color: var(--text);">0 / 1</span>
-                        </div>
-                        <div class="w-full rounded-full h-2 overflow-hidden" style="background: var(--bg);">
-                            <div id="team-seats-bar" class="usage-bar h-2 rounded-full" style="width: 0%; background: var(--accent);"></div>
-                        </div>
+                        <div class="flex items-center justify-between mb-3"><span class="text-xs font-medium uppercase tracking-wider" style="color: var(--text-muted);">Seats Used</span><span id="team-seats-display" class="text-sm font-bold mono" style="color: var(--text);">0 / 1</span></div>
+                        <div class="w-full rounded-full h-2 overflow-hidden" style="background: var(--bg);"><div id="team-seats-bar" class="usage-bar h-2 rounded-full" style="width: 0%; background: var(--accent);"></div></div>
                         <p id="team-plan-note" class="text-xs mt-3" style="color: var(--text-dim);">Upgrade to Team for 3 seats.</p>
                     </div>
                     <div id="team-invite-card" class="rounded-xl p-5 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
@@ -841,14 +975,7 @@
                         <div id="team-invite-error" class="hidden bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-3 rounded-lg mb-4"></div>
                         <div class="space-y-4">
                             <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Email</label><input type="email" id="team-invite-email" placeholder="teammate@company.com" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></div>
-                            <div>
-                                <label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Role</label>
-                                <select id="team-invite-role" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
-                                    <option value="member">Member — view projects</option>
-                                    <option value="viewer">Viewer — view only</option>
-                                    <option value="admin">Admin — full access</option>
-                                </select>
-                            </div>
+                            <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Role</label><select id="team-invite-role" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"><option value="member">Member — view projects</option><option value="viewer">Viewer — view only</option><option value="admin">Admin — full access</option></select></div>
                             <button id="team-invite-btn" onclick="sendTeamInvite()" class="w-full font-bold py-3 rounded-lg text-white" style="background: var(--accent);">Send Invite</button>
                         </div>
                     </div>
@@ -869,36 +996,15 @@
                     <div class="mb-8"><h1 class="text-2xl font-bold mb-1" style="color: var(--text);">Billing</h1><p class="text-sm" style="color: var(--text-muted);">Manage your plan and usage.</p></div>
                     <div class="rounded-xl p-6 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
                         <div class="flex items-center justify-between mb-6 flex-wrap gap-4">
-                            <div>
-                                <p class="text-xs uppercase font-bold tracking-wider mb-1" style="color: var(--text-muted);">Current Plan</p>
-                                <div class="flex items-center gap-3">
-                                    <span id="billing-plan-name" class="text-2xl font-extrabold uppercase" style="color: var(--text);">free</span>
-                                    <span id="billing-plan-price" class="text-sm mono" style="color: var(--text-dim);">$0/mo</span>
-                                </div>
-                            </div>
+                            <div><p class="text-xs uppercase font-bold tracking-wider mb-1" style="color: var(--text-muted);">Current Plan</p><div class="flex items-center gap-3"><span id="billing-plan-name" class="text-2xl font-extrabold uppercase" style="color: var(--text);">free</span><span id="billing-plan-price" class="text-sm mono" style="color: var(--text-dim);">$0/mo</span></div></div>
                             <span id="billing-role-tag" class="hidden text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded">Staff</span>
                         </div>
                         <div class="space-y-4">
-                            <div>
-                                <div class="flex items-center justify-between mb-1"><span class="text-xs font-medium" style="color: var(--text-muted);">Projects</span><span id="billing-projects-label" class="text-xs mono" style="color: var(--text);">0 / 2</span></div>
-                                <div class="w-full rounded-full h-2 overflow-hidden" style="background: var(--bg);"><div id="billing-projects-bar" class="usage-bar h-2 rounded-full" style="width: 0%; background: var(--accent);"></div></div>
-                            </div>
-                            <div>
-                                <div class="flex items-center justify-between mb-1"><span class="text-xs font-medium" style="color: var(--text-muted);">DB Connections</span><span id="billing-connections-label" class="text-xs mono" style="color: var(--text);">0 / 3</span></div>
-                                <div class="w-full rounded-full h-2 overflow-hidden" style="background: var(--bg);"><div id="billing-connections-bar" class="usage-bar h-2 rounded-full" style="width: 0%; background: var(--cyan);"></div></div>
-                            </div>
-                            <div>
-                                <div class="flex items-center justify-between mb-1"><span class="text-xs font-medium" style="color: var(--text-muted);">GitHub Repos</span><span id="billing-repos-label" class="text-xs mono" style="color: var(--text);">0 / 1</span></div>
-                                <div class="w-full rounded-full h-2 overflow-hidden" style="background: var(--bg);"><div id="billing-repos-bar" class="usage-bar h-2 rounded-full" style="width: 0%; background: #8B5CF6;"></div></div>
-                            </div>
-                            <div>
-                                <div class="flex items-center justify-between mb-1"><span class="text-xs font-medium" style="color: var(--text-muted);">Team Seats</span><span id="billing-seats-label" class="text-xs mono" style="color: var(--text);">0 / 1</span></div>
-                                <div class="w-full rounded-full h-2 overflow-hidden" style="background: var(--bg);"><div id="billing-seats-bar" class="usage-bar h-2 rounded-full" style="width: 0%; background: #8B5CF6;"></div></div>
-                            </div>
-                            <div>
-                                <div class="flex items-center justify-between mb-1"><span class="text-xs font-medium" style="color: var(--text-muted);">AI Tokens</span><span id="billing-tokens-label" class="text-xs mono" style="color: var(--text);">0 / 100k</span></div>
-                                <div class="w-full rounded-full h-2 overflow-hidden" style="background: var(--bg);"><div id="billing-tokens-bar" class="usage-bar h-2 rounded-full" style="width: 0%; background: var(--amber);"></div></div>
-                            </div>
+                            <div><div class="flex items-center justify-between mb-1"><span class="text-xs font-medium" style="color: var(--text-muted);">Projects</span><span id="billing-projects-label" class="text-xs mono" style="color: var(--text);">0 / 2</span></div><div class="w-full rounded-full h-2 overflow-hidden" style="background: var(--bg);"><div id="billing-projects-bar" class="usage-bar h-2 rounded-full" style="width: 0%; background: var(--accent);"></div></div></div>
+                            <div><div class="flex items-center justify-between mb-1"><span class="text-xs font-medium" style="color: var(--text-muted);">DB Connections</span><span id="billing-connections-label" class="text-xs mono" style="color: var(--text);">0 / 3</span></div><div class="w-full rounded-full h-2 overflow-hidden" style="background: var(--bg);"><div id="billing-connections-bar" class="usage-bar h-2 rounded-full" style="width: 0%; background: var(--cyan);"></div></div></div>
+                            <div><div class="flex items-center justify-between mb-1"><span class="text-xs font-medium" style="color: var(--text-muted);">GitHub Repos</span><span id="billing-repos-label" class="text-xs mono" style="color: var(--text);">0 / 1</span></div><div class="w-full rounded-full h-2 overflow-hidden" style="background: var(--bg);"><div id="billing-repos-bar" class="usage-bar h-2 rounded-full" style="width: 0%; background: #8B5CF6;"></div></div></div>
+                            <div><div class="flex items-center justify-between mb-1"><span class="text-xs font-medium" style="color: var(--text-muted);">Team Seats</span><span id="billing-seats-label" class="text-xs mono" style="color: var(--text);">0 / 1</span></div><div class="w-full rounded-full h-2 overflow-hidden" style="background: var(--bg);"><div id="billing-seats-bar" class="usage-bar h-2 rounded-full" style="width: 0%; background: #8B5CF6;"></div></div></div>
+                            <div><div class="flex items-center justify-between mb-1"><span class="text-xs font-medium" style="color: var(--text-muted);">AI Tokens</span><span id="billing-tokens-label" class="text-xs mono" style="color: var(--text);">0 / 100k</span></div><div class="w-full rounded-full h-2 overflow-hidden" style="background: var(--bg);"><div id="billing-tokens-bar" class="usage-bar h-2 rounded-full" style="width: 0%; background: var(--amber);"></div></div></div>
                         </div>
                     </div>
                     <h2 class="text-lg font-bold mb-4" style="color: var(--text);">Upgrade your plan</h2>
@@ -933,10 +1039,7 @@
             <div id="view-owner" class="hidden flex-1 overflow-y-auto p-4 md:p-8">
                 <div class="max-w-6xl mx-auto">
                     <div class="mb-6">
-                        <div class="flex items-center gap-2 mb-1">
-                            <h1 class="text-2xl font-bold" style="color: var(--text);">Owner Console</h1>
-                            <span class="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded role-owner">Staff</span>
-                        </div>
+                        <div class="flex items-center gap-2 mb-1"><h1 class="text-2xl font-bold" style="color: var(--text);">Owner Console</h1><span class="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded role-owner">Staff</span></div>
                         <p class="text-sm" style="color: var(--text-muted);">Full platform visibility and control.</p>
                     </div>
                     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
@@ -957,10 +1060,7 @@
                     <div id="owner-payments-panel" class="hidden"><div class="text-center py-12"><div class="inline-block w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent); border-top-color: transparent;"></div></div><div id="owner-payments-list" class="hidden space-y-3"></div></div>
                     <div id="owner-requests-panel" class="hidden"><div class="text-center py-12"><div class="inline-block w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent); border-top-color: transparent;"></div></div><div id="owner-requests-list" class="hidden space-y-3"></div></div>
                     <div id="owner-teams-panel" class="hidden"><div class="text-center py-12"><div class="inline-block w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent); border-top-color: transparent;"></div></div><div id="owner-teams-list" class="hidden space-y-3"></div></div>
-                    
-                    <p class="text-[10px] mt-10 text-center" style="color: var(--text-dim);">
-                        Platform owner: <a href="mailto:kumgtourryl@gmail.com" style="color: var(--cyan);">kumgtourryl@gmail.com</a>
-                    </p>
+                    <p class="text-[10px] mt-10 text-center" style="color: var(--text-dim);">Platform owner: <a href="mailto:kumgtourryl@gmail.com" style="color: var(--cyan);">kumgtourryl@gmail.com</a></p>
                 </div>
             </div>
 
@@ -974,10 +1074,7 @@
                             <div class="min-w-0">
                                 <h2 id="settings-display-name" class="font-bold truncate" style="color: var(--text);">Loading...</h2>
                                 <p id="settings-display-email" class="text-xs mono truncate" style="color: var(--text-muted);">...</p>
-                                <div class="flex items-center gap-2 mt-1">
-                                    <span id="settings-plan" class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded" style="background: rgba(6,182,212,0.1); color: var(--cyan);">free</span>
-                                    <span id="settings-role-tag" class="hidden text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded"></span>
-                                </div>
+                                <div class="flex items-center gap-2 mt-1"><span id="settings-plan" class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded" style="background: rgba(6,182,212,0.1); color: var(--cyan);">free</span><span id="settings-role-tag" class="hidden text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded"></span></div>
                             </div>
                         </div>
                         <div id="settings-error" class="hidden bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-3 rounded-lg mb-4"></div>
@@ -986,13 +1083,7 @@
                             <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Full Name</label><input type="text" id="settings-fullname" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></div>
                             <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Username</label><input type="text" id="settings-username" class="w-full rounded-lg px-4 py-3 mono text-sm focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></div>
                             <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Phone (optional)</label><input type="tel" id="settings-phone" placeholder="+263 7X XXX XXXX" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></div>
-                            <div>
-                                <label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Country</label>
-                                <select id="settings-country" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
-                                    <option value="">— select —</option>
-                                    <option value="ZW">Zimbabwe</option><option value="ZA">South Africa</option><option value="KE">Kenya</option><option value="NG">Nigeria</option><option value="US">United States</option><option value="GB">United Kingdom</option><option value="IN">India</option><option value="OTHER">Other</option>
-                                </select>
-                            </div>
+                            <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Country</label><select id="settings-country" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"><option value="">— select —</option><option value="ZW">Zimbabwe</option><option value="ZA">South Africa</option><option value="KE">Kenya</option><option value="NG">Nigeria</option><option value="US">United States</option><option value="GB">United Kingdom</option><option value="IN">India</option><option value="OTHER">Other</option></select></div>
                             <button id="settings-save-btn" onclick="saveProfile()" class="w-full font-bold py-3 rounded-lg text-white" style="background: var(--accent);">Save Changes</button>
                         </div>
                     </div>
@@ -1006,10 +1097,7 @@
                     </div>
                     <div class="rounded-xl p-6 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
                         <h3 class="font-bold mb-4" style="color: var(--text);">Appearance</h3>
-                        <div class="flex items-center justify-between">
-                            <div><p class="text-sm font-medium" style="color: var(--text);">Theme</p><p class="text-xs" style="color: var(--text-muted);">Currently: <span id="settings-theme-label">Dark</span></p></div>
-                            <button onclick="toggleTheme()" class="px-4 py-2 rounded-lg text-xs font-bold" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">Switch</button>
-                        </div>
+                        <div class="flex items-center justify-between"><div><p class="text-sm font-medium" style="color: var(--text);">Theme</p><p class="text-xs" style="color: var(--text-muted);">Currently: <span id="settings-theme-label">Dark</span></p></div><button onclick="toggleTheme()" class="px-4 py-2 rounded-lg text-xs font-bold" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">Switch</button></div>
                     </div>
                     <div class="rounded-xl p-6" style="background: var(--surface); border: 1px solid rgba(239,68,68,0.3);">
                         <h3 class="font-bold mb-2" style="color: var(--text);">Sign Out</h3>
@@ -1017,9 +1105,7 @@
                         <button onclick="handleLogout()" class="w-full font-bold py-3 rounded-lg bg-red-500/20 border border-red-500/40 text-red-400 hover:bg-red-500/30 transition-colors">Sign Out</button>
                     </div>
                     <div class="mt-8 text-center flex justify-center gap-6 text-xs" style="color: var(--text-dim);">
-                        <a href="terms.html" class="hover:text-white">Terms of Service</a>
-                        <a href="privacy.html" class="hover:text-white">Privacy Policy</a>
-                        <a href="mailto:rrrylukm@gmail.com" class="hover:text-white">Support</a>
+                        <a href="terms.html" class="hover:text-white">Terms of Service</a><a href="privacy.html" class="hover:text-white">Privacy Policy</a><a href="mailto:rrrylukm@gmail.com" class="hover:text-white">Support</a>
                     </div>
                 </div>
             </div>
@@ -1028,7 +1114,8 @@
     </div>
 </div>
 
-<!-- PROJECT CREATE -->
+<!-- ================= MODALS ================= -->
+
 <div id="project-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
     <div class="w-full max-w-md rounded-2xl p-6 glow" style="background: var(--surface); border: 1px solid var(--border);">
         <div class="flex items-center justify-between mb-6"><h2 class="text-lg font-bold" style="color: var(--text);">Forge a new project</h2><button onclick="closeProjectModal()" style="color: var(--text-muted);"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button></div>
@@ -1042,18 +1129,13 @@
     </div>
 </div>
 
-<!-- PROJECT DETAIL -->
 <div id="project-detail-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
     <div class="w-full max-w-md rounded-2xl p-6 glow max-h-[90vh] overflow-y-auto" style="background: var(--surface); border: 1px solid var(--border);">
-        <div class="flex items-center justify-between mb-6">
-            <h2 id="pd-title" class="text-lg font-bold truncate pr-2" style="color: var(--text);">Project</h2>
-            <button onclick="closeProjectDetail()" style="color: var(--text-muted);"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
-        </div>
+        <div class="flex items-center justify-between mb-6"><h2 id="pd-title" class="text-lg font-bold truncate pr-2" style="color: var(--text);">Project</h2><button onclick="closeProjectDetail()" style="color: var(--text-muted);"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button></div>
         <div id="pd-body" class="space-y-4"></div>
     </div>
 </div>
 
-<!-- PROJECT EDIT -->
 <div id="project-edit-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
     <div class="w-full max-w-md rounded-2xl p-6 glow" style="background: var(--surface); border: 1px solid var(--border);">
         <div class="flex items-center justify-between mb-6"><h2 class="text-lg font-bold" style="color: var(--text);">Edit project</h2><button onclick="closeProjectEdit()" style="color: var(--text-muted);"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button></div>
@@ -1067,7 +1149,6 @@
     </div>
 </div>
 
-<!-- GITHUB LINK -->
 <div id="github-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
     <div class="w-full max-w-md rounded-2xl p-6 glow" style="background: var(--surface); border: 1px solid var(--border);">
         <div class="flex items-center justify-between mb-6"><h2 class="text-lg font-bold" style="color: var(--text);">Link GitHub repo</h2><button onclick="closeGithubModal()" style="color: var(--text-muted);"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button></div>
@@ -1080,7 +1161,6 @@
     </div>
 </div>
 
-<!-- PLAN -->
 <div id="plan-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
     <div class="w-full max-w-md rounded-2xl p-6 glow max-h-[90vh] overflow-y-auto" style="background: var(--surface); border: 1px solid var(--border);">
         <div class="flex items-center justify-between mb-6"><h2 class="text-lg font-bold" style="color: var(--text);">Create a plan</h2><button onclick="closePlanModal()" style="color: var(--text-muted);"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button></div>
@@ -1100,7 +1180,6 @@
     </div>
 </div>
 
-<!-- PAYMENT -->
 <div id="payment-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
     <div class="w-full max-w-md rounded-2xl p-6 glow max-h-[90vh] overflow-y-auto" style="background: var(--surface); border: 1px solid var(--border);">
         <div class="flex items-center justify-between mb-6"><h2 class="text-lg font-bold" style="color: var(--text);">Log a payment</h2><button onclick="closePaymentModal()" style="color: var(--text-muted);"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button></div>
@@ -1119,7 +1198,6 @@
     </div>
 </div>
 
-<!-- CONNECT DB -->
 <div id="connect-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
     <div class="w-full max-w-md rounded-2xl p-6 glow max-h-[90vh] overflow-y-auto" style="background: var(--surface); border: 1px solid var(--border);">
         <div class="flex items-center justify-between mb-6"><h2 class="text-lg font-bold" style="color: var(--text);">Connect a database</h2><button onclick="closeConnectModal()" style="color: var(--text-muted);"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button></div>
@@ -1134,7 +1212,6 @@
     </div>
 </div>
 
-<!-- UPGRADE -->
 <div id="upgrade-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
     <div class="w-full max-w-md rounded-2xl p-6 glow max-h-[90vh] overflow-y-auto" style="background: var(--surface); border: 1px solid var(--border);">
         <div class="flex items-center justify-between mb-6">
@@ -1156,14 +1233,11 @@
     </div>
 </div>
 
-<!-- CREATE TABLE MODAL -->
 <div id="create-table-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
     <div class="w-full max-w-md rounded-2xl p-6 glow max-h-[90vh] overflow-y-auto" style="background: var(--surface); border: 1px solid var(--border);">
         <div class="flex items-center justify-between mb-6">
             <h2 class="text-lg font-bold" style="color: var(--text);">Create a table</h2>
-            <button onclick="closeCreateTableModal()" style="color: var(--text-muted);">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-            </button>
+            <button onclick="closeCreateTableModal()" style="color: var(--text-muted);"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
         </div>
         <div id="create-table-error" class="hidden bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-3 rounded-lg mb-4"></div>
         <div class="space-y-4">
@@ -1185,73 +1259,85 @@
     </div>
 </div>
 
-<!-- API DOCS MODAL -->
 <div id="api-docs-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
     <div class="w-full max-w-2xl rounded-2xl p-6 glow max-h-[90vh] overflow-y-auto" style="background: var(--surface); border: 1px solid var(--border);">
         <div class="flex items-center justify-between mb-6">
-            <div>
-                <h2 class="text-lg font-bold" style="color: var(--text);">API Docs: <span id="api-table-name" class="mono text-[var(--cyan)]"></span></h2>
-                <p class="text-xs mt-1" style="color: var(--text-muted);">Use this code in your app to query this table.</p>
-            </div>
-            <button onclick="document.getElementById('api-docs-modal').classList.add('hidden')" style="color: var(--text-muted);">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-            </button>
+            <div><h2 class="text-lg font-bold" style="color: var(--text);">API Docs: <span id="api-table-name" class="mono text-[var(--cyan)]"></span></h2><p class="text-xs mt-1" style="color: var(--text-muted);">Use this code in your app to query this table.</p></div>
+            <button onclick="document.getElementById('api-docs-modal').classList.add('hidden')" style="color: var(--text-muted);"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
         </div>
-
         <div class="space-y-6">
-            <div>
-                <div class="flex items-center justify-between mb-2">
-                    <h3 class="text-sm font-bold" style="color: var(--text);">JavaScript (Supabase Client)</h3>
-                    <button onclick="copyApiSnippet('js')" class="text-xs font-bold px-3 py-1 rounded text-white" style="background: var(--accent);">Copy</button>
-                </div>
-                <pre id="api-snippet-js" class="mono text-[11px] p-4 rounded-lg" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></pre>
-            </div>
-
-            <div>
-                <div class="flex items-center justify-between mb-2">
-                    <h3 class="text-sm font-bold" style="color: var(--text);">cURL (REST API)</h3>
-                    <button onclick="copyApiSnippet('curl')" class="text-xs font-bold px-3 py-1 rounded text-white" style="background: var(--accent);">Copy</button>
-                </div>
-                <pre id="api-snippet-curl" class="mono text-[11px] p-4 rounded-lg overflow-x-auto" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></pre>
-            </div>
-
-            <div class="rounded-lg p-3 text-xs" style="background: var(--bg); border: 1px solid var(--border);">
-                <p style="color: var(--text-muted);">Connection URL: <span class="mono text-[var(--cyan)]">https://dwjyzqsrzdgnpwibnyjn.supabase.co</span></p>
-                <p style="color: var(--text-muted); mt-1">Anon Key: <span class="mono text-[var(--cyan)]">sb_publishable_4vcPyg62OqmfwNaHxx0CGA_a7O0_NJV</span></p>
-            </div>
+            <div><div class="flex items-center justify-between mb-2"><h3 class="text-sm font-bold" style="color: var(--text);">JavaScript (Supabase Client)</h3><button onclick="copyApiSnippet('js')" class="text-xs font-bold px-3 py-1 rounded text-white" style="background: var(--accent);">Copy</button></div><pre id="api-snippet-js" class="mono text-[11px] p-4 rounded-lg" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></pre></div>
+            <div><div class="flex items-center justify-between mb-2"><h3 class="text-sm font-bold" style="color: var(--text);">cURL (REST API)</h3><button onclick="copyApiSnippet('curl')" class="text-xs font-bold px-3 py-1 rounded text-white" style="background: var(--accent);">Copy</button></div><pre id="api-snippet-curl" class="mono text-[11px] p-4 rounded-lg overflow-x-auto" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></pre></div>
+            <div><div class="flex items-center justify-between mb-2"><h3 class="text-sm font-bold flex items-center gap-2" style="color: var(--text);"><span class="w-2 h-2 rounded-full bg-[var(--cyan)] animate-pulse"></span> Realtime Listener (Live Data)</h3><button onclick="navigator.clipboard.writeText(document.getElementById('api-snippet-realtime').textContent); showToast('Realtime code copied!', 'success');" class="text-xs font-bold px-3 py-1 rounded text-white" style="background: var(--accent);">Copy</button></div><pre id="api-snippet-realtime" class="mono text-[11px] p-4 rounded-lg overflow-x-auto" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></pre></div>
+            <div class="rounded-lg p-3 text-xs" style="background: var(--bg); border: 1px solid var(--border);"><p style="color: var(--text-muted);">Connection URL: <span class="mono text-[var(--cyan)]">https://dwjyzqsrzdgnpwibnyjn.supabase.co</span></p><p style="color: var(--text-muted); mt-1">Anon Key: <span class="mono text-[var(--cyan)]">sb_publishable_4vcPyg62OqmfwNaHxx0CGA_a7O0_NJV</span></p></div>
         </div>
     </div>
 </div>
 
-<!-- DATA VIEWER MODAL -->
 <div id="data-viewer-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
     <div class="w-full max-w-6xl rounded-2xl p-6 glow max-h-[90vh] flex flex-col" style="background: var(--surface); border: 1px solid var(--border);">
         <div class="flex items-center justify-between mb-4 flex-shrink-0">
-            <div>
-                <h2 class="text-lg font-bold flex items-center gap-2" style="color: var(--text);">
-                    <svg class="w-5 h-5 text-[#8B5CF6]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7-4h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
-                    <span id="data-viewer-title" class="mono">table_name</span>
-                </h2>
-                <p class="text-xs mt-1" style="color: var(--text-muted);">Showing up to 100 rows.</p>
+            <div><h2 class="text-lg font-bold flex items-center gap-2" style="color: var(--text);"><svg class="w-5 h-5 text-[#8B5CF6]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7-4h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg><span id="data-viewer-title" class="mono">table_name</span></h2><p class="text-xs mt-1" style="color: var(--text-muted);">Showing up to 100 rows.</p></div>
+            <div class="flex gap-2">
+                <button onclick="exportTableCSV()" class="text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1" style="background: var(--surface-2); border: 1px solid var(--border); color: var(--text);"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg> Export CSV</button>
+                <button onclick="document.getElementById('data-viewer-modal').classList.add('hidden')" style="color: var(--text-muted);"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
             </div>
-            <button onclick="document.getElementById('data-viewer-modal').classList.add('hidden')" style="color: var(--text-muted);">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-            </button>
         </div>
+        <div id="data-viewer-loading" class="flex-1 flex items-center justify-center py-12"><div class="inline-block w-8 h-8 border-4 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent); border-top-color: transparent;"></div></div>
+        <div id="data-viewer-content" class="hidden flex-1 overflow-auto rounded-lg" style="border: 1px solid var(--border);"><table class="w-full text-left text-xs mono" style="color: var(--text);"><thead id="data-viewer-head" class="sticky top-0" style="background: var(--surface-2); z-10;"></thead><tbody id="data-viewer-body"></tbody></table></div>
+        <div id="data-viewer-empty" class="hidden flex-1 flex flex-col items-center justify-center py-12"><p class="text-sm" style="color: var(--text-muted);">This table has no data yet.</p></div>
+    </div>
+</div>
 
-        <div id="data-viewer-loading" class="flex-1 flex items-center justify-center py-12">
-            <div class="inline-block w-8 h-8 border-4 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent); border-top-color: transparent;"></div>
-        </div>
+<div id="edit-row-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+    <div class="w-full max-w-lg rounded-2xl p-6 glow max-h-[90vh] flex flex-col" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex items-center justify-between mb-4"><h2 class="text-lg font-bold" style="color: var(--text);">Edit Row</h2><button onclick="document.getElementById('edit-row-modal').classList.add('hidden')" style="color: var(--text-muted);"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button></div>
+        <div class="flex-1 overflow-y-auto pr-2 space-y-3 mb-4" id="edit-row-fields"></div>
+        <button id="save-row-btn" onclick="saveRowChanges()" class="w-full font-bold py-3 rounded-lg text-white" style="background: var(--accent);">Save Changes</button>
+    </div>
+</div>
 
-        <div id="data-viewer-content" class="hidden flex-1 overflow-auto rounded-lg" style="border: 1px solid var(--border);">
-            <table class="w-full text-left text-xs mono" style="color: var(--text);">
-                <thead id="data-viewer-head" class="sticky top-0" style="background: var(--surface-2); z-10;"></thead>
-                <tbody id="data-viewer-body"></tbody>
-            </table>
+<div id="chart-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+    <div class="w-full max-w-2xl rounded-2xl p-6 glow max-h-[90vh] flex flex-col" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex items-center justify-between mb-4"><div><h2 class="text-lg font-bold" style="color: var(--text);">Insights: <span id="chart-table-name" class="mono text-[var(--cyan)]"></span></h2><p class="text-xs mt-1" style="color: var(--text-muted);">Visualize your data instantly.</p></div><button onclick="document.getElementById('chart-modal').classList.add('hidden')" style="color: var(--text-muted);"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button></div>
+        <div class="mb-4"><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Group by Column (e.g., status, category, country)</label><select id="chart-group-column" onchange="renderChart()" class="w-full rounded-lg px-3 py-2 text-sm focus:outline-none mono" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></select></div>
+        <div id="chart-loading" class="flex-1 flex items-center justify-center py-12"><div class="inline-block w-8 h-8 border-4 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent); border-top-color: transparent;"></div></div>
+        <div id="chart-content" class="hidden flex-1 relative min-h-[300px]"><canvas id="ukmbase-chart"></canvas></div>
+    </div>
+</div>
+
+<div id="seed-data-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+    <div class="w-full max-w-md rounded-2xl p-6 glow" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex items-center justify-between mb-4"><h2 class="text-lg font-bold flex items-center gap-2" style="color: var(--text);"><svg class="w-5 h-5 text-[#10B981]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg> AI Seed Data</h2><button onclick="document.getElementById('seed-data-modal').classList.add('hidden')" style="color: var(--text-muted);"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button></div>
+        <p class="text-xs mb-4" style="color: var(--text-muted);">Populate <span id="seed-table-name" class="mono text-[var(--cyan)]"></span> with realistic test data.</p>
+        <div class="space-y-4 mb-4">
+            <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">What kind of data do you need?</label><textarea id="seed-prompt" rows="3" placeholder="e.g. Generate 15 fake users with African names, emails, and 'active' status." class="w-full rounded-lg px-4 py-3 focus:outline-none resize-none text-sm" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></textarea></div>
+            <div class="rounded-lg p-3 text-[10px] mono break-all" style="background: var(--bg); border: 1px solid var(--border); color: var(--text-dim);"><strong>Target Columns:</strong> <span id="seed-columns-list">—</span></div>
         </div>
-        
-        <div id="data-viewer-empty" class="hidden flex-1 flex flex-col items-center justify-center py-12">
-            <p class="text-sm" style="color: var(--text-muted);">This table has no data yet.</p>
+        <button id="seed-btn" onclick="generateAndSeedData()" class="w-full font-bold py-3 rounded-lg text-white flex items-center justify-center gap-2" style="background: #10B981;"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg> Generate & Insert Rows</button>
+    </div>
+</div>
+
+<div id="auth-ui-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+    <div class="w-full max-w-3xl rounded-2xl p-6 glow max-h-[90vh] flex flex-col" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex justify-between items-center mb-4"><h2 class="text-lg font-bold" style="color: var(--text);">Copy-Paste Auth UI</h2><button onclick="document.getElementById('auth-ui-modal').classList.add('hidden')" style="color: var(--text-muted);">✕</button></div>
+        <p class="text-xs mb-4" style="color: var(--text-muted);">Drop this HTML into your frontend to get a beautiful login/signup form connected to your database.</p>
+        <div class="flex-1 overflow-auto rounded-lg" style="border: 1px solid var(--border);"><pre id="auth-ui-code" class="mono text-[10px] p-4 m-0" style="background: var(--bg); color: var(--text);"></pre></div>
+        <button onclick="copyToClipboard('auth-ui-code', this)" class="mt-4 font-bold py-3 rounded-lg text-white" style="background: var(--accent);">Copy HTML & JS</button>
+    </div>
+</div>
+
+<div id="impersonate-modal" class="hidden fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+    <div class="w-full max-w-md rounded-2xl p-6 glow" style="background: var(--surface); border: 1px solid var(--border);">
+        <h3 class="text-lg font-bold mb-2" style="color: var(--text);">Impersonate User</h3>
+        <p class="text-xs mb-4" style="color: var(--text-muted);">You are generating a secure session token for <strong id="impersonate-email" class="text-[var(--cyan)]"></strong>. Do not share this token with anyone.</p>
+        <div id="impersonate-result" class="hidden mb-4">
+            <label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Session Token</label>
+            <pre id="impersonate-token" class="p-3 text-[10px] rounded-lg overflow-x-auto mono" style="background: var(--bg); border: 1px solid var(--border); color: var(--green);"></pre>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="executeImpersonation()" id="impersonate-btn" class="flex-1 font-bold py-2 rounded-lg text-white" style="background: var(--red);">Generate Token</button>
+            <button onclick="document.getElementById('impersonate-modal').classList.add('hidden')" class="flex-1 font-bold py-2 rounded-lg" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">Close</button>
         </div>
     </div>
 </div>
@@ -1260,7 +1346,8 @@
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-<script src="app.js?v=617"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="app.js?v=618"></script>
 
 <!-- Service Worker Registration (PWA) -->
 <script>
