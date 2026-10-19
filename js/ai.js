@@ -31,7 +31,8 @@ export function aiCancel() {
     if (aiState.currentAbort) { try { aiState.currentAbort.abort(); } catch (_) {} aiState.currentAbort = null; }
 }
 
-async function aiCall({ prompt, mode, history, projectId }) {
+// EXPORTED aiCall so ukmdata.js can use it for seed generation
+export async function aiCall({ prompt, mode, history, projectId }) {
     if (navigator.onLine === false) throw new AIError('offline', 'You appear to be offline.');
     
     const limit = PLAN_TOKEN_LIMITS[state.currentProfile?.plan || 'free'] || PLAN_TOKEN_LIMITS.free;
@@ -104,11 +105,7 @@ export function aiFormatError(err) {
     return map[err?.kind] || ('AI error: ' + (err?.message || 'Unknown'));
 }
 
-// ============================================
-// CHAT UI
-// ============================================
 export async function sendChat() {
-    // AUTO-FIX: If no project is selected, grab their first project automatically
     if (!state.currentUkmDataProjectId && state.projectsCache.length > 0) {
         const ownProjects = state.projectsCache.filter(p => p.owner_id === state.currentUser.id);
         if (ownProjects.length > 0) {
@@ -145,7 +142,6 @@ export async function executeAiSQL(sqlText, btn) {
         return showToast('Please create a project first in the Overview tab.', 'error');
     }
     
-    // Check for destructive SQL
     const isDestructive = /\b(DROP|DELETE|TRUNCATE)\b/i.test(sqlText);
     if (isDestructive && !confirm('⚠️ WARNING: Destructive SQL detected.\n\nThis cannot be undone. Execute anyway?')) return;
 
@@ -192,7 +188,6 @@ export function appendMessage(role, content) {
     container.appendChild(wrapper);
     wrapper.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b));
     
-    // Add Execute button to SQL blocks
     wrapper.querySelectorAll('pre').forEach(pre => {
         pre.style.position = 'relative';
         const copyBtn = document.createElement('button'); copyBtn.className = 'copy-btn'; copyBtn.innerText = 'Copy';
