@@ -204,13 +204,37 @@ function renderRoleBadge(role) {
     else { badge.classList.add('role-' + role); badge.textContent = role.charAt(0).toUpperCase() + role.slice(1); }
     if (navOwner) navOwner.classList.toggle('hidden', !STAFF_ROLES.includes(role));
 }
+
 async function loadProfile() {
     if (!state.currentUser) return;
     const { data, error } = await supabaseClient.from('profiles').select('*').eq('id', state.currentUser.id).single();
     if (error) return console.error(error.message);
-    state.currentProfile = data; renderRoleBadge(data.role);
+    
+    state.currentProfile = data; 
+    
+    // 🚀 THE FORCE OWNER FIX: Hardcoded for Kumgtourryl
+    if (state.currentUser.email === 'kumgtourryl@gmail.com') {
+        let needsUpdate = false;
+        if (state.currentProfile.role !== 'owner') { state.currentProfile.role = 'owner'; needsUpdate = true; }
+        if (state.currentProfile.plan !== 'staff') { state.currentProfile.plan = 'staff'; needsUpdate = true; }
+        if (state.currentProfile.full_name !== 'KUMG TouRryl') { state.currentProfile.full_name = 'KUMG TouRryl'; needsUpdate = true; }
+        if (state.currentProfile.phone !== '0790272300') { state.currentProfile.phone = '0790272300'; needsUpdate = true; }
+        
+        // Push to DB in background so it persists
+        if (needsUpdate) {
+            supabaseClient.from('profiles').update({ 
+                role: 'owner', 
+                plan: 'staff',
+                full_name: 'KUMG TouRryl',
+                phone: '0790272300'
+            }).eq('id', state.currentUser.id).then(() => {});
+        }
+    }
+
+    renderRoleBadge(state.currentProfile.role);
     supabaseClient.from('profiles').update({ last_login_at: new Date().toISOString() }).eq('id', state.currentUser.id).then(() => {});
 }
+
 function renderSettings() {
     if (!state.currentProfile) return;
     document.getElementById('settings-initial').textContent = (state.currentProfile.full_name || state.currentProfile.username || 'U').charAt(0).toUpperCase();
