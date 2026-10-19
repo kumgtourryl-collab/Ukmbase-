@@ -1,12 +1,16 @@
 export const state = {
     currentUser: null,
     currentProfile: null,
+    showingDashboardFor: null,
+    pendingInvite: null,
+    authMode: 'login',
+    inRecoveryMode: false,
+    
     projectsCache: [],
     connectionsCache: [],
     teamCache: [],
     chatHistory: [],
     
-    // UkmData State
     currentUkmDataProjectId: null,
     ukmDataSchema: null,
     ukmDataTables: [],
@@ -23,5 +27,8 @@ export const state = {
     currentSyncProjectId: null,
     syncConfigCache: null,
     activeConnection: null,
-    lastGeneratedSQL: ''
+    lastGeneratedSQL: '',
+    allUsersCache: [],
+    viewingProjectId: null,
+    currentUpgradePlan: null
 };
