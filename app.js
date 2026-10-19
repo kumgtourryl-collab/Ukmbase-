@@ -1,19 +1,11 @@
-// UKMBASE APP.JS — v620 (Master Build + Debug Mode)
+// UKMBASE APP.JS — v621 (Final Build)
 
-// ✅ GLOBAL ERROR CATCHER (Shows a red box on screen if something breaks)
+// ✅ GLOBAL ERROR CATCHER
 window.onerror = function(msg, url, line) {
     const errDiv = document.createElement('div');
-    errDiv.style.position = 'fixed';
-    errDiv.style.bottom = '10px';
-    errDiv.style.left = '10px';
-    errDiv.style.right = '10px';
-    errDiv.style.background = 'rgba(239, 68, 68, 0.95)';
-    errDiv.style.color = 'white';
-    errDiv.style.padding = '12px';
-    errDiv.style.zIndex = '999999';
-    errDiv.style.fontSize = '12px';
-    errDiv.style.borderRadius = '8px';
-    errDiv.style.fontFamily = 'monospace';
+    errDiv.style.position = 'fixed'; errDiv.style.bottom = '10px'; errDiv.style.left = '10px'; errDiv.style.right = '10px';
+    errDiv.style.background = 'rgba(239, 68, 68, 0.95)'; errDiv.style.color = 'white'; errDiv.style.padding = '12px';
+    errDiv.style.zIndex = '999999'; errDiv.style.fontSize = '12px'; errDiv.style.borderRadius = '8px'; errDiv.style.fontFamily = 'monospace';
     errDiv.innerHTML = '<strong>JS Error:</strong> ' + msg + '<br><span style="font-size:10px;">Line ' + line + ' - ' + url + '</span>';
     document.body.appendChild(errDiv);
     setTimeout(() => errDiv.remove(), 10000);
@@ -77,8 +69,6 @@ let ukmDataTables = [];
 let ukmDataUsers = [];
 let ukmDataFiles = [];
 let ukmDataColumnCounter = 0;
-
-// ✅ New variables for safe data editing
 let currentTableData = [];
 let currentTableName = null;
 let editingRowId = null;
@@ -693,7 +683,6 @@ async function loadUkmDataState() {
     });
     document.getElementById('ukmdata-schema-name').textContent = ukmDataSchema;
     
-    // Wrap these in try/catch to prevent one missing DB table from breaking everything
     try { await loadUkmDataTables(); } catch(e) { console.warn('Tables missing', e); }
     try { await loadUkmDataUsers(); } catch(e) { console.warn('Users missing', e); }
     try { await loadUkmDataFiles(); } catch(e) { console.warn('Files missing', e); }
@@ -806,7 +795,7 @@ async function dropUkmDataTable(name) {
 }
 
 // ============================================
-// DATA VIEWER & EDITOR (SAFE MODE)
+// DATA VIEWER & EDITOR
 // ============================================
 async function viewTableData(tableName) {
     document.getElementById('data-viewer-title').textContent = tableName;
@@ -825,7 +814,7 @@ async function viewTableData(tableName) {
         if (data.error) throw new Error(data.error);
         
         const rows = data.rows || [];
-        currentTableData = rows; // Store in memory safely
+        currentTableData = rows;
 
         if (rows.length === 0) { document.getElementById('data-viewer-empty').classList.remove('hidden'); return; }
         
@@ -847,7 +836,7 @@ function openEditRowModal(rowId) {
     
     const fields = document.getElementById('edit-row-fields'); fields.innerHTML = '';
     Object.keys(row).forEach(key => {
-        if (key === 'id' || key === 'created_at') return; // Usually shouldn't edit these
+        if (key === 'id' || key === 'created_at') return;
         let val = row[key]; if (typeof val === 'object') val = JSON.stringify(val);
         fields.innerHTML += `<div><label class="block text-xs font-medium mb-1 mono" style="color: var(--text-muted);">${escapeHtml(key)}</label><input type="${typeof row[key] === 'number' ? 'number' : 'text'}" id="edit-field-${key}" value="${escapeHtml(String(val || ''))}" class="w-full rounded-lg px-3 py-2 text-sm mono" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></div>`;
     });
@@ -1003,8 +992,6 @@ async function loadUkmDataUsers() {
     `).join('');
 }
 async function deleteUkmDataUser(id) { if (confirm('Delete user?')) { await supabaseClient.from('project_users').delete().eq('id', id); loadUkmDataUsers(); } }
-
-// ✅ SAFE IMPERSONATION
 function openImpersonateModal(userId) { 
     impersonatingUserId = userId; 
     const user = ukmDataUsers.find(u => u.id === userId);
@@ -1175,6 +1162,100 @@ function copyFormLink(tableName) {
     const proj = projectsCache.find(p => p.id === currentUkmDataProjectId); if (!proj) return;
     const url = window.location.origin + window.location.pathname + '?form=' + tableName + '&project=' + proj.slug;
     navigator.clipboard.writeText(url); showToast('Form link copied!', 'success');
+}
+
+// ============================================
+// CONNECT / DEVELOPER HUB
+// ============================================
+function populateConnectProjectSelect() {
+    const sel = document.getElementById('connect-project-select');
+    if (!sel) return;
+    const own = projectsCache.filter(function(p) { return p.owner_id === currentUser.id; });
+    
+    if (own.length === 0) {
+        sel.innerHTML = '<option value="">— no projects —</option>';
+        return;
+    }
+    
+    let html = '';
+    own.forEach(function(p) { html += '<option value="' + p.id + '">' + escapeHtml(p.name) + '</option>'; });
+    
+    const current = sel.value;
+    sel.innerHTML = html;
+    if (current && own.find(function(p) { return p.id === current; })) sel.value = current;
+    else sel.value = own[0].id;
+    
+    renderConnectSnippets();
+}
+
+function switchConnectTab(tab) {
+    const jsPanel = document.getElementById('connect-panel-js');
+    const curlPanel = document.getElementById('connect-panel-curl');
+    const jsTab = document.getElementById('connect-tab-js');
+    const curlTab = document.getElementById('connect-tab-curl');
+    
+    if (tab === 'js') {
+        jsPanel.classList.remove('hidden'); curlPanel.classList.add('hidden');
+        jsTab.style.color = 'var(--text)'; jsTab.style.borderBottom = '2px solid var(--accent)';
+        curlTab.style.color = 'var(--text-muted)'; curlTab.style.borderBottom = 'none';
+    } else {
+        jsPanel.classList.add('hidden'); curlPanel.classList.remove('hidden');
+        curlTab.style.color = 'var(--text)'; curlTab.style.borderBottom = '2px solid var(--accent)';
+        jsTab.style.color = 'var(--text-muted)'; jsTab.style.borderBottom = 'none';
+    }
+}
+
+function renderConnectSnippets() {
+    const sel = document.getElementById('connect-project-select');
+    if (!sel || !sel.value) return;
+    
+    const projectId = sel.value;
+    const proj = projectsCache.find(p => p.id === projectId);
+    if (!proj) return;
+    
+    document.getElementById('connect-url').value = SUPABASE_URL;
+    document.getElementById('connect-anon').value = SUPABASE_ANON_KEY;
+
+    document.getElementById('connect-snippet-init').textContent = 
+`import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  '${SUPABASE_URL}',
+  '${SUPABASE_ANON_KEY}'
+)`;
+
+    document.getElementById('connect-snippet-auth').textContent = 
+`// Sign Up
+const { data, error } = await fetch('${SUPABASE_URL}/functions/v1/ukmauth', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    action: 'signup',
+    project_slug: '${proj.slug}',
+    email: 'user@example.com',
+    password: 'secret123'
+  })
+});`;
+
+    document.getElementById('connect-snippet-data').textContent = 
+`// Fetch Data
+const { data, error } = await supabase
+  .schema('${proj.slug.replace(/-/g, '_')}')
+  .from('your_table_name')
+  .select('*')
+
+// Realtime
+supabase.channel('custom-channel')
+  .on('postgres_changes', 
+    { event: '*', schema: '${proj.slug.replace(/-/g, '_')}', table: 'your_table_name' }, 
+    (payload) => console.log(payload)
+  ).subscribe()`;
+
+    document.getElementById('connect-snippet-curl').textContent = 
+`curl '${SUPABASE_URL}/rest/v1/your_table_name?select=*' \\
+-H "apikey: ${SUPABASE_ANON_KEY}" \\
+-H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \\
+-H "Accept-Profile: ${proj.slug.replace(/-/g, '_')}"`;
 }
 
 // ============================================
