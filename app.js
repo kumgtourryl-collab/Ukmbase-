@@ -1588,3 +1588,337 @@ window.init = async function() {
 // ============================================
 // END OF DAY 2 ADDITIONS
 // ============================================
+// ============================================
+// DAY 3 ADDITIONS (BACKUPS, SEARCH, AUDIT, TEMPLATES)
+// ============================================
+
+// ---------------------------------------------------
+// 1. UKMTEMPLATES (One-click starter kits)
+// ---------------------------------------------------
+window.openTemplatesModal = async function() {
+    let modal = document.getElementById('ukmtemplates-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'ukmtemplates-modal';
+        modal.className = 'hidden fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm';
+        document.body.appendChild(modal);
+    }
+    modal.classList.remove('hidden');
+    modal.innerHTML = `
+    <div class="w-full max-w-2xl rounded-2xl p-6 glow max-h-[90vh] flex flex-col" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex items-center justify-between mb-4">
+            <div><h2 class="text-lg font-bold" style="color: var(--text);">UkmTemplates</h2><p class="text-xs mt-1" style="color: var(--text-muted);">Start with a pre-built schema.</p></div>
+            <button onclick="document.getElementById('ukmtemplates-modal').classList.add('hidden')" style="color: var(--text-muted);">✕</button>
+        </div>
+        <div id="templates-list" class="flex-1 overflow-y-auto space-y-3">
+            <div class="text-center py-8"><div class="inline-block w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent);"></div></div>
+        </div>
+    </div>`;
+
+    const { data: templates } = await supabaseClient.from('project_templates').select('*').order('created_at', { ascending: false });
+    const list = document.getElementById('templates-list');
+    
+    if (!templates || templates.length === 0) {
+        list.innerHTML = '<p class="text-sm text-center" style="color: var(--text-muted);">No templates found.</p>';
+        return;
+    }
+
+    list.innerHTML = templates.map(t => `
+        <div class="rounded-xl p-4 flex items-center justify-between" style="background: var(--bg); border: 1px solid var(--border);">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg flex items-center justify-center text-xl bg-[rgba(79,70,229,0.1)]">📦</div>
+                <div>
+                    <p class="text-sm font-bold" style="color: var(--text);">${escapeHtml(t.name)}</p>
+                    <p class="text-xs" style="color: var(--text-muted);">${escapeHtml(t.tagline || '')}</p>
+                </div>
+            </div>
+            <button onclick="cloneTemplate('${t.id}')" class="text-xs font-bold px-4 py-2 rounded-lg text-white" style="background: var(--accent);">Clone</button>
+        </div>
+    `).join('');
+};
+
+window.cloneTemplate = async function(templateId) {
+    const { data: template } = await supabaseClient.from('project_templates').select('*').eq('id', templateId).single();
+    if (!template) return showToast('Template not found', 'error');
+    
+    const projName = prompt('Name your new project:', template.name);
+    if (!projName) return;
+
+    try {
+        showToast('Cloning template...', 'success');
+        // 1. Create project
+        const slug = projName.toLowerCase().replace(/[^a-z0-9]/g, '-');
+        const { data: newProj, error } = await supabaseClient.from('projects').insert({
+            owner_id: state.currentUser.id,
+            name: projName,
+            slug: slug,
+            description: template.tagline,
+            status: 'active'
+        }).select().single();
+        
+        if (error) throw error;
+
+        // 2. Setup schema via edge function
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        await fetch(SUPABASE_URL + '/functions/v1/ukmdata', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'enable', project_id: newProj.id })
+        });
+
+        // 3. Create tables from template schema
+        if (template.schema_definition && template.schema_definition.tables) {
+            for (const t of template.schema_definition.tables) {
+                await fetch(SUPABASE_URL + '/functions/v1/ukmdata', {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'create_table', project_id: newProj.id, table: t })
+                });
+            }
+        }
+
+        document.getElementById('ukmtemplates-modal').classList.add('hidden');
+        showToast('Project cloned successfully!');
+        loadProjects();
+    } catch (e) {
+        showToast(e.message, 'error');
+    }
+};
+
+// ---------------------------------------------------
+// 2. UKMSEARCH (Full text search)
+// ---------------------------------------------------
+window.openSearchModal = function() {
+    let modal = document.getElementById('ukmsearch-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'ukmsearch-modal';
+        modal.className = 'hidden fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm';
+        document.body.appendChild(modal);
+    }
+    modal.classList.remove('hidden');
+    modal.innerHTML = `
+    <div class="w-full max-w-lg rounded-2xl p-6 glow" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-bold" style="color: var(--text);">UkmSearch</h2>
+            <button onclick="document.getElementById('ukmsearch-modal').classList.add('hidden')" style="color: var(--text-muted);">✕</button>
+        </div>
+        <div class="space-y-4">
+            <div><label class="block text-xs mb-1" style="color: var(--text-muted);">Table</label><select id="search-table" class="w-full rounded-lg px-3 py-2 text-sm" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">${state.ukmDataTables.map(t => `<option value="${t.table_name}">${t.table_name}</option>`).join('')}</select></div>
+            <div><label class="block text-xs mb-1" style="color: var(--text-muted);">Search Term</label><input type="text" id="search-term" placeholder="e.g. John" class="w-full rounded-lg px-3 py-2 text-sm" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></div>
+            <button onclick="executeSearch()" class="w-full font-bold py-2 rounded-lg text-white" style="background: var(--accent);">Search</button>
+        </div>
+        <div id="search-results" class="mt-4 space-y-2 max-h-60 overflow-y-auto"></div>
+    </div>`;
+};
+
+window.executeSearch = async function() {
+    const table = document.getElementById('search-table').value;
+    const term = document.getElementById('search-term').value;
+    if (!table || !term) return;
+    
+    const resDiv = document.getElementById('search-results');
+    resDiv.innerHTML = '<div class="text-center py-4"><div class="inline-block w-4 h-4 border-2 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent);"></div></div>';
+
+    try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        const res = await fetch(SUPABASE_URL + '/functions/v1/ukmdata', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'fetch_rows', project_id: state.currentUkmDataProjectId, table_name: table })
+        });
+        const data = await res.json();
+        
+        if (data.error) throw new Error(data.error);
+        
+        // Client-side filtering (v0.1 approach)
+        const rows = (data.rows || []).filter(r => JSON.stringify(r).toLowerCase().includes(term.toLowerCase()));
+        
+        if (rows.length === 0) {
+            resDiv.innerHTML = '<p class="text-xs text-center" style="color: var(--text-muted);">No results found.</p>';
+            return;
+        }
+
+        resDiv.innerHTML = rows.slice(0, 10).map(r => `
+            <div class="p-2 rounded text-xs" style="background: var(--bg); border: 1px solid var(--border);">
+                ${escapeHtml(JSON.stringify(r).slice(0, 100))}...
+            </div>
+        `).join('');
+    } catch (e) {
+        resDiv.innerHTML = `<p class="text-xs text-red-400">${e.message}</p>`;
+    }
+};
+
+// ---------------------------------------------------
+// 3. UKMBACKUPS
+// ---------------------------------------------------
+window.openBackupModal = async function() {
+    let modal = document.getElementById('ukmbackup-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'ukmbackup-modal';
+        modal.className = 'hidden fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm';
+        document.body.appendChild(modal);
+    }
+    modal.classList.remove('hidden');
+    modal.innerHTML = `
+    <div class="w-full max-w-lg rounded-2xl p-6 glow" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex items-center justify-between mb-4">
+            <div><h2 class="text-lg font-bold" style="color: var(--text);">UkmBackups</h2><p class="text-xs mt-1" style="color: var(--text-muted);">Snapshot your database.</p></div>
+            <button onclick="document.getElementById('ukmbackup-modal').classList.add('hidden')" style="color: var(--text-muted);">✕</button>
+        </div>
+        <button onclick="createBackup()" class="w-full font-bold py-2 rounded-lg text-white mb-4" style="background: var(--accent);">+ Take Snapshot</button>
+        <div id="backups-list" class="space-y-2 max-h-60 overflow-y-auto"></div>
+    </div>`;
+    
+    loadBackupsList();
+};
+
+window.loadBackupsList = async function() {
+    const { data } = await supabaseClient.from('project_backups').select('*').eq('project_id', state.currentUkmDataProjectId).order('created_at', { ascending: false });
+    const list = document.getElementById('backups-list');
+    if (!data || data.length === 0) {
+        list.innerHTML = '<p class="text-xs text-center py-4" style="color: var(--text-muted);">No backups yet.</p>';
+        return;
+    }
+    list.innerHTML = data.map(b => `
+        <div class="p-3 rounded-lg flex items-center justify-between" style="background: var(--bg); border: 1px solid var(--border);">
+            <div>
+                <p class="text-xs font-bold" style="color: var(--text);">${new Date(b.created_at).toLocaleString()}</p>
+                <p class="text-[10px] mono" style="color: var(--text-dim);">${b.kind} · ${b.row_count || 0} rows</p>
+            </div>
+            <button onclick="downloadBackup('${b.id}')" class="text-xs text-cyan-400 font-bold">Download</button>
+        </div>
+    `).join('');
+};
+
+window.createBackup = async function() {
+    showToast('Creating snapshot...');
+    try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        
+        // Use the existing export action
+        const res = await fetch(SUPABASE_URL + '/functions/v1/ukmdata', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'export_project', project_id: state.currentUkmDataProjectId })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        // Log the backup record
+        await supabaseClient.from('project_backups').insert({
+            project_id: state.currentUkmDataProjectId,
+            kind: 'manual',
+            status: 'ready',
+            row_count: data.export_data ? data.export_data.tables?.length : 0,
+            storage_path: 'inline' // v0.1 we are just downloading it
+        });
+
+        showToast('Backup ready! Download it now.');
+        loadBackupsList();
+        
+        // Automatically trigger download
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(new Blob([JSON.stringify(data.export_data, null, 2)], { type: 'application/json' }));
+        link.download = `backup_${state.currentUkmDataProjectId}_${Date.now()}.json`;
+        link.click();
+
+    } catch (e) {
+        showToast(e.message, 'error');
+    }
+};
+
+window.downloadBackup = function(id) {
+    // In v0.1, backups are created locally. To restore, users just import the JSON file they downloaded.
+    showToast('In v1.0 this will pull from Storage. For now, use the JSON you just downloaded with the Import button!');
+};
+
+// ---------------------------------------------------
+// 4. UKMAUDIT
+// ---------------------------------------------------
+window.openAuditModal = async function() {
+    let modal = document.getElementById('ukmaudit-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'ukmaudit-modal';
+        modal.className = 'hidden fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm';
+        document.body.appendChild(modal);
+    }
+    modal.classList.remove('hidden');
+    modal.innerHTML = `
+    <div class="w-full max-w-2xl rounded-2xl p-6 glow max-h-[90vh] flex flex-col" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-bold" style="color: var(--text);">Audit Logs</h2>
+            <button onclick="document.getElementById('ukmaudit-modal').classList.add('hidden')" style="color: var(--text-muted);">✕</button>
+        </div>
+        <div id="audit-list" class="flex-1 overflow-y-auto space-y-2">
+            <div class="text-center py-8"><div class="inline-block w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent);"></div></div>
+        </div>
+    </div>`;
+
+    // Fetch logs
+    const { data } = await supabaseClient.from('audit_logs').select('*').eq('project_id', state.currentUkmDataProjectId).order('created_at', { ascending: false }).limit(50);
+    const list = document.getElementById('audit-list');
+    
+    if (!data || data.length === 0) {
+        list.innerHTML = '<p class="text-sm text-center" style="color: var(--text-muted);">No audit logs found. Try editing a project or a payment to trigger a log!</p>';
+        return;
+    }
+
+    list.innerHTML = data.map(l => `
+        <div class="p-3 rounded-lg" style="background: var(--bg); border: 1px solid var(--border);">
+            <div class="flex items-center gap-2 mb-1">
+                <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded ${l.operation === 'INSERT' ? 'bg-green-500/20 text-green-400' : l.operation === 'UPDATE' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-red-500/20 text-red-400'}">${l.operation}</span>
+                <span class="text-xs font-bold mono" style="color: var(--text);">${l.table_name}</span>
+                <span class="text-[10px] ml-auto" style="color: var(--text-dim);">${new Date(l.created_at).toLocaleTimeString()}</span>
+            </div>
+            <p class="text-[10px] mono truncate" style="color: var(--text-muted);">${JSON.stringify(l.new_row)}</p>
+        </div>
+    `).join('');
+};
+
+// ---------------------------------------------------
+// AUTOMATIC UI INJECTION (Sidebar)
+// ---------------------------------------------------
+document.addEventListener('DOMContentLoaded', () => {
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar) {
+        const navDiv = sidebar.querySelector('.p-4.space-y-1');
+        if (navDiv) {
+            // Helper to create links
+            const makeLink = (icon, text, onclick) => {
+                const a = document.createElement('a');
+                a.href = '#'; a.className = 'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors';
+                a.style.color = 'var(--text-muted)';
+                a.innerHTML = `${icon} ${text}`;
+                a.onclick = (e) => { e.preventDefault(); onclick(); };
+                return a;
+            };
+
+            // Insert Templates before UkmData
+            const dataNav = document.getElementById('nav-ukmdata');
+            if (dataNav) {
+                const tmplBtn = makeLink('<svg class="w-5 h-5 text-[#10B981]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"></path></svg>', 'UkmTemplates', openTemplatesModal);
+                dataNav.parentElement.insertBefore(tmplBtn, dataNav);
+            }
+
+            // Insert Audit & Search after UkmData
+            if (dataNav) {
+                const auditBtn = makeLink('<svg class="w-5 h-5 text-[#F59E0B]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>', 'UkmAudit', openAuditModal);
+                const searchBtn = makeLink('<svg class="w-5 h-5 text-[#EC4899]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>', 'UkmSearch', openSearchModal);
+                const backupBtn = makeLink('<svg class="w-5 h-5 text-[#8B5CF6]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>', 'UkmBackups', openBackupModal);
+                
+                // Insert after UkmData
+                let nextNode = dataNav.nextElementSibling;
+                dataNav.parentElement.insertBefore(backupBtn, nextNode);
+                dataNav.parentElement.insertBefore(searchBtn, backupBtn);
+                dataNav.parentElement.insertBefore(auditBtn, searchBtn);
+            }
+        }
+    }
+});
+
+// ============================================
+// END OF DAY 3 ADDITIONS
+// ============================================
