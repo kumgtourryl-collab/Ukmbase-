@@ -2707,3 +2707,124 @@ document.addEventListener('DOMContentLoaded', () => {
 // ============================================
 // END OF DAY 5 ADDITIONS
 // ============================================
+// Override Forge for better error handling
+window.executeForge = async function() {
+    const prompt = document.getElementById('forge-prompt').value.trim();
+    if (!prompt) return showToast('Describe your app first', 'error');
+    
+    const btn = document.getElementById('forge-submit-btn');
+    const prog = document.getElementById('forge-progress');
+    btn.textContent = 'Forging...'; btn.disabled = true;
+    prog.classList.remove('hidden');
+    prog.innerHTML = '<p>🧠 AI is designing your schema...</p>';
+
+    try {
+        const aiPrompt = `Create a database schema for this app: "${prompt}". 
+        Return ONLY a JSON object. No markdown. 
+        Format: { "project_name": "Name", "tables": [ { "name": "table_name", "columns": [ {"name": "col1", "type": "text"}, {"name": "col2", "type": "number"} ] } ] }`;
+        
+        const aiData = await aiCall({ prompt: aiPrompt, mode: 'default' });
+        console.log("RAW AI OUTPUT:", aiData.content);
+        
+        const schemaJson = aiExtractJSON(aiData.content || '');
+        
+        // If AI just chatted back instead of giving JSON
+        if (!schemaJson || !schemaJson.tables) {
+            throw new Error("The AI didn't understand. Please describe your app in more detail (e.g., 'A shop for shoes with products and orders').");
+        }
+        
+        prog.innerHTML += '<p>✅ Schema designed!</p><p>🏗️ Creating project...</p>';
+
+        const projName = schemaJson.project_name || 'Forged App';
+        const slug = projName.toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + Math.floor(Math.random()*1000);
+        
+        const { data: newProj, error: projErr } = await supabaseClient.from('projects').insert({
+            owner_id: state.currentUser.id, name: projName, slug: slug, description: prompt
+        }).select().single();
+        
+        if (projErr) throw projErr;
+        prog.innerHTML += '<p>✅ Project created!</p><p>⚙️ Setting up database...</p>';
+
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        const headers = { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' };
+        
+        await fetch(SUPABASE_URL + '/functions/v1/ukmdata', {
+            method: 'POST', headers,
+            body: JSON.stringify({ action: 'enable', project_id: newProj.id })
+        });
+
+        for (const t of schemaJson.tables) {
+            await fetch(SUPABASE_URL + '/functions/v1/ukmdata', {
+                method: 'POST', headers,
+                body: JSON.stringify({ action: 'create_table', project_id: newProj.id, table: t })
+            });
+            prog.innerHTML += `<p>✅ Table <b>${escapeHtml(t.name)}</b> created!</p>`;
+        }
+
+        prog.innerHTML += '<p style="color: var(--green); font-weight: bold; margin-top: 10px;">🚀 App forged successfully!</p>';
+        
+        setTimeout(async () => {
+            document.getElementById('ukmforge-modal').classList.add('hidden');
+            await loadProjects();
+            state.currentUkmDataProjectId = newProj.id;
+            switchView('ukmdata');
+            showToast('App forged successfully!');
+        }, 2000);
+
+    } catch (e) {
+        prog.innerHTML += `<p style="color: var(--red); font-size: 11px;">❌ Error: ${escapeHtml(e.message)}</p>`;
+        btn.textContent = 'Try Again'; btn.disabled = false;
+    }
+};
+// Override Voice with better permission handling
+window.startVoiceRecognition = function() {
+    if (!window.isSecureContext) {
+        return showToast('Voice requires HTTPS. Current connection is insecure.', 'error');
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+        return showToast('Voice recognition is not supported in this browser.', 'error');
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    const micBtn = document.getElementById('ukm-voice-btn');
+    
+    showToast('Requesting microphone access...');
+    
+    recognition.onstart = () => {
+        if (micBtn) micBtn.style.color = 'var(--red)';
+        showToast('Listening... Speak now.');
+    };
+
+    recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        const input = document.getElementById('chat-input');
+        if (input) {
+            input.value += (input.value ? ' ' : '') + transcript;
+            handleChatKeydown({ key: 'Enter', shiftKey: false, preventDefault: () => {} }); 
+        }
+        if (micBtn) micBtn.style.color = 'var(--text-muted)';
+    };
+
+    recognition.onspeechend = () => { recognition.stop(); if (micBtn) micBtn.style.color = 'var(--text-muted)'; };
+    
+    recognition.onerror = (e) => { 
+        if (micBtn) micBtn.style.color = 'var(--text-muted)'; 
+        if (e.error === 'not-allowed') {
+            showToast('Permission denied. Tap the lock icon in your URL bar and allow Microphone.', 'error', 5000);
+        } else {
+            showToast('Voice error: ' + e.error, 'error'); 
+        }
+    };
+
+    try {
+        recognition.start();
+    } catch (e) {
+        showToast('Could not start mic: ' + e.message, 'error');
+    }
+};
