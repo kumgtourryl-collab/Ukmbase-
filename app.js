@@ -1208,3 +1208,383 @@ window.switchView = function(view) {
 // ============================================
 // END OF DAY 1 ADDITIONS
 // ============================================
+// ============================================
+// DAY 2 ADDITIONS (FORM BUILDER, LANDING, DOCS, TEST)
+// ============================================
+
+// ---------------------------------------------------
+// 1. UKMFORM BUILDER
+// ---------------------------------------------------
+window.openFormBuilder = function(tableName) {
+    let modal = document.getElementById('ukmform-builder-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'ukmform-builder-modal';
+        modal.className = 'hidden fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm';
+        document.body.appendChild(modal);
+    }
+    modal.classList.remove('hidden');
+
+    modal.innerHTML = `
+    <div class="w-full max-w-lg rounded-2xl p-6 glow max-h-[90vh] overflow-y-auto" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-bold" style="color: var(--text);">Form Builder: <span class="mono text-[var(--cyan)]">${escapeHtml(tableName)}</span></h2>
+            <button onclick="document.getElementById('ukmform-builder-modal').classList.add('hidden')" style="color: var(--text-muted);">✕</button>
+        </div>
+        <div class="space-y-4">
+            <div><label class="block text-xs mb-1" style="color: var(--text-muted);">Form Title</label><input type="text" id="form-builder-title" placeholder="e.g. Contact Us" class="w-full rounded-lg px-3 py-2 text-sm" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></div>
+            <div><label class="block text-xs mb-1" style="color: var(--text-muted);">URL Slug</label><input type="text" id="form-builder-slug" placeholder="e.g. contact-us" class="w-full rounded-lg px-3 py-2 text-sm mono" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></div>
+            <div><label class="block text-xs mb-1" style="color: var(--text-muted);">Fields (Comma separated)</label><input type="text" id="form-builder-fields" placeholder="name, email, message" class="w-full rounded-lg px-3 py-2 text-sm mono" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></div>
+            <button onclick="saveFormBuilder('${tableName}')" id="save-form-btn" class="w-full font-bold py-3 rounded-lg text-white mt-2" style="background: var(--accent);">Create Form</button>
+        </div>
+    </div>`;
+};
+
+window.saveFormBuilder = async function(tableName) {
+    const title = document.getElementById('form-builder-title').value;
+    const slug = document.getElementById('form-builder-slug').value;
+    const fieldsStr = document.getElementById('form-builder-fields').value;
+    if (!title || !slug || !fieldsStr) return showToast('Fill all fields', 'error');
+
+    const fields = fieldsStr.split(',').map(f => ({ name: f.trim(), type: 'text', required: true }));
+    const btn = document.getElementById('save-form-btn'); btn.textContent = 'Creating...'; btn.disabled = true;
+
+    try {
+        const { error } = await supabaseClient.from('project_forms').insert({
+            project_id: state.currentUkmDataProjectId,
+            title, slug, table_name: tableName, fields
+        });
+        if (error) throw error;
+        showToast('Form created!');
+        document.getElementById('ukmform-builder-modal').classList.add('hidden');
+        const url = window.location.origin + window.location.pathname + '?form=' + slug + '&project=' + state.projectsCache.find(p => p.id === state.currentUkmDataProjectId).slug;
+        navigator.clipboard.writeText(url);
+        showToast('Form link copied to clipboard!');
+    } catch (e) {
+        showToast(e.message, 'error');
+    } finally {
+        btn.textContent = 'Create Form'; btn.disabled = false;
+    }
+};
+
+// Upgrade the public form route
+window.loadPublicFormV2 = async function(projectSlug, formSlug) {
+    document.getElementById('landing-view').classList.add('hidden'); document.getElementById('auth-view').classList.add('hidden'); document.getElementById('dashboard-view').classList.add('hidden');
+    document.getElementById('public-form-view').classList.remove('hidden');
+    document.getElementById('form-loading').classList.remove('hidden');
+    document.getElementById('dynamic-form').classList.add('hidden');
+
+    const { data: form, error } = await supabaseClient.from('project_forms').select('*').eq('slug', formSlug).single();
+    
+    if (error || !form) {
+        document.getElementById('form-loading').classList.add('hidden');
+        return showToast('Form not found', 'error');
+    }
+
+    document.getElementById('form-title').textContent = form.title;
+    document.getElementById('form-subtitle').textContent = form.description || 'Please fill out the form below.';
+    document.getElementById('form-loading').classList.add('hidden');
+    
+    const formEl = document.getElementById('dynamic-form');
+    formEl.classList.remove('hidden');
+    formEl.innerHTML = form.fields.map(f => `
+        <div>
+            <label class="block text-xs mb-1" style="color: var(--text-muted);">${escapeHtml(f.name)}</label>
+            <input type="${f.type || 'text'}" name="${escapeHtml(f.name)}" ${f.required ? 'required' : ''} class="w-full rounded-lg px-4 py-3" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
+        </div>
+    `).join('') + `<button type="submit" class="w-full font-bold py-3 rounded-lg text-white mt-4" style="background: var(--accent);">Submit</button>`;
+
+    formEl.onsubmit = async (e) => {
+        e.preventDefault();
+        const data = Object.fromEntries(new FormData(e.target).entries());
+        formEl.innerHTML = '<p class="text-center py-4">Submitting...</p>';
+        try {
+            // 1. Log submission
+            await supabaseClient.from('form_submissions').insert({ form_id: form.id, project_id: form.project_id, data });
+            // 2. Insert into actual table via edge function (assuming ukmdata handles inserts)
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            await fetch(SUPABASE_URL + '/functions/v1/ukmdata', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + (session ? session.access_token : SUPABASE_ANON_KEY), 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'bulk_insert', project_id: form.project_id, table_name: form.table_name, rows: [data] })
+            });
+            formEl.classList.add('hidden');
+            document.getElementById('form-success').classList.remove('hidden');
+            if (form.notify_email) {
+                window.sendNotification(form.project_id, form.notify_email, 'email', 'New Form Submission', JSON.stringify(data));
+            }
+        } catch (err) {
+            showToast('Failed to submit: ' + err.message, 'error');
+            formEl.innerHTML = '<p class="text-center text-red-400">Error submitting. Try again.</p>';
+        }
+    };
+};
+
+// ---------------------------------------------------
+// 2. UKMLANDING (Public Pages & Waitlist)
+// ---------------------------------------------------
+window.openLandingBuilder = function(projectId) {
+    let modal = document.getElementById('ukmlanding-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'ukmlanding-modal';
+        modal.className = 'hidden fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm';
+        document.body.appendChild(modal);
+    }
+    modal.classList.remove('hidden');
+
+    const proj = state.projectsCache.find(p => p.id === projectId);
+    modal.innerHTML = `
+    <div class="w-full max-w-lg rounded-2xl p-6 glow" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-bold" style="color: var(--text);">Landing Page Builder</h2>
+            <button onclick="document.getElementById('ukmlanding-modal').classList.add('hidden')" style="color: var(--text-muted);">✕</button>
+        </div>
+        <div class="space-y-4">
+            <div><label class="block text-xs mb-1" style="color: var(--text-muted);">Hero Headline</label><input type="text" id="landing-headline" value="${proj.landing_headline || ''}" placeholder="The best app for X" class="w-full rounded-lg px-3 py-2 text-sm" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></div>
+            <div><label class="block text-xs mb-1" style="color: var(--text-muted);">Hero Subtext</label><input type="text" id="landing-subtext" value="${proj.landing_subtext || ''}" placeholder="Join the waitlist today." class="w-full rounded-lg px-3 py-2 text-sm" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></div>
+            <button onclick="saveLandingPage('${projectId}')" class="w-full font-bold py-3 rounded-lg text-white" style="background: var(--accent);">Save Landing Page</button>
+        </div>
+    </div>`;
+};
+
+window.saveLandingPage = async function(projectId) {
+    const headline = document.getElementById('landing-headline').value;
+    const subtext = document.getElementById('landing-subtext').value;
+    await supabaseClient.from('projects').update({ landing_headline: headline, landing_subtext: subtext, landing_enabled: true }).eq('id', projectId);
+    showToast('Landing page updated!');
+    document.getElementById('ukmlanding-modal').classList.add('hidden');
+};
+
+window.loadPublicLandingV2 = async function(projectSlug) {
+    document.getElementById('landing-view').classList.add('hidden'); document.getElementById('dashboard-view').classList.add('hidden'); document.getElementById('auth-view').classList.add('hidden');
+    document.getElementById('public-page-view').classList.remove('hidden');
+    
+    const { data: proj } = await supabaseClient.from('projects').select('*').eq('slug', projectSlug).single();
+    if (!proj) return showToast('Project not found', 'error');
+
+    document.getElementById('page-title').textContent = proj.landing_headline || proj.name;
+    document.getElementById('page-content').innerHTML = `
+        <div class="col-span-full text-center mb-8">
+            <p class="text-lg mb-6" style="color: var(--text-muted);">${proj.landing_subtext || proj.description || 'Welcome to our app.'}</p>
+            <div class="max-w-md mx-auto bg-[var(--surface)] p-6 rounded-xl border border-[var(--border)]">
+                <h3 class="font-bold mb-4" style="color: var(--text);">Join the Waitlist</h3>
+                <input type="email" id="landing-waitlist-email" placeholder="you@example.com" class="w-full rounded-lg px-4 py-3 mb-3" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
+                <button onclick="submitWaitlist('${proj.id}')" class="w-full font-bold py-3 rounded-lg text-white" style="background: var(--accent);">Notify Me</button>
+            </div>
+        </div>
+    `;
+    document.getElementById('page-content').classList.remove('hidden');
+};
+
+window.submitWaitlist = async function(projectId) {
+    const email = document.getElementById('landing-waitlist-email').value;
+    if (!email) return;
+    await supabaseClient.from('waitlist').insert({ email, source: 'landing_page' });
+    showToast('Added to waitlist!');
+    document.getElementById('landing-waitlist-email').value = '';
+};
+
+// ---------------------------------------------------
+// 3. UKMDOCS (Auto-generated API Docs)
+// ---------------------------------------------------
+window.loadPublicDocs = async function(projectSlug) {
+    document.getElementById('landing-view').classList.add('hidden'); document.getElementById('dashboard-view').classList.add('hidden'); document.getElementById('auth-view').classList.add('hidden');
+    
+    let view = document.getElementById('ukmdocs-view');
+    if (!view) {
+        view = document.createElement('div');
+        view.id = 'ukmdocs-view';
+        view.className = 'min-h-screen bg-[#0B1020] p-6';
+        document.body.appendChild(view);
+    }
+    view.classList.remove('hidden');
+    view.innerHTML = `<div class="max-w-4xl mx-auto"><div class="text-center py-20"><div class="inline-block w-8 h-8 border-4 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent);"></div></div></div>`;
+
+    const { data: proj } = await supabaseClient.from('projects').select('*').eq('slug', projectSlug).single();
+    if (!proj) {
+        view.innerHTML = '<h1 class="text-white text-center mt-20">Project not found.</h1>';
+        return;
+    }
+
+    const { data: tables } = await supabaseClient.from('project_schemas').select('schema_name').eq('project_id', proj.id).single();
+    const schema = tables ? tables.schema_name : 'public';
+
+    view.innerHTML = `
+    <div class="max-w-4xl mx-auto">
+        <header class="mb-10 text-center">
+            <h1 class="text-3xl font-extrabold mb-2" style="color: var(--text);">${escapeHtml(proj.name)} API</h1>
+            <p class="text-sm" style="color: var(--text-muted);">Auto-generated documentation</p>
+        </header>
+        <div class="rounded-xl p-6 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
+            <h2 class="text-lg font-bold mb-4" style="color: var(--text);">Authentication</h2>
+            <p class="text-sm mb-2" style="color: var(--text-muted);">Use the following headers for all requests:</p>
+            <pre class="p-3 rounded text-xs mono" style="background: var(--bg); color: var(--cyan);">apikey: ${SUPABASE_ANON_KEY}\nAuthorization: Bearer ${SUPABASE_ANON_KEY}\nAccept-Profile: ${schema}</pre>
+        </div>
+        <div class="rounded-xl p-6" style="background: var(--surface); border: 1px solid var(--border);">
+            <h2 class="text-lg font-bold mb-4" style="color: var(--text);">Endpoints</h2>
+            <div class="space-y-4">
+                <div class="border-l-4 border-green-500 pl-4">
+                    <span class="font-bold text-green-400 text-sm mono">GET</span> <span class="mono text-sm" style="color: var(--text);">/rest/v1/{table_name}</span>
+                    <p class="text-xs mt-1" style="color: var(--text-muted);">Fetch rows from a table.</p>
+                </div>
+                <div class="border-l-4 border-blue-500 pl-4">
+                    <span class="font-bold text-blue-400 text-sm mono">POST</span> <span class="mono text-sm" style="color: var(--text);">/rest/v1/{table_name}</span>
+                    <p class="text-xs mt-1" style="color: var(--text-muted);">Insert a new row.</p>
+                </div>
+                <div class="border-l-4 border-yellow-500 pl-4">
+                    <span class="font-bold text-yellow-400 text-sm mono">PATCH</span> <span class="mono text-sm" style="color: var(--text);">/rest/v1/{table_name}?id=eq.{id}</span>
+                    <p class="text-xs mt-1" style="color: var(--text-muted);">Update a row by ID.</p>
+                </div>
+                <div class="border-l-4 border-red-500 pl-4">
+                    <span class="font-bold text-red-400 text-sm mono">DELETE</span> <span class="mono text-sm" style="color: var(--text);">/rest/v1/{table_name}?id=eq.{id}</span>
+                    <p class="text-xs mt-1" style="color: var(--text-muted);">Delete a row by ID.</p>
+                </div>
+            </div>
+        </div>
+        <p class="text-center text-xs mt-10" style="color: var(--text-dim);">Powered by Ukmbase Docs</p>
+    </div>`;
+};
+
+// ---------------------------------------------------
+// 4. UKMTEST (Postman built-in)
+// ---------------------------------------------------
+window.openUkmTest = function() {
+    let modal = document.getElementById('ukmtest-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'ukmtest-modal';
+        modal.className = 'hidden fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm';
+        document.body.appendChild(modal);
+    }
+    modal.classList.remove('hidden');
+
+    const proj = state.projectsCache.find(p => p.id === state.currentUkmDataProjectId) || state.projectsCache[0];
+    if (!proj) return showToast('Create a project first', 'error');
+    const schema = proj.slug.replace(/-/g, '_');
+
+    modal.innerHTML = `
+    <div class="w-full max-w-4xl rounded-2xl p-6 glow max-h-[90vh] flex flex-col" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-bold" style="color: var(--text);">UkmTest API Client</h2>
+            <button onclick="document.getElementById('ukmtest-modal').classList.add('hidden')" style="color: var(--text-muted);">✕</button>
+        </div>
+        <div class="flex gap-2 mb-4">
+            <select id="test-method" class="rounded-lg px-3 py-2 text-sm mono font-bold" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
+                <option>GET</option><option>POST</option><option>PATCH</option><option>DELETE</option>
+            </select>
+            <input type="text" id="test-url" value="${SUPABASE_URL}/rest/v1/your_table?select=*" class="flex-1 rounded-lg px-3 py-2 text-sm mono" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
+            <button onclick="runUkmTest()" id="test-run-btn" class="font-bold px-6 py-2 rounded-lg text-white" style="background: var(--accent);">Send</button>
+        </div>
+        <div class="flex gap-4 mb-4">
+            <div class="flex-1">
+                <label class="block text-xs mb-1" style="color: var(--text-muted);">Headers (JSON)</label>
+                <textarea id="test-headers" rows="4" class="w-full rounded-lg p-3 text-xs mono" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">{\n  "apikey": "${SUPABASE_ANON_KEY}",\n  "Authorization": "Bearer ${SUPABASE_ANON_KEY}",\n  "Accept-Profile": "${schema}"\n}</textarea>
+            </div>
+            <div class="flex-1">
+                <label class="block text-xs mb-1" style="color: var(--text-muted);">Body (JSON)</label>
+                <textarea id="test-body" rows="4" class="w-full rounded-lg p-3 text-xs mono" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">{}</textarea>
+            </div>
+        </div>
+        <div class="flex-1 rounded-lg p-4 overflow-auto" style="background: var(--bg); border: 1px solid var(--border);">
+            <pre id="test-response" class="text-xs mono" style="color: var(--text-dim);">Ready to send...</pre>
+        </div>
+    </div>`;
+};
+
+window.runUkmTest = async function() {
+    const method = document.getElementById('test-method').value;
+    const url = document.getElementById('test-url').value;
+    const headersStr = document.getElementById('test-headers').value;
+    const bodyStr = document.getElementById('test-body').value;
+    const btn = document.getElementById('test-run-btn');
+    const respEl = document.getElementById('test-response');
+
+    try {
+        btn.textContent = '...'; btn.disabled = true;
+        respEl.textContent = 'Sending request...';
+        
+        let headers = {};
+        try { headers = JSON.parse(headersStr); } catch(e) { throw new Error('Invalid JSON in Headers'); }
+        
+        let body = null;
+        if (method !== 'GET' && method !== 'DELETE' && bodyStr.trim()) {
+            try { body = JSON.parse(bodyStr); } catch(e) { throw new Error('Invalid JSON in Body'); }
+        }
+
+        const start = Date.now();
+        const res = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined });
+        const time = Date.now() - start;
+        const data = await res.text();
+
+        respEl.textContent = `Status: ${res.status} ${res.statusText} (${time}ms)\n\n${data}`;
+        respEl.style.color = res.ok ? 'var(--green)' : 'var(--red)';
+    } catch (e) {
+        respEl.textContent = 'Error: ' + e.message;
+        respEl.style.color = 'var(--red)';
+    } finally {
+        btn.textContent = 'Send'; btn.disabled = false;
+    }
+};
+
+// ---------------------------------------------------
+// AUTOMATIC UI INJECTION (Hooks into existing DOM)
+// ---------------------------------------------------
+document.addEventListener('DOMContentLoaded', () => {
+    // Inject "Form Builder" button next to "CSV" in UkmData Tables list
+    // We observe the table list and add our button when tables render
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            if (mutation.addedNodes.length) {
+                document.querySelectorAll('#ukmdata-tables-list > div').forEach(card => {
+                    if (!card.querySelector('.btn-form-builder')) {
+                        const tableName = card.querySelector('.mono').textContent;
+                        const btnContainer = card.querySelector('.flex-wrap.items-center.gap-2');
+                        if (btnContainer) {
+                            const btn = document.createElement('button');
+                            btn.className = 'btn-form-builder text-[10px] font-bold px-2 py-1.5 rounded-lg';
+                            btn.style.cssText = 'background: rgba(236,72,153,0.1); color: #EC4899; border: 1px solid rgba(236,72,153,0.3);';
+                            btn.textContent = 'Build Form';
+                            btn.onclick = () => openFormBuilder(tableName);
+                            btnContainer.insertBefore(btn, btnContainer.querySelector('button[onclick^="copyFormLink"]'));
+                        }
+                    }
+                });
+            }
+        });
+    });
+    const listContainer = document.getElementById('ukmdata-tables-list');
+    if (listContainer) observer.observe(listContainer, { childList: true, subtree: true });
+
+    // Inject "Docs" and "Test" buttons into the top nav or sidebar
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar) {
+        const navDiv = sidebar.querySelector('.p-4.space-y-1');
+        if (navDiv) {
+            // UkmTest Button
+            const testBtn = document.createElement('a');
+            testBtn.href = '#'; testBtn.className = 'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors';
+            testBtn.style.color = 'var(--text-muted)';
+            testBtn.innerHTML = '<svg class="w-5 h-5 text-[#10B981]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> UkmTest';
+            testBtn.onclick = openUkmTest;
+            
+            // Insert before Settings
+            const settingsDiv = navDiv.querySelector('#nav-settings')?.parentElement;
+            if (settingsDiv) navDiv.insertBefore(testBtn, settingsDiv);
+        }
+    }
+});
+
+// Override Init to handle new routes
+const originalInitDay2 = window.init;
+window.init = async function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('docs')) return loadPublicDocs(urlParams.get('docs'));
+    if (urlParams.has('landing')) return loadPublicLandingV2(urlParams.get('landing'));
+    if (urlParams.has('form') && urlParams.has('project')) return loadPublicFormV2(urlParams.get('project'), urlParams.get('form'));
+    if (originalInitDay2) await originalInitDay2();
+};
+
+// ============================================
+// END OF DAY 2 ADDITIONS
+// ============================================
