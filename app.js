@@ -1923,10 +1923,18 @@ document.addEventListener('DOMContentLoaded', () => {
 // END OF DAY 3 ADDITIONS
 // ============================================
 // ============================================
-// DAY 3 HOTFIX (Backups Project Selector)
+
+
+// ============================================
+// DAY 3 HOTFIX V2 (Bulletproof Backups)
 // ============================================
 
 window.openBackupModal = async function() {
+    // 1. Force a check: Do you have any projects?
+    if (!state.projectsCache || state.projectsCache.length === 0) {
+        return showToast('You must create a project first before making a backup!', 'error');
+    }
+
     let modal = document.getElementById('ukmbackup-modal');
     if (!modal) {
         modal = document.createElement('div');
@@ -1934,12 +1942,10 @@ window.openBackupModal = async function() {
         modal.className = 'hidden fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm';
         document.body.appendChild(modal);
     }
-    modal.classList.remove('hidden');
     
-    // Generate project options
-    const projOpts = state.projectsCache.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
-    // Auto-select the current project if one is active
-    const activeProj = state.currentUkmDataProjectId || (state.projectsCache.length > 0 ? state.projectsCache[0].id : '');
+    // 2. Guarantee a project is selected in the dropdown
+    const defaultProj = state.currentUkmDataProjectId || state.projectsCache[0].id;
+    const projOpts = state.projectsCache.map(p => `<option value="${p.id}" ${p.id === defaultProj ? 'selected' : ''}>${escapeHtml(p.name)}</option>`).join('');
 
     modal.innerHTML = `
     <div class="w-full max-w-lg rounded-2xl p-6 glow" style="background: var(--surface); border: 1px solid var(--border);">
@@ -1949,9 +1955,9 @@ window.openBackupModal = async function() {
         </div>
         
         <div class="mb-4">
-            <label class="block text-xs mb-1" style="color: var(--text-muted);">Select Project</label>
+            <label class="block text-xs mb-1" style="color: var(--text-muted);">Select Project to Backup</label>
             <select id="backup-project-select" class="w-full rounded-lg px-3 py-2 text-sm mono focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
-                ${projOpts || '<option value="">— no projects —</option>'}
+                ${projOpts}
             </select>
         </div>
 
@@ -1959,10 +1965,8 @@ window.openBackupModal = async function() {
         <div id="backups-list" class="space-y-2 max-h-60 overflow-y-auto"></div>
     </div>`;
     
-    if (activeProj) {
-        document.getElementById('backup-project-select').value = activeProj;
-        loadBackupsList(activeProj);
-    }
+    modal.classList.remove('hidden');
+    loadBackupsList(defaultProj);
 };
 
 window.loadBackupsList = async function(projectId) {
@@ -1988,9 +1992,11 @@ window.loadBackupsList = async function(projectId) {
 
 window.createBackup = async function() {
     const sel = document.getElementById('backup-project-select');
-    const pid = sel ? sel.value : null;
+    if (!sel) return showToast('Error: Selector not found.', 'error');
     
-    if (!pid) return showToast('Please select a project', 'error');
+    // 3. Strictly grab the project_id. If it's missing, STOP immediately.
+    const pid = sel.value;
+    if (!pid || pid === "") return showToast('Please select a project from the list.', 'error');
     
     const btn = document.getElementById('btn-create-backup');
     btn.textContent = 'Snapshotting...'; btn.disabled = true;
@@ -1998,7 +2004,7 @@ window.createBackup = async function() {
     try {
         const { data: { session } } = await supabaseClient.auth.getSession();
         
-        // 1. Export data
+        // 4. Send the exact `pid` to the edge function
         const res = await fetch(SUPABASE_URL + '/functions/v1/ukmdata', {
             method: 'POST',
             headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
@@ -2007,7 +2013,7 @@ window.createBackup = async function() {
         const data = await res.json();
         if (data.error) throw new Error(data.error);
 
-        // 2. Log the backup record
+        // 5. Save the record to the database with the exact `pid`
         const { error: dbErr } = await supabaseClient.from('project_backups').insert({
             project_id: pid,
             kind: 'manual',
@@ -2021,7 +2027,7 @@ window.createBackup = async function() {
         showToast('Backup ready! Downloading...');
         loadBackupsList(pid);
         
-        // 3. Automatically trigger download
+        // 6. Download the JSON file
         const proj = state.projectsCache.find(p => p.id === pid);
         const link = document.createElement('a');
         link.href = URL.createObjectURL(new Blob([JSON.stringify(data.export_data, null, 2)], { type: 'application/json' }));
