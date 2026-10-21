@@ -973,3 +973,238 @@ window.renderBilling = renderBilling; window.openUpgradeModal = openUpgradeModal
 window.copyToClipboard = copyToClipboard; window.runLandingDemo = runLandingDemo; window.joinWaitlist = joinWaitlist;
 
 init();
+
+
+// ============================================
+// DAY 1 ADDITIONS (NEW FEATURES ONLY)
+// ============================================
+// Everything below this line is brand new. 
+// None of your original HTML or JS was deleted.
+
+// 1. UKMNOTIFY (Email / WhatsApp Fan-out)
+window.sendNotification = async function(projectId, to, channel, subject, body) {
+    try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (!session) throw new Error("Not logged in");
+
+        const res = await fetch(SUPABASE_URL + '/functions/v1/ukmnotify', {
+            method: 'POST',
+            headers: { 
+                'Authorization': 'Bearer ' + session.access_token, 
+                'Content-Type': 'application/json' 
+            },
+            body: JSON.stringify({ project_id: projectId, to: to, channel: channel, subject: subject, body: body })
+        });
+        const data = await res.json();
+        
+        if (data.error) throw new Error(data.error);
+        showToast(`${channel.toUpperCase()} sent successfully!`);
+        return data;
+    } catch (err) {
+        showToast('Notification failed: ' + err.message, 'error');
+    }
+};
+
+// 2. UKMPAY LIVE (Webhook Reconcile UI)
+window.loadPaymentEvents = async function() {
+    if (!state.currentUser) return;
+    // Fetch unmatched webhooks
+    const { data, error } = await supabaseClient.from('payment_events').select('*').eq('processed', false).order('received_at', { ascending: false });
+    
+    const container = document.getElementById('pay-payments-panel');
+    if (!container) return;
+
+    // We inject a new UI block right above the payment list
+    let reconcileHtml = `
+        <div class="rounded-xl p-5 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
+            <h3 class="font-bold text-sm mb-3" style="color: var(--text);">Unmatched Webhook Payments (UkmPay Live)</h3>
+            <div class="space-y-2">`;
+            
+    if (!data || data.length === 0) {
+        reconcileHtml += `<p class="text-xs" style="color: var(--text-muted);">No unmatched events. All caught up!</p>`;
+    } else {
+        data.forEach(ev => {
+            reconcileHtml += `
+            <div class="flex items-center justify-between p-3 rounded-lg" style="background: var(--bg); border: 1px solid var(--border);">
+                <div>
+                    <p class="text-sm font-bold" style="color: var(--text);">${ev.customer_email || 'Unknown'}</p>
+                    <p class="text-xs mono" style="color: var(--cyan);">${ev.provider} - ${ev.currency} ${ev.amount}</p>
+                </div>
+                <button onclick="matchPaymentEvent('${ev.id}')" class="text-xs font-bold px-3 py-1.5 rounded-lg text-white" style="background: var(--green);">Reconcile</button>
+            </div>`;
+        });
+    }
+    reconcileHtml += `</div></div>`;
+    
+    // Check if it's already injected to avoid duplicates
+    if (!document.getElementById('reconcile-panel')) {
+        const div = document.createElement('div');
+        div.id = 'reconcile-panel';
+        div.innerHTML = reconcileHtml;
+        container.insertBefore(div, container.firstChild);
+    } else {
+        document.getElementById('reconcile-panel').innerHTML = reconcileHtml;
+    }
+};
+
+window.matchPaymentEvent = async function(eventId) {
+    try {
+        await supabaseClient.from('payment_events').update({ processed: true }).eq('id', eventId);
+        showToast('Payment reconciled!');
+        document.getElementById('reconcile-panel').remove();
+        loadPaymentEvents(); // Refresh
+        loadPayments();
+    } catch (e) {
+        showToast(e.message, 'error');
+    }
+};
+
+// 3. HOSTED AUTH PAGE (For your users' apps)
+window.renderHostedAuthPage = function(slug) {
+    document.getElementById('landing-view').classList.add('hidden');
+    document.getElementById('dashboard-view').classList.add('hidden');
+    
+    // Create a temporary view for the hosted auth
+    let view = document.getElementById('hosted-auth-view');
+    if (!view) {
+        view = document.createElement('div');
+        view.id = 'hosted-auth-view';
+        view.className = 'min-h-screen flex items-center justify-center p-6 bg-[#0B1020]';
+        document.body.appendChild(view);
+    }
+    view.classList.remove('hidden');
+
+    view.innerHTML = `
+    <div class="w-full max-w-md rounded-2xl p-8 glow" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="text-center mb-6">
+            <h1 class="text-2xl font-bold mb-2" style="color: var(--text);">Welcome to ${slug}</h1>
+            <p class="text-sm" style="color: var(--text-muted);">Sign in or create an account.</p>
+        </div>
+        <div id="hosted-auth-error" class="hidden bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-3 rounded-lg mb-4"></div>
+        <div class="space-y-4">
+            <input type="email" id="hosted-email" placeholder="Email" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
+            <input type="password" id="hosted-password" placeholder="Password" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
+            <button onclick="submitHostedAuth('${slug}')" class="w-full font-bold py-3 rounded-lg text-white" style="background: var(--accent);">Continue</button>
+        </div>
+        <p class="text-center text-xs mt-6" style="color: var(--text-dim);">Powered by Ukmbase</p>
+    </div>`;
+};
+
+window.submitHostedAuth = async function(slug) {
+    const email = document.getElementById('hosted-email').value;
+    const password = document.getElementById('hosted-password').value;
+    const errEl = document.getElementById('hosted-auth-error');
+    
+    if (!email || !password) return;
+    errEl.classList.add('hidden');
+
+    try {
+        const res = await fetch(SUPABASE_URL + '/functions/v1/ukmauth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'login', project_slug: slug, email, password })
+        });
+        const data = await res.json();
+        
+        if (data.error) {
+            // If login fails, try signup automatically for the demo
+            const signupRes = await fetch(SUPABASE_URL + '/functions/v1/ukmauth', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'signup', project_slug: slug, email, password })
+            });
+            const signupData = await signupRes.json();
+            if (signupData.error) throw new Error(signupData.error);
+            showToast('Account created and logged in!');
+            localStorage.setItem('ukm_user_token', signupData.token);
+        } else {
+            showToast('Logged in successfully!');
+            localStorage.setItem('ukm_user_token', data.token);
+        }
+        
+        document.getElementById('hosted-auth-view').classList.add('hidden');
+        document.getElementById('landing-view').classList.remove('hidden');
+    } catch (e) {
+        errEl.textContent = e.message;
+        errEl.classList.remove('hidden');
+    }
+};
+
+// 4. UKMSQL COPILOT (AI inside the editor)
+window.askCopilot = async function(action) {
+    const input = document.getElementById('sql-editor-input');
+    if (!input || !input.value.trim()) return showToast('Write some SQL first', 'error');
+    
+    const sql = input.value.trim();
+    let prompt = "";
+    
+    if (action === 'explain') prompt = "Explain what this SQL does in plain English:\n\n" + sql;
+    if (action === 'optimize') prompt = "Suggest indexes or optimizations for this SQL:\n\n" + sql;
+    
+    const btn = document.getElementById('sql-run-btn');
+    const orig = btn.textContent;
+    btn.textContent = 'Thinking...';
+    btn.disabled = true;
+
+    try {
+        const data = await aiCall({ prompt, mode: 'sql_copilot' });
+        // Show the AI response in the chat drawer
+        switchView('ukmai');
+        appendMessage('ai', "**SQL Copilot Suggestion:**\n\n" + data.content);
+    } catch (e) {
+        showToast(e.message, 'error');
+    } finally {
+        btn.textContent = orig;
+        btn.disabled = false;
+    }
+};
+
+// -------------------------------------------------------------------
+// AUTOMATIC UI INJECTION (So we don't have to touch your HTML)
+// -------------------------------------------------------------------
+// This script waits for the page to load, then adds the Copilot buttons 
+// right next to the "Run Query" button in your SQL Editor.
+document.addEventListener('DOMContentLoaded', () => {
+    const runBtn = document.getElementById('sql-run-btn');
+    if (runBtn && runBtn.parentElement) {
+        // Create the Explain Button
+        const explainBtn = document.createElement('button');
+        explainBtn.className = 'text-xs font-bold px-3 py-2 rounded-lg';
+        explainBtn.style.cssText = 'background: rgba(245,158,11,0.15); color: var(--amber); border: 1px solid rgba(245,158,11,0.3);';
+        explainBtn.innerText = 'Explain';
+        explainBtn.onclick = () => askCopilot('explain');
+
+        // Create the Optimize Button
+        const optimizeBtn = document.createElement('button');
+        optimizeBtn.className = 'text-xs font-bold px-3 py-2 rounded-lg';
+        optimizeBtn.style.cssText = 'background: rgba(6,182,212,0.15); color: var(--cyan); border: 1px solid rgba(6,182,212,0.3);';
+        optimizeBtn.innerText = 'Optimize';
+        optimizeBtn.onclick = () => askCopilot('optimize');
+
+        // Insert them just before the Run Query button
+        runBtn.parentElement.insertBefore(explainBtn, runBtn);
+        runBtn.parentElement.insertBefore(optimizeBtn, runBtn);
+    }
+});
+
+// Hook into init to check for Hosted Auth URL (?auth=my-project)
+const originalInit = window.init;
+window.init = async function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('auth')) {
+        renderHostedAuthPage(urlParams.get('auth'));
+        return; // Stop the rest of the app from loading
+    }
+    if (originalInit) await originalInit();
+};
+
+// Make sure Webhook panel loads when the view switches
+const originalSwitchView = window.switchView;
+window.switchView = function(view) {
+    if (originalSwitchView) originalSwitchView(view);
+    if (view === 'ukmpay') { loadPaymentEvents(); }
+};
+
+// ============================================
+// END OF DAY 1 ADDITIONS
+// ============================================
