@@ -1922,3 +1922,115 @@ document.addEventListener('DOMContentLoaded', () => {
 // ============================================
 // END OF DAY 3 ADDITIONS
 // ============================================
+// ============================================
+// DAY 3 HOTFIX (Backups Project Selector)
+// ============================================
+
+window.openBackupModal = async function() {
+    let modal = document.getElementById('ukmbackup-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'ukmbackup-modal';
+        modal.className = 'hidden fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm';
+        document.body.appendChild(modal);
+    }
+    modal.classList.remove('hidden');
+    
+    // Generate project options
+    const projOpts = state.projectsCache.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+    // Auto-select the current project if one is active
+    const activeProj = state.currentUkmDataProjectId || (state.projectsCache.length > 0 ? state.projectsCache[0].id : '');
+
+    modal.innerHTML = `
+    <div class="w-full max-w-lg rounded-2xl p-6 glow" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex items-center justify-between mb-4">
+            <div><h2 class="text-lg font-bold" style="color: var(--text);">UkmBackups</h2><p class="text-xs mt-1" style="color: var(--text-muted);">Snapshot your database.</p></div>
+            <button onclick="document.getElementById('ukmbackup-modal').classList.add('hidden')" style="color: var(--text-muted);">✕</button>
+        </div>
+        
+        <div class="mb-4">
+            <label class="block text-xs mb-1" style="color: var(--text-muted);">Select Project</label>
+            <select id="backup-project-select" class="w-full rounded-lg px-3 py-2 text-sm mono focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
+                ${projOpts || '<option value="">— no projects —</option>'}
+            </select>
+        </div>
+
+        <button onclick="createBackup()" id="btn-create-backup" class="w-full font-bold py-2 rounded-lg text-white mb-4" style="background: var(--accent);">+ Take Snapshot</button>
+        <div id="backups-list" class="space-y-2 max-h-60 overflow-y-auto"></div>
+    </div>`;
+    
+    if (activeProj) {
+        document.getElementById('backup-project-select').value = activeProj;
+        loadBackupsList(activeProj);
+    }
+};
+
+window.loadBackupsList = async function(projectId) {
+    if (!projectId) return;
+    const { data } = await supabaseClient.from('project_backups').select('*').eq('project_id', projectId).order('created_at', { ascending: false });
+    const list = document.getElementById('backups-list');
+    if (!list) return;
+    
+    if (!data || data.length === 0) {
+        list.innerHTML = '<p class="text-xs text-center py-4" style="color: var(--text-muted);">No backups yet for this project.</p>';
+        return;
+    }
+    list.innerHTML = data.map(b => `
+        <div class="p-3 rounded-lg flex items-center justify-between" style="background: var(--bg); border: 1px solid var(--border);">
+            <div>
+                <p class="text-xs font-bold" style="color: var(--text);">${new Date(b.created_at).toLocaleString()}</p>
+                <p class="text-[10px] mono" style="color: var(--text-dim);">${b.kind} · ${b.row_count || 0} tables</p>
+            </div>
+            <span class="text-[10px] text-green-400 font-bold">Ready</span>
+        </div>
+    `).join('');
+};
+
+window.createBackup = async function() {
+    const sel = document.getElementById('backup-project-select');
+    const pid = sel ? sel.value : null;
+    
+    if (!pid) return showToast('Please select a project', 'error');
+    
+    const btn = document.getElementById('btn-create-backup');
+    btn.textContent = 'Snapshotting...'; btn.disabled = true;
+    
+    try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        
+        // 1. Export data
+        const res = await fetch(SUPABASE_URL + '/functions/v1/ukmdata', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'export_project', project_id: pid })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        // 2. Log the backup record
+        const { error: dbErr } = await supabaseClient.from('project_backups').insert({
+            project_id: pid,
+            kind: 'manual',
+            status: 'ready',
+            row_count: data.export_data && data.export_data.tables ? data.export_data.tables.length : 0,
+            storage_path: 'inline' 
+        });
+        
+        if (dbErr) throw dbErr;
+
+        showToast('Backup ready! Downloading...');
+        loadBackupsList(pid);
+        
+        // 3. Automatically trigger download
+        const proj = state.projectsCache.find(p => p.id === pid);
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(new Blob([JSON.stringify(data.export_data, null, 2)], { type: 'application/json' }));
+        link.download = `${proj ? proj.slug : 'project'}_backup_${Date.now()}.json`;
+        link.click();
+
+    } catch (e) {
+        showToast(e.message, 'error');
+    } finally {
+        if(btn) { btn.textContent = '+ Take Snapshot'; btn.disabled = false; }
+    }
+};
