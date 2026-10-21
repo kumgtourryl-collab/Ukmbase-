@@ -2370,3 +2370,340 @@ document.addEventListener('DOMContentLoaded', () => {
 // ============================================
 // END OF DAY 4 ADDITIONS
 // ============================================
+// ============================================
+// DAY 5 + PROJECT SETTINGS ADDITIONS
+// ============================================
+
+// ---------------------------------------------------
+// 1. PROJECT SETTINGS HUB (Just like Supabase)
+// ---------------------------------------------------
+window.openProjectSettings = function(projectId) {
+    const proj = state.projectsCache.find(p => p.id === projectId);
+    if (!proj) return showToast('Project not found', 'error');
+    
+    let modal = document.getElementById('project-settings-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'project-settings-modal';
+        modal.className = 'hidden fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm';
+        document.body.appendChild(modal);
+    }
+    modal.classList.remove('hidden');
+
+    const schema = proj.slug.replace(/-/g, '_');
+
+    modal.innerHTML = `
+    <div class="w-full max-w-2xl rounded-2xl p-6 glow max-h-[90vh] flex flex-col" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex items-center justify-between mb-6">
+            <div>
+                <h2 class="text-lg font-bold" style="color: var(--text);">Project Settings</h2>
+                <p class="text-xs mono mt-1" style="color: var(--cyan);">${escapeHtml(proj.name)}</p>
+            </div>
+            <button onclick="document.getElementById('project-settings-modal').classList.add('hidden')" style="color: var(--text-muted);">✕</button>
+        </div>
+        
+        <div class="flex-1 overflow-y-auto space-y-4 pr-2">
+            <!-- API Credentials -->
+            <div class="rounded-xl p-4" style="background: var(--bg); border: 1px solid var(--border);">
+                <h3 class="text-sm font-bold mb-3" style="color: var(--text);">API Credentials</h3>
+                <div class="space-y-2 text-xs">
+                    <div class="flex justify-between items-center"><span style="color: var(--text-muted);">Project URL</span><span class="mono truncate ml-4" style="color: var(--text);">${SUPABASE_URL}</span></div>
+                    <div class="flex justify-between items-center"><span style="color: var(--text-muted);">Anon Key</span><span class="mono truncate ml-4" style="color: var(--text);">${SUPABASE_ANON_KEY}</span></div>
+                    <div class="flex justify-between items-center"><span style="color: var(--text-muted);">Schema Name</span><span class="mono" style="color: var(--text);">${schema}</span></div>
+                </div>
+            </div>
+
+            <!-- Quick Links -->
+            <div class="grid grid-cols-2 gap-3">
+                <button onclick="openSchemaDesigner('${projectId}'); document.getElementById('project-settings-modal').classList.add('hidden');" class="p-3 rounded-xl text-left" style="background: var(--bg); border: 1px solid var(--border);">
+                    <p class="text-xs font-bold mb-1" style="color: var(--text);">Schema Designer</p>
+                    <p class="text-[10px]" style="color: var(--text-muted);">View database relationships</p>
+                </button>
+                <button onclick="openAgentModal('${projectId}'); document.getElementById('project-settings-modal').classList.add('hidden');" class="p-3 rounded-xl text-left" style="background: var(--bg); border: 1px solid var(--border);">
+                    <p class="text-xs font-bold mb-1" style="color: var(--text);">AI Agents</p>
+                    <p class="text-[10px]" style="color: var(--text-muted);">Scheduled AI tasks</p>
+                </button>
+                <button onclick="openMobileSdkModal('${projectId}'); document.getElementById('project-settings-modal').classList.add('hidden');" class="p-3 rounded-xl text-left" style="background: var(--bg); border: 1px solid var(--border);">
+                    <p class="text-xs font-bold mb-1" style="color: var(--text);">Mobile SDK</p>
+                    <p class="text-[10px]" style="color: var(--text-muted);">Connect React Native / Flutter</p>
+                </button>
+                <button onclick="openHandoffModal('${projectId}'); document.getElementById('project-settings-modal').classList.add('hidden');" class="p-3 rounded-xl text-left" style="background: var(--bg); border: 1px solid var(--border);">
+                    <p class="text-xs font-bold mb-1" style="color: var(--text);">Code Handoff</p>
+                    <p class="text-[10px]" style="color: var(--text-muted);">Export to Next.js</p>
+                </button>
+            </div>
+
+            <!-- Danger Zone -->
+            <div class="rounded-xl p-4 mt-6" style="background: rgba(239,68,68,0.05); border: 1px solid rgba(239,68,68,0.2);">
+                <h3 class="text-sm font-bold mb-2 text-red-400">Danger Zone</h3>
+                <p class="text-xs mb-3" style="color: var(--text-muted);">Deleting this project will permanently remove all tables, users, and data.</p>
+                <button onclick="deleteProject('${proj.id}'); document.getElementById('project-settings-modal').classList.add('hidden');" class="text-xs font-bold px-4 py-2 rounded-lg bg-red-500/20 text-red-400">Delete Project</button>
+            </div>
+        </div>
+    </div>`;
+};
+
+// ---------------------------------------------------
+// 2. UKMSCHEMA DESIGNER (Visual Relationships)
+// ---------------------------------------------------
+window.openSchemaDesigner = async function(projectId) {
+    let modal = document.getElementById('ukmschema-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'ukmschema-modal';
+        modal.className = 'hidden fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm';
+        document.body.appendChild(modal);
+    }
+    modal.classList.remove('hidden');
+    
+    modal.innerHTML = `
+    <div class="w-full max-w-4xl rounded-2xl p-6 glow max-h-[90vh] flex flex-col" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-bold" style="color: var(--text);">Schema Designer</h2>
+            <button onclick="document.getElementById('ukmschema-modal').classList.add('hidden')" style="color: var(--text-muted);">✕</button>
+        </div>
+        <div id="schema-designer-content" class="flex-1 overflow-auto p-4 rounded-xl" style="background: var(--bg); border: 1px solid var(--border);">
+            <div class="text-center py-8"><div class="inline-block w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent);"></div></div>
+        </div>
+    </div>`;
+
+    try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        // Query information_schema to get columns
+        const res = await fetch(SUPABASE_URL + '/functions/v1/ukmdata', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                action: 'execute_sql', 
+                project_id: projectId,
+                sql_query: `SELECT table_name, column_name, data_type FROM information_schema.columns WHERE table_schema = (SELECT schema_name FROM project_schemas WHERE project_id = '${projectId}') ORDER BY table_name;`
+            })
+        });
+        const data = await res.json();
+        
+        if (data.error) throw new Error(data.error);
+        
+        const tables = {};
+        (data.data || []).forEach(row => {
+            if (!tables[row.table_name]) tables[row.table_name] = [];
+            tables[row.table_name].push(row.column_name);
+        });
+
+        const content = document.getElementById('schema-designer-content');
+        if (Object.keys(tables).length === 0) {
+            content.innerHTML = '<p class="text-sm text-center" style="color: var(--text-muted);">No tables created yet.</p>';
+            return;
+        }
+
+        content.innerHTML = `<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            ${Object.entries(tables).map(([tName, cols]) => `
+                <div class="rounded-lg p-3" style="background: var(--surface); border: 1px solid var(--border);">
+                    <h3 class="font-bold text-xs mb-2 mono" style="color: var(--cyan);">${escapeHtml(tName)}</h3>
+                    <ul class="space-y-1">
+                        ${cols.map(c => `<li class="text-[10px] mono" style="color: var(--text-muted);">${c === 'id' || c === 'created_at' ? '🔑 ' : '• '}${escapeHtml(c)}</li>`).join('')}
+                    </ul>
+                </div>
+            `).join('')}
+        </div>`;
+    } catch (e) {
+        document.getElementById('schema-designer-content').innerHTML = `<p class="text-sm text-center" style="color: var(--red);">${escapeHtml(e.message)}</p>`;
+    }
+};
+
+// ---------------------------------------------------
+// 3. UKMAGENTS (Scheduled AI)
+// ---------------------------------------------------
+window.openAgentModal = function(projectId) {
+    let modal = document.getElementById('ukmagent-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'ukmagent-modal';
+        modal.className = 'hidden fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm';
+        document.body.appendChild(modal);
+    }
+    modal.classList.remove('hidden');
+    
+    modal.innerHTML = `
+    <div class="w-full max-w-lg rounded-2xl p-6 glow" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex items-center justify-between mb-4">
+            <div><h2 class="text-lg font-bold" style="color: var(--text);">UkmAgents</h2><p class="text-xs mt-1" style="color: var(--text-muted);">Run AI on a schedule.</p></div>
+            <button onclick="document.getElementById('ukmagent-modal').classList.add('hidden')" style="color: var(--text-muted);">✕</button>
+        </div>
+        <div class="space-y-4">
+            <div><label class="block text-xs mb-1" style="color: var(--text-muted);">Schedule (Cron)</label><input type="text" id="agent-cron" value="0 8 * * *" class="w-full rounded-lg px-3 py-2 text-sm mono" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"><p class="text-[10px] mt-1" style="color: var(--text-dim);">Every day at 8:00 AM</p></div>
+            <div><label class="block text-xs mb-1" style="color: var(--text-muted);">AI Prompt</label><textarea id="agent-prompt" rows="3" placeholder="Summarize today's new orders and send to admin..." class="w-full rounded-lg px-3 py-2 text-sm" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></textarea></div>
+            <button onclick="createAgent('${projectId}')" class="w-full font-bold py-3 rounded-lg text-white" style="background: var(--accent);">Create Agent</button>
+        </div>
+    </div>`;
+};
+
+window.createAgent = async function(projectId) {
+    const cron = document.getElementById('agent-cron').value;
+    const prompt = document.getElementById('agent-prompt').value;
+    if (!cron || !prompt) return showToast('Fill all fields', 'error');
+
+    try {
+        await supabaseClient.from('project_crons').insert({
+            project_id: projectId,
+            schedule: cron,
+            sql_query: 'SELECT 1', // Dummy SQL required by table schema
+            cron_type: 'agent',
+            ai_prompt: prompt,
+            ai_channel: 'email',
+            ai_recipient: state.currentUser.email
+        });
+        showToast('Agent scheduled!');
+        document.getElementById('ukmagent-modal').classList.add('hidden');
+    } catch(e) {
+        showToast(e.message, 'error');
+    }
+};
+
+// ---------------------------------------------------
+// 4. UKMHANDOFF (Export to Next.js)
+// ---------------------------------------------------
+window.openHandoffModal = function(projectId) {
+    const proj = state.projectsCache.find(p => p.id === projectId);
+    if (!proj) return;
+    const schema = proj.slug.replace(/-/g, '_');
+
+    let modal = document.getElementById('ukmhandoff-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'ukmhandoff-modal';
+        modal.className = 'hidden fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm';
+        document.body.appendChild(modal);
+    }
+    modal.classList.remove('hidden');
+
+    modal.innerHTML = `
+    <div class="w-full max-w-3xl rounded-2xl p-6 glow max-h-[90vh] flex flex-col" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex items-center justify-between mb-4">
+            <div><h2 class="text-lg font-bold" style="color: var(--text);">Next.js Handoff</h2><p class="text-xs mt-1" style="color: var(--text-muted);">Copy this code to start your local frontend.</p></div>
+            <button onclick="document.getElementById('ukmhandoff-modal').classList.add('hidden')" style="color: var(--text-muted);">✕</button>
+        </div>
+        <div class="flex-1 overflow-auto rounded-lg p-4" style="background: var(--bg); border: 1px solid var(--border);">
+            <p class="text-xs font-bold mb-2" style="color: var(--text);">1. Install dependencies:</p>
+            <pre class="p-3 rounded text-[11px] mono mb-4 overflow-x-auto" style="background: var(--surface); color: var(--cyan);">npm install @supabase/supabase-js</pre>
+            
+            <p class="text-xs font-bold mb-2" style="color: var(--text);">2. Create \`lib/supabase.ts\`:</p>
+            <pre class="p-3 rounded text-[11px] mono mb-4 overflow-x-auto" style="background: var(--surface); color: var(--text-muted);">import { createClient } from '@supabase/supabase-js'
+
+export const supabase = createClient(
+  '${SUPABASE_URL}',
+  '${SUPABASE_ANON_KEY}'
+)</pre>
+
+            <p class="text-xs font-bold mb-2" style="color: var(--text);">3. Fetch data in \`app/page.tsx\`:</p>
+            <pre class="p-3 rounded text-[11px] mono overflow-x-auto" style="background: var(--surface); color: var(--text-muted);">import { supabase } from '@/lib/supabase'
+
+export default async function Home() {
+  const { data } = await supabase
+    .schema('${schema}')
+    .from('your_table_here')
+    .select('*')
+
+  return (
+    &lt;pre&gt;{JSON.stringify(data, null, 2)}&lt;/pre&gt;
+  )
+}</pre>
+        </div>
+    </div>`;
+};
+
+// ---------------------------------------------------
+// 5. UKMMOBILE SDK
+// ---------------------------------------------------
+window.openMobileSdkModal = function(projectId) {
+    const proj = state.projectsCache.find(p => p.id === projectId);
+    if (!proj) return;
+    const schema = proj.slug.replace(/-/g, '_');
+
+    let modal = document.getElementById('ukmmobile-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'ukmmobile-modal';
+        modal.className = 'hidden fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm';
+        document.body.appendChild(modal);
+    }
+    modal.classList.remove('hidden');
+
+    modal.innerHTML = `
+    <div class="w-full max-w-2xl rounded-2xl p-6 glow max-h-[90vh] flex flex-col" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex items-center justify-between mb-4">
+            <div><h2 class="text-lg font-bold" style="color: var(--text);">Mobile SDK</h2><p class="text-xs mt-1" style="color: var(--text-muted);">Connect your mobile app directly.</p></div>
+            <button onclick="document.getElementById('ukmmobile-modal').classList.add('hidden')" style="color: var(--text-muted);">✕</button>
+        </div>
+        <div class="flex gap-2 mb-4">
+            <button onclick="document.getElementById('mobile-sdk-content').innerText = mobileSdkReactNative('${schema}')" class="flex-1 text-xs font-bold py-2 rounded-lg text-white" style="background: var(--cyan);">React Native</button>
+            <button onclick="document.getElementById('mobile-sdk-content').innerText = mobileSdkPython('${schema}')" class="flex-1 text-xs font-bold py-2 rounded-lg text-white" style="background: var(--accent);">Python</button>
+        </div>
+        <div class="flex-1 overflow-auto rounded-lg p-4" style="background: var(--bg); border: 1px solid var(--border);">
+            <pre id="mobile-sdk-content" class="text-xs mono" style="color: var(--text-muted);">Select a platform above...</pre>
+        </div>
+    </div>`;
+};
+
+function mobileSdkReactNative(schema) {
+    return `// npm install @supabase/supabase-js
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  '${SUPABASE_URL}',
+  '${SUPABASE_ANON_KEY}'
+)
+
+// Fetch data
+const { data, error } = await supabase
+  .schema('${schema}')
+  .from('your_table')
+  .select('*')
+
+// Realtime
+supabase.channel('custom')
+  .on('postgres_changes', 
+    { event: '*', schema: '${schema}', table: 'your_table' }, 
+    (payload) => console.log(payload)
+  ).subscribe()`;
+}
+
+function mobileSdkPython(schema) {
+    return `# pip install supabase
+from supabase import create_client, Client
+
+url = "${SUPABASE_URL}"
+key = "${SUPABASE_ANON_KEY}"
+supabase: Client = create_client(url, key)
+
+# Fetch data
+response = supabase.schema("${schema}").table("your_table").select("*").execute()
+print(response.data)`;
+}
+
+// ---------------------------------------------------
+// AUTOMATIC UI INJECTION (Day 5)
+// ---------------------------------------------------
+document.addEventListener('DOMContentLoaded', () => {
+    // Inject a Settings gear into the Project Detail modal
+    const observer = new MutationObserver(() => {
+        const pdBody = document.getElementById('pd-body');
+        if (pdBody && state.viewingProjectId && !pdBody.querySelector('.btn-project-settings')) {
+            const settingsBtn = document.createElement('button');
+            settingsBtn.className = 'btn-project-settings w-full mt-2 font-bold py-3 rounded-lg text-white';
+            settingsBtn.style.background = 'var(--surface-2)';
+            settingsBtn.style.border = '1px solid var(--border)';
+            settingsBtn.innerHTML = '⚙️ Project Settings';
+            settingsBtn.onclick = () => openProjectSettings(state.viewingProjectId);
+            
+            // Insert before the danger zone buttons
+            const dangerZone = pdBody.querySelector('.space-y-2');
+            if (dangerZone) dangerZone.insertBefore(settingsBtn, dangerZone.firstChild);
+        }
+    });
+    const pdModal = document.getElementById('project-detail-modal');
+    if (pdModal) observer.observe(pdModal, { childList: true, subtree: true });
+});
+
+// ============================================
+// END OF DAY 5 ADDITIONS
+// ============================================
