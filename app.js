@@ -2040,3 +2040,333 @@ window.createBackup = async function() {
         if(btn) { btn.textContent = '+ Take Snapshot'; btn.disabled = false; }
     }
 };
+// ============================================
+// DAY 4 ADDITIONS (FORGE, VOICE, CODEGEN, FLOW)
+// ============================================
+
+// ---------------------------------------------------
+// 1. UKMFORGE (One prompt, whole app)
+// ---------------------------------------------------
+window.openForgeModal = function() {
+    let modal = document.getElementById('ukmforge-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'ukmforge-modal';
+        modal.className = 'hidden fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm';
+        document.body.appendChild(modal);
+    }
+    modal.classList.remove('hidden');
+    modal.innerHTML = `
+    <div class="w-full max-w-lg rounded-2xl p-6 glow" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex items-center justify-between mb-4">
+            <div><h2 class="text-lg font-bold" style="color: var(--text);">UkmForge</h2><p class="text-xs mt-1" style="color: var(--text-muted);">Describe your app. We'll build the database and tables.</p></div>
+            <button onclick="document.getElementById('ukmforge-modal').classList.add('hidden')" style="color: var(--text-muted);">✕</button>
+        </div>
+        <div class="space-y-4">
+            <textarea id="forge-prompt" rows="4" placeholder="e.g. A booking system for a hair salon with clients, services, and appointments." class="w-full rounded-lg px-4 py-3 text-sm focus:outline-none resize-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></textarea>
+            <button id="forge-submit-btn" onclick="executeForge()" class="w-full font-bold py-3 rounded-lg text-white" style="background: var(--accent);">Forge App</button>
+        </div>
+        <div id="forge-progress" class="hidden mt-4 space-y-2 text-xs" style="color: var(--text-muted);"></div>
+    </div>`;
+};
+
+window.executeForge = async function() {
+    const prompt = document.getElementById('forge-prompt').value.trim();
+    if (!prompt) return showToast('Describe your app first', 'error');
+    
+    const btn = document.getElementById('forge-submit-btn');
+    const prog = document.getElementById('forge-progress');
+    btn.textContent = 'Forging...'; btn.disabled = true;
+    prog.classList.remove('hidden');
+    prog.innerHTML = '<p>🧠 AI is designing your schema...</p>';
+
+    try {
+        // 1. Ask AI for the schema
+        const aiPrompt = `Create a database schema for this app: "${prompt}". 
+        Return ONLY a JSON object. No markdown. 
+        Format: { "project_name": "Name", "tables": [ { "name": "table_name", "columns": [ {"name": "col1", "type": "text"}, {"name": "col2", "type": "number"} ] } ] }`;
+        
+        const aiData = await aiCall({ prompt: aiPrompt, mode: 'default' });
+        const schemaJson = aiExtractJSON(aiData.content || '');
+        
+        if (!schemaJson || !schemaJson.tables) throw new Error("AI did not return a valid schema.");
+        
+        prog.innerHTML += '<p>✅ Schema designed!</p><p>🏗️ Creating project...</p>';
+
+        // 2. Create the project
+        const projName = schemaJson.project_name || 'Forged App';
+        const slug = projName.toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + Math.floor(Math.random()*1000);
+        
+        const { data: newProj, error: projErr } = await supabaseClient.from('projects').insert({
+            owner_id: state.currentUser.id, name: projName, slug: slug, description: prompt
+        }).select().single();
+        
+        if (projErr) throw projErr;
+        prog.innerHTML += '<p>✅ Project created!</p><p>⚙️ Setting up database...</p>';
+
+        // 3. Enable UkmData for this project
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        const headers = { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' };
+        
+        await fetch(SUPABASE_URL + '/functions/v1/ukmdata', {
+            method: 'POST', headers,
+            body: JSON.stringify({ action: 'enable', project_id: newProj.id })
+        });
+
+        // 4. Create all tables
+        for (const t of schemaJson.tables) {
+            await fetch(SUPABASE_URL + '/functions/v1/ukmdata', {
+                method: 'POST', headers,
+                body: JSON.stringify({ action: 'create_table', project_id: newProj.id, table: t })
+            });
+            prog.innerHTML += `<p>✅ Table <b>${escapeHtml(t.name)}</b> created!</p>`;
+        }
+
+        prog.innerHTML += '<p style="color: var(--green); font-weight: bold; margin-top: 10px;">🚀 App forged successfully!</p>';
+        
+        setTimeout(async () => {
+            document.getElementById('ukmforge-modal').classList.add('hidden');
+            await loadProjects();
+            state.currentUkmDataProjectId = newProj.id;
+            switchView('ukmdata');
+            showToast('App forged successfully!');
+        }, 2000);
+
+    } catch (e) {
+        prog.innerHTML += `<p style="color: var(--red);">❌ Error: ${escapeHtml(e.message)}</p>`;
+        btn.textContent = 'Try Again'; btn.disabled = false;
+    }
+};
+
+// ---------------------------------------------------
+// 2. UKMVOICE (Speech to Text)
+// ---------------------------------------------------
+window.startVoiceRecognition = function() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+        return showToast('Voice recognition is not supported in this browser.', 'error');
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    const micBtn = document.getElementById('ukm-voice-btn');
+    if (micBtn) micBtn.style.color = 'var(--red)'; // Turn red while listening
+    showToast('Listening... Speak now.');
+
+    recognition.start();
+
+    recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        const input = document.getElementById('chat-input');
+        if (input) {
+            input.value += (input.value ? ' ' : '') + transcript;
+            handleChatKeydown({ key: 'Enter', shiftKey: false, preventDefault: () => {} }); // Auto-send
+        }
+        if (micBtn) micBtn.style.color = 'var(--text-muted)';
+    };
+
+    recognition.onspeechend = () => { recognition.stop(); if (micBtn) micBtn.style.color = 'var(--text-muted)'; };
+    recognition.onerror = (e) => { showToast('Voice error: ' + e.error, 'error'); if (micBtn) micBtn.style.color = 'var(--text-muted)'; };
+};
+
+// ---------------------------------------------------
+// 3. UKMCODEGEN (Table to React/Flutter code)
+// ---------------------------------------------------
+window.openCodegenModal = async function(tableName) {
+    let modal = document.getElementById('ukmcodegen-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'ukmcodegen-modal';
+        modal.className = 'hidden fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm';
+        document.body.appendChild(modal);
+    }
+    modal.classList.remove('hidden');
+    
+    modal.innerHTML = `
+    <div class="w-full max-w-3xl rounded-2xl p-6 glow max-h-[90vh] flex flex-col" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex items-center justify-between mb-4">
+            <div><h2 class="text-lg font-bold" style="color: var(--text);">UkmCodegen: <span class="mono text-[var(--cyan)]">${escapeHtml(tableName)}</span></h2><p class="text-xs mt-1" style="color: var(--text-muted);">Generate UI code for this table.</p></div>
+            <button onclick="document.getElementById('ukmcodegen-modal').classList.add('hidden')" style="color: var(--text-muted);">✕</button>
+        </div>
+        
+        <div class="flex gap-2 mb-4">
+            <button onclick="generateCode('${tableName}', 'react')" class="flex-1 text-xs font-bold py-2 rounded-lg text-white" style="background: var(--accent);">React</button>
+            <button onclick="generateCode('${tableName}', 'flutter')" class="flex-1 text-xs font-bold py-2 rounded-lg text-white" style="background: var(--cyan);">Flutter</button>
+        </div>
+
+        <div class="flex-1 rounded-lg overflow-auto p-4" style="background: var(--bg); border: 1px solid var(--border);">
+            <pre id="codegen-output" class="text-xs mono" style="color: var(--text-muted);">Select a framework above to generate code...</pre>
+        </div>
+    </div>`;
+};
+
+window.generateCode = function(tableName, framework) {
+    const out = document.getElementById('codegen-output');
+    const proj = state.projectsCache.find(p => p.id === state.currentUkmDataProjectId);
+    if (!proj) return;
+    const schema = proj.slug.replace(/-/g, '_');
+
+    out.textContent = 'Generating...';
+
+    setTimeout(() => {
+        if (framework === 'react') {
+            out.textContent = `import { useEffect, useState } from 'react'\nimport { createClient } from '@supabase/supabase-js'\n\nconst supabase = createClient('${SUPABASE_URL}', '${SUPABASE_ANON_KEY}')\n\nexport default function ${tableName.charAt(0).toUpperCase() + tableName.slice(1)}List() {\n  const [data, setData] = useState([])\n\n  useEffect(() => {\n    supabase.schema('${schema}').from('${tableName}').select('*').then(({ data }) => setData(data || []))\n  }, [])\n\n  return (\n    <div>\n      <h1>${tableName}</h1>\n      <ul>\n        {data.map(item => (\n          <li key={item.id}>{JSON.stringify(item)}</li>\n        ))}\n      </ul>\n    </div>\n  )\n}`;
+        } else {
+            out.textContent = `import 'package:flutter/material.dart';\nimport 'package:supabase_flutter/supabase_flutter.dart';\n\nclass ${tableName.charAt(0).toUpperCase() + tableName.slice(1)}List extends StatefulWidget {\n  @override\n  _${tableName.charAt(0).toUpperCase() + tableName.slice(1)}ListState createState() => _${tableName.charAt(0).toUpperCase() + tableName.slice(1)}ListState();\n}\n\nclass _${tableName.charAt(0).toUpperCase() + tableName.slice(1)}ListState extends State<${tableName.charAt(0).toUpperCase() + tableName.slice(1)}List> {\n  List<dynamic> data = [];\n\n  @override\n  void initState() {\n    super.initState();\n    fetchData();\n  }\n\n  void fetchData() async {\n    final res = await Supabase.instance.client.schema('${schema}').from('${tableName}').select();\n    setState(() { data = res; });\n  }\n\n  @override\n  Widget build(BuildContext context) {\n    return Scaffold(\n      appBar: AppBar(title: Text('${tableName}')),\n      body: ListView.builder(\n        itemCount: data.length,\n        itemBuilder: (context, index) {\n          return ListTile(title: Text(data[index].toString()));\n        },\n      ),\n    );\n  }\n}`;
+        }
+        out.style.color = 'var(--text)';
+    }, 500);
+};
+
+// ---------------------------------------------------
+// 4. UKMFLOW (Simple Automations)
+// ---------------------------------------------------
+window.openFlowModal = async function() {
+    let modal = document.getElementById('ukmflow-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'ukmflow-modal';
+        modal.className = 'hidden fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm';
+        document.body.appendChild(modal);
+    }
+    modal.classList.remove('hidden');
+    
+    modal.innerHTML = `
+    <div class="w-full max-w-lg rounded-2xl p-6 glow" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex items-center justify-between mb-4">
+            <div><h2 class="text-lg font-bold" style="color: var(--text);">UkmFlow</h2><p class="text-xs mt-1" style="color: var(--text-muted);">Trigger actions when data changes.</p></div>
+            <button onclick="document.getElementById('ukmflow-modal').classList.add('hidden')" style="color: var(--text-muted);">✕</button>
+        </div>
+        <div class="space-y-4">
+            <div><label class="block text-xs mb-1" style="color: var(--text-muted);">When a row is added to...</label><select id="flow-table" class="w-full rounded-lg px-3 py-2 text-sm mono" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">${state.ukmDataTables.map(t => `<option value="${t.table_name}">${t.table_name}</option>`).join('')}</select></div>
+            <div><label class="block text-xs mb-1" style="color: var(--text-muted);">Send an Email to...</label><input type="email" id="flow-email" placeholder="admin@myapp.com" class="w-full rounded-lg px-3 py-2 text-sm" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></div>
+            <button onclick="saveFlow()" class="w-full font-bold py-3 rounded-lg text-white" style="background: var(--accent);">Create Flow</button>
+        </div>
+        <div id="flows-list" class="mt-6 space-y-2 max-h-48 overflow-y-auto"></div>
+    </div>`;
+    
+    loadFlows();
+};
+
+window.saveFlow = async function() {
+    const table = document.getElementById('flow-table').value;
+    const email = document.getElementById('flow-email').value;
+    if (!table || !email) return showToast('Select a table and enter an email', 'error');
+
+    try {
+        await supabaseClient.from('project_flows').insert({
+            project_id: state.currentUkmDataProjectId,
+            name: `Email on new ${table}`,
+            trigger_type: 'insert',
+            trigger_table: table,
+            actions: [{ type: 'email', to: email, subject: 'New record in ' + table }]
+        });
+        showToast('Flow created!');
+        document.getElementById('flow-email').value = '';
+        loadFlows();
+    } catch (e) {
+        showToast(e.message, 'error');
+    }
+};
+
+window.loadFlows = async function() {
+    const { data } = await supabaseClient.from('project_flows').select('*').eq('project_id', state.currentUkmDataProjectId);
+    const list = document.getElementById('flows-list');
+    if (!list) return;
+    if (!data || data.length === 0) {
+        list.innerHTML = '<p class="text-xs text-center" style="color: var(--text-muted);">No flows yet.</p>';
+        return;
+    }
+    list.innerHTML = data.map(f => `
+        <div class="p-3 rounded-lg flex items-center justify-between" style="background: var(--bg); border: 1px solid var(--border);">
+            <div>
+                <p class="text-xs font-bold" style="color: var(--text);">${escapeHtml(f.name)}</p>
+                <p class="text-[10px] mono" style="color: var(--cyan);">→ ${escapeHtml(f.actions[0].to)}</p>
+            </div>
+            <button onclick="deleteFlow('${f.id}')" class="text-red-400 text-xs">Delete</button>
+        </div>
+    `).join('');
+};
+
+window.deleteFlow = async function(id) {
+    await supabaseClient.from('project_flows').delete().eq('id', id);
+    loadFlows();
+};
+
+// ---------------------------------------------------
+// AUTOMATIC UI INJECTION (Day 4)
+// ---------------------------------------------------
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. Inject "Forge App" button next to "New Project"
+    const newProjBtn = document.querySelector('button[onclick="openProjectModal()"]');
+    if (newProjBtn) {
+        const forgeBtn = document.createElement('button');
+        forgeBtn.className = 'text-xs font-bold py-2 px-4 rounded-lg transition-colors flex items-center gap-2 text-white ml-2';
+        forgeBtn.style.background = 'var(--accent)';
+        forgeBtn.innerHTML = '✨ Forge with AI';
+        forgeBtn.onclick = openForgeModal;
+        newProjBtn.parentElement.appendChild(forgeBtn);
+    }
+
+    // 2. Inject Mic Icon into Chat Input
+    const chatSend = document.getElementById('chat-send');
+    if (chatSend) {
+        const micBtn = document.createElement('button');
+        micBtn.id = 'ukm-voice-btn';
+        micBtn.className = 'p-3 rounded-lg transition-colors text-white mb-1 mr-2';
+        micBtn.style.background = 'var(--surface)';
+        micBtn.style.border = '1px solid var(--border)';
+        micBtn.style.color = 'var(--text-muted)';
+        micBtn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>';
+        micBtn.onclick = startVoiceRecognition;
+        chatSend.parentElement.insertBefore(micBtn, chatSend);
+    }
+
+    // 3. Inject "Codegen" button into UkmData Tables list
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            if (mutation.addedNodes.length) {
+                document.querySelectorAll('#ukmdata-tables-list > div').forEach(card => {
+                    if (!card.querySelector('.btn-codegen')) {
+                        const tableName = card.querySelector('.mono').textContent;
+                        const btnContainer = card.querySelector('.flex-wrap.items-center.gap-2');
+                        if (btnContainer) {
+                            const btn = document.createElement('button');
+                            btn.className = 'btn-codegen text-[10px] font-bold px-2 py-1.5 rounded-lg';
+                            btn.style.cssText = 'background: rgba(139,92,246,0.1); color: #8B5CF6; border: 1px solid rgba(139,92,246,0.3);';
+                            btn.textContent = 'Codegen';
+                            btn.onclick = () => openCodegenModal(tableName);
+                            btnContainer.insertBefore(btn, btnContainer.querySelector('button[onclick^="showTableApi"]'));
+                        }
+                    }
+                });
+            }
+        });
+    });
+    const listContainer = document.getElementById('ukmdata-tables-list');
+    if (listContainer) observer.observe(listContainer, { childList: true, subtree: true });
+
+    // 4. Inject "UkmFlow" into Sidebar
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar) {
+        const navDiv = sidebar.querySelector('.p-4.space-y-1');
+        if (navDiv) {
+            const flowBtn = document.createElement('a');
+            flowBtn.href = '#'; flowBtn.className = 'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors';
+            flowBtn.style.color = 'var(--text-muted)';
+            flowBtn.innerHTML = '<svg class="w-5 h-5 text-[#F59E0B]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> UkmFlow';
+            flowBtn.onclick = (e) => { e.preventDefault(); openFlowModal(); };
+            
+            const testBtn = document.querySelector('#sidebar a[onclick*="UkmTest"]');
+            if (testBtn) navDiv.insertBefore(flowBtn, testBtn);
+            else navDiv.appendChild(flowBtn);
+        }
+    }
+});
+
+// ============================================
+// END OF DAY 4 ADDITIONS
+// ============================================
