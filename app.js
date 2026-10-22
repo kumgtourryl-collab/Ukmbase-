@@ -2828,3 +2828,166 @@ window.startVoiceRecognition = function() {
         showToast('Could not start mic: ' + e.message, 'error');
     }
 };
+// ============================================
+// PHASE 2: CLOUD BACKUPS & SDK GENERATOR
+// ============================================
+
+// ---------------------------------------------------
+// 1. TRUE CLOUD BACKUPS (Upload to Storage)
+// ---------------------------------------------------
+window.createBackup = async function() {
+    const sel = document.getElementById('backup-project-select');
+    if (!sel) return showToast('Error: Selector not found.', 'error');
+    
+    const pid = sel.value;
+    if (!pid) return showToast('Please select a project from the list.', 'error');
+    
+    const btn = document.getElementById('btn-create-backup');
+    btn.textContent = 'Snapshotting...'; btn.disabled = true;
+    
+    try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        
+        // 1. Export data
+        const res = await fetch(SUPABASE_URL + '/functions/v1/ukmdata', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'export_project', project_id: pid })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        const jsonStr = JSON.stringify(data.export_data, null, 2);
+        const fileName = `${session.user.id}/${pid}_${Date.now()}.json`;
+
+        // 2. Upload to Supabase Storage
+        const { error: storageErr } = await supabaseClient.storage
+            .from('backups')
+            .upload(fileName, jsonStr, { contentType: 'application/json' });
+            
+        if (storageErr) throw storageErr;
+
+        // 3. Log the backup record in the database
+        const { error: dbErr } = await supabaseClient.from('project_backups').insert({
+            project_id: pid,
+            kind: 'manual',
+            status: 'ready',
+            row_count: data.export_data && data.export_data.tables ? data.export_data.tables.length : 0,
+            storage_path: fileName, // Save the cloud path!
+            size_bytes: new Blob([jsonStr]).size
+        });
+        
+        if (dbErr) throw dbErr;
+
+        showToast('Cloud backup successful!');
+        loadBackupsList(pid);
+        
+    } catch (e) {
+        showToast(e.message, 'error');
+    } finally {
+        if(btn) { btn.textContent = '+ Take Snapshot'; btn.disabled = false; }
+    }
+};
+
+window.loadBackupsList = async function(projectId) {
+    if (!projectId) return;
+    const { data } = await supabaseClient.from('project_backups').select('*').eq('project_id', projectId).order('created_at', { ascending: false });
+    const list = document.getElementById('backups-list');
+    if (!list) return;
+    
+    if (!data || data.length === 0) {
+        list.innerHTML = '<p class="text-xs text-center py-4" style="color: var(--text-muted);">No backups yet for this project.</p>';
+        return;
+    }
+    list.innerHTML = data.map(b => `
+        <div class="p-3 rounded-lg flex items-center justify-between" style="background: var(--bg); border: 1px solid var(--border);">
+            <div>
+                <p class="text-xs font-bold" style="color: var(--text);">${new Date(b.created_at).toLocaleString()}</p>
+                <p class="text-[10px] mono" style="color: var(--text-dim);">${b.kind} · ${b.row_count || 0} tables · ${formatBytes(b.size_bytes || 0)}</p>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="restoreBackup('${b.id}', '${b.storage_path}')" class="text-[10px] text-green-400 font-bold">Restore</button>
+                <button onclick="downloadCloudBackup('${b.storage_path}')" class="text-[10px] text-cyan-400 font-bold">Download</button>
+            </div>
+        </div>
+    `).join('');
+};
+
+window.downloadCloudBackup = async function(path) {
+    if (!path) return showToast('No path found', 'error');
+    const { data, error } = await supabaseClient.storage.from('backups').download(path);
+    if (error) return showToast(error.message, 'error');
+    
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(data);
+    link.download = path.split('/').pop();
+    link.click();
+};
+
+window.restoreBackup = async function(id, path) {
+    if (!confirm('Are you sure you want to restore this backup? This will overwrite current tables.')) return;
+    showToast('Restoring backup...');
+    try {
+        const { data: fileData, error: downloadErr } = await supabaseClient.storage.from('backups').download(path);
+        if (downloadErr) throw downloadErr;
+        
+        const jsonText = await fileData.text();
+        const importData = JSON.parse(jsonText);
+
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        const res = await fetch(SUPABASE_URL + '/functions/v1/ukmdata', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'import_project', project_id: state.currentUkmDataProjectId, import_data: importData })
+        });
+        const result = await res.json();
+        if (result.error) throw new Error(result.error);
+        
+        showToast('Backup restored successfully!');
+        loadUkmDataTables();
+    } catch (e) {
+        showToast(e.message, 'error');
+    }
+};
+
+// ---------------------------------------------------
+// 2. SDK GENERATOR (Show users exactly how to connect UkmSync)
+// ---------------------------------------------------
+window.openMobileSdkModal = function(projectId) {
+    const proj = state.projectsCache.find(p => p.id === projectId);
+    if (!proj) return;
+    const schema = proj.slug.replace(/-/g, '_');
+
+    let modal = document.getElementById('ukmmobile-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'ukmmobile-modal';
+        modal.className = 'hidden fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm';
+        document.body.appendChild(modal);
+    }
+    modal.classList.remove('hidden');
+
+    modal.innerHTML = `
+    <div class="w-full max-w-2xl rounded-2xl p-6 glow max-h-[90vh] flex flex-col" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex items-center justify-between mb-4">
+            <div><h2 class="text-lg font-bold" style="color: var(--text);">Connect your App</h2><p class="text-xs mt-1" style="color: var(--text-muted);">Drop this into your project to enable offline-first sync.</p></div>
+            <button onclick="document.getElementById('ukmmobile-modal').classList.add('hidden')" style="color: var(--text-muted);">✕</button>
+        </div>
+        
+        <p class="text-xs mb-2" style="color: var(--text-muted);">Paste this snippet into your HTML <span class="mono">&lt;head&gt;</span> tag:</p>
+        <div class="flex-1 overflow-auto rounded-lg p-4 mb-4" style="background: var(--bg); border: 1px solid var(--border);">
+            <pre id="sdk-snippet" class="text-xs mono" style="color: var(--cyan);">&lt;script 
+  src="https://your-github-pages-url.github.io/ukmsync.js"
+  data-ukm-project="${proj.slug}"
+  data-ukm-backend-url="https://ukmsync-server.onrender.com"
+  data-ukm-supabase-url="${SUPABASE_URL}"
+  data-ukm-anon-key="${SUPABASE_ANON_KEY}"
+  data-ukm-enabled="true"
+  data-ukm-strategy="last-write-wins"
+  data-ukm-poll-ms="5000"
+  defer
+&gt;&lt;/script&gt;</pre>
+        </div>
+        <button onclick="copyToClipboardText(document.getElementById('sdk-snippet').innerText)" class="w-full font-bold py-3 rounded-lg text-white" style="background: var(--accent);">Copy SDK Snippet</button>
+    </div>`;
+};
