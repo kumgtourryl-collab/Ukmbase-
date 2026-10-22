@@ -3652,3 +3652,166 @@ window.init = async function() {
     }
     if (originalInitDay6) await originalInitDay6();
 };
+// ============================================
+// PHASE 7: CLEAN UI OVERHAUL & DATA SCIENCE TOOLS
+// ============================================
+
+// ---------------------------------------------------
+// 1. UI CLEANUP: Tabbed Interface for Ukmbase Data
+// ---------------------------------------------------
+window.initUkmDataTabs = function() {
+    const panel = document.getElementById('ukmdata-panel');
+    if (!panel || document.getElementById('ukmdata-tabs-header')) return;
+
+    // 1. Create the Tab Bar
+    const tabBar = document.createElement('div');
+    tabBar.id = 'ukmdata-tabs-header';
+    tabBar.className = 'flex gap-2 mb-6 overflow-x-auto no-scrollbar';
+    tabBar.style.borderBottom = '1px solid var(--border)';
+    tabBar.innerHTML = `
+        <button onclick="switchDataTab('database')" class="data-tab active px-4 py-2 text-sm font-medium -mb-px" style="color: var(--text); border-bottom: 2px solid var(--accent);">Database</button>
+        <button onclick="switchDataTab('auth')" class="data-tab px-4 py-2 text-sm font-medium -mb-px" style="color: var(--text-muted); border-bottom: 2px solid transparent;">Auth & Users</button>
+        <button onclick="switchDataTab('storage')" class="data-tab px-4 py-2 text-sm font-medium -mb-px" style="color: var(--text-muted); border-bottom: 2px solid transparent;">Storage</button>
+        <button onclick="switchDataTab('integrations')" class="data-tab px-4 py-2 text-sm font-medium -mb-px" style="color: var(--text-muted); border-bottom: 2px solid transparent;">Integrations</button>
+        <button onclick="switchDataTab('advanced')" class="data-tab px-4 py-2 text-sm font-medium -mb-px" style="color: var(--text-muted); border-bottom: 2px solid transparent;">Advanced</button>
+    `;
+
+    // Insert tab bar right after the project selector
+    const projectSelector = panel.querySelector('.rounded-xl.p-4.mb-6');
+    if (projectSelector) {
+        projectSelector.parentNode.insertBefore(tabBar, projectSelector.nextSibling);
+    } else {
+        panel.insertBefore(tabBar, panel.firstChild);
+    }
+
+    // 2. Wrap existing cards into tab groups
+    const groups = {
+        database: ['ukmdata-tables-card', 'ukmdata-sql-card'],
+        auth: ['ukmdata-auth-card'],
+        storage: ['ukmdata-storage-card'],
+        integrations: ['ukmdata-webhooks-card', 'ukmdata-crons-card', 'ukmdata-mail-card'],
+        advanced: ['ukmdata-apikeys-card', 'ukmdata-logs-card']
+    };
+
+    // Create wrappers
+    Object.keys(groups).forEach(key => {
+        let wrapper = document.getElementById('ukmdata-tab-' + key);
+        if (!wrapper) {
+            wrapper = document.createElement('div');
+            wrapper.id = 'ukmdata-tab-' + key;
+            wrapper.className = key === 'database' ? 'block' : 'hidden';
+            panel.appendChild(wrapper);
+        }
+        // Move existing cards into the wrapper
+        groups[key].forEach(cardId => {
+            const card = document.getElementById(cardId);
+            if (card) wrapper.appendChild(card);
+        });
+    });
+
+    // 3. Add the Developer Hub card (Data Science / Postgres / GraphQL)
+    let devHub = document.getElementById('ukmdata-devhub-card');
+    if (!devHub) {
+        devHub = document.createElement('div');
+        devHub.id = 'ukmdata-devhub-card';
+        devHub.className = 'rounded-xl p-5 mb-6';
+        devHub.style.cssText = 'background: var(--surface); border: 1px solid var(--border);';
+        devHub.innerHTML = `
+            <div class="flex items-center justify-between mb-4">
+                <div><h3 class="font-bold" style="color: var(--text);">Developer Hub</h3><p class="text-xs mt-1" style="color: var(--text-muted);">Direct connections for Data Scientists & Engineers.</p></div>
+            </div>
+            <div class="space-y-4">
+                <!-- Postgres String -->
+                <div>
+                    <label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Direct Postgres Connection (Pooler)</label>
+                    <div class="flex gap-2">
+                        <input type="text" readonly id="dev-postgres-string" class="w-full rounded-lg px-3 py-2 text-xs mono focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--cyan);">
+                        <button onclick="copyToClipboardText(document.getElementById('dev-postgres-string').value)" class="px-3 text-xs font-bold rounded-lg text-white" style="background: var(--accent);">Copy</button>
+                    </div>
+                    <p class="text-[10px] mt-1" style="color: var(--text-dim);">Use this in DBeaver, TablePlus, or Python (SQLAlchemy/Psycopg2).</p>
+                </div>
+                <!-- Python Pandas Snippet -->
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="block text-xs font-medium" style="color: var(--text-muted);">Python (Pandas) Data Analysis</label>
+                        <button onclick="copyToClipboardText(document.getElementById('dev-python-snippet').textContent)" class="text-[10px] text-cyan-400">Copy</button>
+                    </div>
+                    <pre id="dev-python-snippet" class="mono text-[10px] p-3 rounded-lg overflow-x-auto" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></pre>
+                </div>
+                <!-- GraphQL Endpoint -->
+                <div>
+                    <label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">GraphQL Endpoint (via pg_graphql)</label>
+                    <div class="flex gap-2">
+                        <input type="text" readonly id="dev-graphql-url" class="w-full rounded-lg px-3 py-2 text-xs mono focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
+                        <button onclick="copyToClipboardText(document.getElementById('dev-graphql-url').value)" class="px-3 text-xs font-bold rounded-lg text-white" style="background: var(--accent);">Copy</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        // Put DevHub in the "Advanced" tab
+        const advancedTab = document.getElementById('ukmdata-tab-advanced');
+        if (advancedTab) advancedTab.insertBefore(devHub, advancedTab.firstChild);
+    }
+
+    updateDevHubInfo();
+};
+
+window.switchDataTab = function(tabName) {
+    // Update buttons
+    document.querySelectorAll('.data-tab').forEach(btn => {
+        btn.style.color = 'var(--text-muted)';
+        btn.style.borderBottomColor = 'transparent';
+    });
+    event.target.style.color = 'var(--text)';
+    event.target.style.borderBottomColor = 'var(--accent)';
+
+    // Update panels
+    ['database', 'auth', 'storage', 'integrations', 'advanced'].forEach(key => {
+        const el = document.getElementById('ukmdata-tab-' + key);
+        if (el) el.className = key === tabName ? 'block' : 'hidden';
+    });
+};
+
+window.updateDevHubInfo = function() {
+    if (!state.currentUkmDataProjectId) return;
+    const proj = state.projectsCache.find(p => p.id === state.currentUkmDataProjectId);
+    if (!proj) return;
+    
+    const schema = proj.slug.replace(/-/g, '_');
+    
+    // Update Postgres String
+    const pgString = `postgresql://postgres.dwjyzqsrzdgnpwibnyjn:[YOUR_DB_PASSWORD]@aws-0-eu-central-1.pooler.supabase.com:6543/postgres?options=-c%20search_path%3D${schema}`;
+    const pgInput = document.getElementById('dev-postgres-string');
+    if (pgInput) pgInput.value = pgString;
+
+    // Update Python Snippet
+    const pySnippet = `import pandas as pd
+from sqlalchemy import create_engine
+
+# Replace [YOUR_DB_PASSWORD] with your actual database password
+engine = create_engine("${pgString}")
+df = pd.read_sql("SELECT * FROM ${schema}.your_table_name LIMIT 100", engine)
+print(df.head())`;
+    const pyEl = document.getElementById('dev-python-snippet');
+    if (pyEl) pyEl.textContent = pySnippet;
+
+    // Update GraphQL URL
+    const gqlInput = document.getElementById('dev-graphql-url');
+    if (gqlInput) gqlInput.value = `${SUPABASE_URL}/graphql/v1`;
+};
+
+// Override onUkmDataProjectChange to ensure tabs are initialized
+const originalOnUkmDataProjectChange = window.onUkmDataProjectChange;
+window.onUkmDataProjectChange = async function() {
+    if (originalOnUkmDataProjectChange) await originalOnUkmDataProjectChange();
+    initUkmDataTabs();
+};
+
+// Also run when the view is switched to ukmdata
+const originalSwitchViewPhase7 = window.switchView;
+window.switchView = function(view) {
+    if (originalSwitchViewPhase7) originalSwitchViewPhase7(view);
+    if (view === 'ukmdata') {
+        setTimeout(initUkmDataTabs, 100);
+    }
+};
