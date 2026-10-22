@@ -3494,3 +3494,161 @@ document.addEventListener('DOMContentLoaded', () => {
     const pdModal = document.getElementById('project-detail-modal');
     if (pdModal) observer.observe(pdModal, { childList: true, subtree: true });
 });
+// ============================================
+// PHASE 6: UKMTOURS (The End-User Frontend)
+// ============================================
+
+window.loadTourismApp = async function(projectSlug) {
+    // 1. Hide Ukmbase Dashboard
+    document.querySelectorAll('[id^="view-"]').forEach(el => el.classList.add('hidden'));
+    document.getElementById('landing-view').classList.add('hidden');
+    document.getElementById('dashboard-view').classList.add('hidden');
+    document.getElementById('auth-view').classList.add('hidden');
+
+    // 2. Build the App UI
+    let appView = document.getElementById('view-tourism-app');
+    if (!appView) {
+        appView = document.createElement('div');
+        appView.id = 'view-tourism-app';
+        appView.className = 'min-h-screen bg-[#0B1020]';
+        document.body.appendChild(appView);
+    }
+    appView.classList.remove('hidden');
+
+    appView.innerHTML = `
+    <header class="relative py-20 px-6 text-center overflow-hidden">
+        <div class="absolute inset-0 bg-gradient-to-b from-[#4F46E5]/20 to-transparent"></div>
+        <div class="relative max-w-3xl mx-auto">
+            <h1 class="text-4xl md:text-5xl font-extrabold mb-4 text-white">Explore the World.</h1>
+            <p class="text-lg text-[#94A3B8] mb-8">Book unforgettable tours with local expert guides.</p>
+        </div>
+    </header>
+
+    <main class="max-w-5xl mx-auto px-6 pb-20">
+        <div id="tours-loading" class="text-center py-12">
+            <div class="inline-block w-8 h-8 border-4 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent);"></div>
+        </div>
+        <div id="tours-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 hidden"></div>
+    </main>
+
+    <!-- Booking Modal -->
+    <div id="tour-booking-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+        <div class="w-full max-w-md rounded-2xl p-6 glow" style="background: var(--surface); border: 1px solid var(--border);">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-bold" style="color: var(--text);">Book: <span id="booking-tour-title" class="text-[var(--cyan)]"></span></h2>
+                <button onclick="document.getElementById('tour-booking-modal').classList.add('hidden')" style="color: var(--text-muted);">✕</button>
+            </div>
+            <form id="booking-form" class="space-y-4">
+                <input type="hidden" id="booking-tour-id">
+                <div><label class="block text-xs mb-1" style="color: var(--text-muted);">Full Name</label><input type="text" id="booking-name" required class="w-full rounded-lg px-4 py-3 text-sm" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></div>
+                <div><label class="block text-xs mb-1" style="color: var(--text-muted);">Email</label><input type="email" id="booking-email" required class="w-full rounded-lg px-4 py-3 text-sm" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></div>
+                <div><label class="block text-xs mb-1" style="color: var(--text-muted);">Date</label><input type="date" id="booking-date" required class="w-full rounded-lg px-4 py-3 text-sm" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></div>
+                <button type="submit" id="booking-submit" class="w-full font-bold py-3 rounded-lg text-white" style="background: var(--green);">Confirm Booking</button>
+            </form>
+        </div>
+    </div>
+    `;
+
+    // 3. Fetch Tours
+    const schema = projectSlug.replace(/-/g, '_');
+    try {
+        const { data: tours, error } = await supabaseClient
+            .schema(schema)
+            .from('tours')
+            .select('*');
+
+        document.getElementById('tours-loading').classList.add('hidden');
+        
+        if (error) throw error;
+        const grid = document.getElementById('tours-grid');
+        grid.classList.remove('hidden');
+
+        if (!tours || tours.length === 0) {
+            grid.innerHTML = '<p class="text-center text-[#94A3B8] col-span-full">No tours available right now.</p>';
+            return;
+        }
+
+        grid.innerHTML = tours.map(t => `
+            <div class="rounded-xl overflow-hidden group cursor-pointer" style="background: var(--surface); border: 1px solid var(--border);" onclick="openBookingModal('${t.id}', '${escapeHtml(t.title)}')">
+                <div class="h-40 bg-[#1C2333] flex items-center justify-center relative overflow-hidden">
+                    <div class="absolute inset-0 bg-gradient-to-t from-[#0B1020] to-transparent z-10"></div>
+                    <span class="text-5xl z-0 group-hover:scale-110 transition-transform">🏝️</span>
+                </div>
+                <div class="p-5 relative z-20 -mt-6">
+                    <h3 class="text-lg font-bold mb-1" style="color: var(--text);">${escapeHtml(t.title)}</h3>
+                    <p class="text-xs mb-3" style="color: var(--text-muted);">${escapeHtml(t.location || 'Various Locations')} · ${t.duration_hours || 2} hours</p>
+                    <div class="flex justify-between items-center border-t pt-3" style="border-color: var(--border);">
+                        <span class="font-bold text-lg mono" style="color: var(--green);">$${Number(t.price || 0).toFixed(2)}</span>
+                        <span class="text-xs font-bold px-3 py-1 rounded" style="background: rgba(79,70,229,0.1); color: var(--accent);">Book Now</span>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+
+    } catch (e) {
+        document.getElementById('tours-loading').classList.add('hidden');
+        showToast('Failed to load tours: ' + e.message, 'error');
+    }
+
+    // 4. Handle Form Submit
+    document.getElementById('booking-form').onsubmit = async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('booking-submit');
+        btn.textContent = 'Processing...'; btn.disabled = true;
+
+        const booking = {
+            tour_id: document.getElementById('booking-tour-id').value,
+            customer_name: document.getElementById('booking-name').value,
+            customer_email: document.getElementById('booking-email').value,
+            booking_date: document.getElementById('booking-date').value,
+            status: 'confirmed'
+        };
+
+        try {
+            // Insert booking into the database
+            const { error } = await supabaseClient.schema(schema).from('bookings').insert(booking);
+            if (error) throw error;
+
+            // Trigger UkmNotify (Email the business owner)
+            const proj = state.projectsCache.find(p => p.slug === projectSlug);
+            if (proj) {
+                // We use the UkmNotify function we built on Day 1!
+                window.sendNotification(proj.id, proj.email || 'admin@ukmtours.com', 'email', 'New Tour Booking!', `A new booking was made by ${booking.customer_name} for ${document.getElementById('booking-tour-title').textContent}`);
+            }
+
+            document.getElementById('tour-booking-modal').classList.add('hidden');
+            showToast('Booking Confirmed! Check your email.', 'success', 5000);
+            document.getElementById('booking-form').reset();
+        } catch (e) {
+            showToast(e.message, 'error');
+        } finally {
+            btn.textContent = 'Confirm Booking'; btn.disabled = false;
+        }
+    };
+};
+
+window.openBookingModal = function(tourId, tourTitle) {
+    document.getElementById('booking-tour-id').value = tourId;
+    document.getElementById('booking-tour-title').textContent = tourTitle;
+    document.getElementById('tour-booking-modal').classList.remove('hidden');
+};
+
+// ---------------------------------------------------
+// ROUTING: Listen for ?app= parameter
+// ---------------------------------------------------
+const originalInitDay6 = window.init;
+window.init = async function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('app')) {
+        // If the URL is ?app=tourism, load the tourism page
+        const projectSlug = urlParams.get('app');
+        // Fetch project info quickly
+        const { data } = await supabaseClient.from('projects').select('*').eq('slug', projectSlug).single();
+        if (data) {
+            state.projectsCache = [data];
+            loadTourismApp(projectSlug);
+            return;
+        }
+    }
+    if (originalInitDay6) await originalInitDay6();
+};
