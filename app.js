@@ -4849,3 +4849,103 @@ window.switchView = function(view) {
     const activeNav = document.getElementById('nav-' + view);
     if (activeNav) activeNav.classList.add('active');
 };
+// ============================================
+// PHASE 14: FORCE INJECT SIDEBAR ITEMS & FIX ANALYTICS
+// ============================================
+
+window.ensureSidebarExtras = function() {
+    if (!state.currentUser) return;
+
+    // Find the NEW visible sidebar group
+    const navGroup = document.querySelector('#sidebar .nav-group');
+    if (!navGroup) return;
+    const navGroupItems = navGroup.querySelector('.nav-group-items');
+    if (!navGroupItems) return;
+
+    // 1. INJECT ANALYTICS (Next to Overview)
+    if (!document.getElementById('nav-analytics')) {
+        const overviewBtn = document.getElementById('nav-overview');
+        if (overviewBtn) {
+            const analyticsBtn = document.createElement('a');
+            analyticsBtn.href = '#';
+            analyticsBtn.id = 'nav-analytics';
+            analyticsBtn.className = 'nav-item';
+            analyticsBtn.innerHTML = `
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                <span>Analytics</span>
+            `;
+            analyticsBtn.onclick = (e) => {
+                e.preventDefault();
+                window.switchView('analytics');
+            };
+            overviewBtn.parentNode.insertBefore(analyticsBtn, overviewBtn.nextSibling);
+        }
+    }
+
+    // 2. INJECT OWNER CONSOLE (If user is staff)
+    if (state.currentProfile && STAFF_ROLES.includes(state.currentProfile.role)) {
+        if (!document.getElementById('nav-owner-new')) {
+            // Add it at the very bottom of the sidebar
+            const sidebarNav = document.querySelector('#sidebar .p-3.space-y-1');
+            if (sidebarNav) {
+                const ownerGroup = document.createElement('details');
+                ownerGroup.className = 'nav-group';
+                ownerGroup.open = true;
+                ownerGroup.innerHTML = `
+                    <summary>Owner <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="transform: none;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg></summary>
+                    <div class="nav-group-items">
+                        <a href="#" id="nav-owner-new" class="nav-item" style="color: var(--amber);">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                            <span>Owner Console</span>
+                        </a>
+                    </div>
+                `;
+                document.getElementById('nav-owner-new').onclick = (e) => {
+                    e.preventDefault();
+                    window.switchView('owner');
+                };
+                sidebarNav.appendChild(ownerGroup);
+            }
+        }
+    }
+};
+
+// 3. FIX THE SWITCHVIEW ROUTING
+// We override it one last time to handle 'analytics' and ensure the sidebar is always built.
+const finalSwitchView = window.switchView;
+window.switchView = function(view) {
+    // Intercept 'analytics' because it's a custom view, not a standard one
+    if (view === 'analytics') {
+        document.querySelectorAll('[id^="view-"]').forEach(el => el.classList.add('hidden'));
+        document.getElementById('view-analytics').classList.remove('hidden');
+        
+        // Update active sidebar state
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        document.getElementById('nav-analytics').classList.add('active');
+        
+        window.loadAnalyticsDashboard();
+        
+        // Close mobile sidebar
+        document.getElementById('sidebar').classList.add('-translate-x-full');
+        return;
+    }
+
+    // Run the original switch view
+    if (finalSwitchView) finalSwitchView(view);
+    
+    // Ensure extras are injected after every view change
+    setTimeout(window.ensureSidebarExtras, 50);
+};
+
+// 4. RUN ON STARTUP
+// Hook into the profile load to make sure it runs immediately after login
+const finalShowDashboard = window.showDashboardView;
+window.showDashboardView = async function(user) {
+    if (finalShowDashboard) await finalShowDashboard(user);
+    setTimeout(window.ensureSidebarExtras, 500);
+};
+
+// Initial check just in case
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(window.ensureSidebarExtras, 1000);
+});
