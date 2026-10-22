@@ -2991,3 +2991,109 @@ window.openMobileSdkModal = function(projectId) {
         <button onclick="copyToClipboardText(document.getElementById('sdk-snippet').innerText)" class="w-full font-bold py-3 rounded-lg text-white" style="background: var(--accent);">Copy SDK Snippet</button>
     </div>`;
 };
+// ============================================
+// PHASE 3: SUPABASE-STYLE UI OVERHAUL
+// ============================================
+
+document.addEventListener('DOMContentLoaded', () => {
+    const sidebar = document.getElementById('sidebar');
+    if (!sidebar) return;
+
+    // 1. Hide the original flat list
+    const originalNav = sidebar.querySelector('.p-4.space-y-1');
+    if (originalNav) originalNav.style.display = 'none';
+
+    // 2. Build the new grouped navigation
+    const newNav = document.createElement('div');
+    newNav.className = 'p-3 space-y-1 overflow-y-auto h-[calc(100vh-60px)]';
+    
+    // Helper for SVG icons
+    const icons = {
+        project: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>',
+        ai: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>',
+        db: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>',
+        money: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>',
+        sync: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>',
+        settings: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>',
+        arrow: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>'
+    };
+
+    // Helper to build links
+    const item = (label, icon, onClick, id = '') => `
+        <a href="#" class="nav-item" ${id ? `id="${id}"` : ''} onclick="event.preventDefault(); ${onClick}">
+            ${icons[icon] || ''} <span>${label}</span>
+        </a>
+    `;
+
+    newNav.innerHTML = `
+        <!-- Project Group -->
+        <details class="nav-group" open>
+            <summary>Project ${icons.arrow}</summary>
+            <div class="nav-group-items">
+                ${item('Overview', 'project', "switchView('overview')", 'nav-overview')}
+                ${item('UkmAI Copilot', 'ai', "switchView('ukmai')", 'nav-ukmai')}
+                ${item('UkmFlow', 'ai', "openFlowModal()")}
+            </div>
+        </details>
+
+        <!-- Database Group -->
+        <details class="nav-group" open>
+            <summary>Database ${icons.arrow}</summary>
+            <div class="nav-group-items">
+                ${item('Ukmbase Data', 'db', "switchView('ukmdata')", 'nav-ukmdata')}
+                ${item('UkmTables', 'db', "switchView('ukmtables')", 'nav-ukmtables')}
+                ${item('UkmQuery', 'db', "switchView('ukmquery')", 'nav-ukmquery')}
+                ${item('UkmSearch', 'db', "openSearchModal()")}
+                ${item('UkmBackups', 'db', "openBackupModal()")}
+                ${item('UkmAudit', 'db', "openAuditModal()")}
+                ${item('UkmTemplates', 'db', "openTemplatesModal()")}
+            </div>
+        </details>
+
+        <!-- Products & Integrations -->
+        <details class="nav-group" open>
+            <summary>Products ${icons.arrow}</summary>
+            <div class="nav-group-items">
+                ${item('UkmPay', 'money', "switchView('ukmpay')", 'nav-ukmpay')}
+                ${item('UkmSync', 'sync', "switchView('ukmsync')", 'nav-ukmsync')}
+                ${item('Connect App', 'sync', "switchView('connect')", 'nav-connect')}
+                ${item('UkmTest', 'settings', "openUkmTest()")}
+            </div>
+        </details>
+
+        <!-- Settings Group -->
+        <details class="nav-group" open>
+            <summary>Settings ${icons.arrow}</summary>
+            <div class="nav-group-items">
+                ${item('Team', 'settings', "switchView('team')", 'nav-team')}
+                ${item('Billing', 'settings', "switchView('billing')", 'nav-billing')}
+                ${item('Settings', 'settings', "switchView('settings')", 'nav-settings')}
+            </div>
+        </details>
+
+        <!-- Owner Console (Hidden by default) -->
+        <div id="nav-owner-wrap" class="hidden pt-3 mt-3" style="border-top: 1px solid var(--border);">
+            ${item('Owner Console', 'project', "switchView('owner')", 'nav-owner')}
+        </div>
+    `;
+
+    sidebar.appendChild(newNav);
+
+    // Sync the active state
+    const originalSwitchView = window.switchView;
+    window.switchView = function(view) {
+        if (originalSwitchView) originalSwitchView(view);
+        // Remove active from all new nav items
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        // Add active to clicked
+        const activeItem = document.getElementById('nav-' + view);
+        if (activeItem) activeItem.classList.add('active');
+        
+        // Close sidebar on mobile
+        sidebar.classList.add('-translate-x-full');
+    };
+
+    // Auto-open Overview
+    const overviewBtn = document.getElementById('nav-overview');
+    if (overviewBtn) overviewBtn.classList.add('active');
+});
