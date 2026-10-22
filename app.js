@@ -4598,3 +4598,254 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+// ============================================
+// PHASE 13: BUG FIXES & GLOBAL ANALYTICS
+// ============================================
+
+// ---------------------------------------------------
+// 1. FIX: GLOBAL SEARCH BUTTON (Show on mobile)
+// ---------------------------------------------------
+document.addEventListener('DOMContentLoaded', () => {
+    // Fix the search button to be visible on mobile
+    const searchBtn = document.getElementById('btn-global-search');
+    if (searchBtn) {
+        searchBtn.classList.remove('hidden', 'sm:flex');
+        searchBtn.classList.add('flex');
+    }
+
+    // FIX: Force Owner Console to appear for staff
+    setTimeout(() => {
+        if (state.currentProfile && STAFF_ROLES.includes(state.currentProfile.role)) {
+            const navOwner = document.getElementById('nav-owner-wrap');
+            if (navOwner) {
+                navOwner.classList.remove('hidden');
+                // If the original wrap was lost in the sidebar rebuild, append it
+                if (!document.getElementById('nav-owner')) {
+                    const sidebarNav = document.querySelector('#sidebar .p-3.space-y-1');
+                    if (sidebarNav) {
+                        const ownerHtml = `
+                        <div class="pt-3 mt-3" style="border-top: 1px solid var(--border);">
+                            <a href="#" class="nav-item" onclick="event.preventDefault(); switchView('owner');">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                                <span>Owner Console</span>
+                            </a>
+                        </div>`;
+                        sidebarNav.insertAdjacentHTML('beforeend', ownerHtml);
+                    }
+                }
+            }
+        }
+    }, 1500);
+});
+
+// ---------------------------------------------------
+// 2. GLOBAL ANALYTICS DASHBOARD
+// ---------------------------------------------------
+window.loadAnalyticsDashboard = async function() {
+    // Hide other views
+    document.querySelectorAll('[id^="view-"]').forEach(el => el.classList.add('hidden'));
+    
+    let analyticsView = document.getElementById('view-analytics');
+    if (!analyticsView) {
+        analyticsView = document.createElement('div');
+        analyticsView.id = 'view-analytics';
+        analyticsView.className = 'flex-1 overflow-y-auto p-4 md:p-8';
+        document.getElementById('dashboard-view').querySelector('main').appendChild(analyticsView);
+    }
+    analyticsView.classList.remove('hidden');
+
+    analyticsView.innerHTML = `
+        <div class="max-w-6xl mx-auto">
+            <div class="mb-8">
+                <h1 class="text-2xl font-bold mb-1" style="color: var(--text);">Analytics</h1>
+                <p class="text-sm" style="color: var(--text-muted);">Platform overview and growth metrics.</p>
+            </div>
+
+            <!-- Stat Cards -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div class="p-5 rounded-xl" style="background: var(--surface); border: 1px solid var(--border);">
+                    <p class="text-xs font-medium mb-2" style="color: var(--text-muted);">Total Users</p>
+                    <div id="analytics-users" class="text-2xl font-bold mono" style="color: var(--text);">—</div>
+                </div>
+                <div class="p-5 rounded-xl" style="background: var(--surface); border: 1px solid var(--border);">
+                    <p class="text-xs font-medium mb-2" style="color: var(--text-muted);">Total Projects</p>
+                    <div id="analytics-projects" class="text-2xl font-bold mono" style="color: var(--text);">—</div>
+                </div>
+                <div class="p-5 rounded-xl" style="background: var(--surface); border: 1px solid var(--border);">
+                    <p class="text-xs font-medium mb-2" style="color: var(--text-muted);">AI Tokens Used</p>
+                    <div id="analytics-tokens" class="text-2xl font-bold mono" style="color: var(--amber);">—</div>
+                </div>
+                <div class="p-5 rounded-xl" style="background: var(--surface); border: 1px solid var(--border);">
+                    <p class="text-xs font-medium mb-2" style="color: var(--text-muted);">Revenue (USD)</p>
+                    <div id="analytics-revenue" class="text-2xl font-bold mono" style="color: var(--green);">—</div>
+                </div>
+            </div>
+
+            <!-- Chart -->
+            <div class="rounded-xl p-6 mb-8" style="background: var(--surface); border: 1px solid var(--border);">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-lg font-bold" style="color: var(--text);">Revenue & Signups</h2>
+                    <select id="chart-range" class="text-xs rounded px-2 py-1" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
+                        <option value="7">Last 7 Days</option>
+                        <option value="30">Last 30 Days</option>
+                    </select>
+                </div>
+                <div class="relative min-h-[300px]">
+                    <canvas id="global-analytics-chart"></canvas>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Fetch Data
+    try {
+        const [usersRes, projectsRes, paymentsRes] = await Promise.all([
+            supabaseClient.from('profiles').select('created_at'),
+            supabaseClient.from('projects').select('ai_tokens_used'),
+            supabaseClient.from('payments').select('amount, paid_at').eq('status', 'paid')
+        ]);
+
+        const users = usersRes.data || [];
+        const projects = projectsRes.data || [];
+        const payments = paymentsRes.data || [];
+
+        // Update Stats
+        document.getElementById('analytics-users').textContent = users.length;
+        document.getElementById('analytics-projects').textContent = projects.length;
+        
+        const totalTokens = projects.reduce((sum, p) => sum + (Number(p.ai_tokens_used) || 0), 0);
+        document.getElementById('analytics-tokens').textContent = totalTokens.toLocaleString();
+        
+        const totalRevenue = payments.reduce((sum, p) => sum + Number(p.amount), 0);
+        document.getElementById('analytics-revenue').textContent = '$' + totalRevenue.toFixed(2);
+
+        // Render Chart
+        renderGlobalChart(users, payments, 30);
+
+    } catch (e) {
+        showToast('Failed to load analytics: ' + e.message, 'error');
+    }
+};
+
+function renderGlobalChart(users, payments, days) {
+    if (window.globalChartInstance) {
+        window.globalChartInstance.destroy();
+    }
+
+    // Prepare date labels for the last X days
+    const labels = [];
+    const revenueData = [];
+    const signupData = [];
+    
+    for (let i = days - 1; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        labels.push(dateStr);
+
+        // Sum revenue for this day
+        const dayRevenue = payments.filter(p => {
+            const pd = new Date(p.paid_at);
+            return pd.getDate() === d.getDate() && pd.getMonth() === d.getMonth();
+        }).reduce((sum, p) => sum + Number(p.amount), 0);
+        revenueData.push(dayRevenue);
+
+        // Count signups for this day
+        const daySignups = users.filter(u => {
+            const ud = new Date(u.created_at);
+            return ud.getDate() === d.getDate() && ud.getMonth() === d.getMonth();
+        }).length;
+        signupData.push(daySignups);
+    }
+
+    const ctx = document.getElementById('global-analytics-chart').getContext('2d');
+    window.globalChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Revenue ($)',
+                    data: revenueData,
+                    borderColor: '#10B981',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    yAxisID: 'y'
+                },
+                {
+                    label: 'Signups',
+                    data: signupData,
+                    borderColor: '#4F46E5',
+                    backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    yAxisID: 'y1'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { labels: { color: '#94A3B8' } }
+            },
+            scales: {
+                x: { ticks: { color: '#64748B' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                y: { 
+                    type: 'linear', display: true, position: 'left',
+                    ticks: { color: '#10B981' }, grid: { color: 'rgba(255,255,255,0.05)' } 
+                },
+                y1: { 
+                    type: 'linear', display: true, position: 'right',
+                    ticks: { color: '#4F46E5' }, grid: { drawOnChartArea: false } 
+                }
+            }
+        }
+    });
+}
+
+// ---------------------------------------------------
+// 3. INJECT ANALYTICS INTO SIDEBAR & ROUTING
+// ---------------------------------------------------
+document.addEventListener('DOMContentLoaded', () => {
+    // Add to sidebar under Project Overview
+    setTimeout(() => {
+        const overviewNav = document.getElementById('nav-overview');
+        if (overviewNav && !document.getElementById('nav-analytics')) {
+            const parent = overviewNav.parentElement;
+            const analyticsLink = document.createElement('a');
+            analyticsLink.href = '#';
+            analyticsLink.id = 'nav-analytics';
+            analyticsLink.className = 'nav-item';
+            analyticsLink.innerHTML = `
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                <span>Analytics</span>
+            `;
+            analyticsLink.onclick = (e) => {
+                e.preventDefault();
+                loadAnalyticsDashboard();
+                document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+                analyticsLink.classList.add('active');
+            };
+            parent.insertBefore(analyticsLink, overviewNav.nextSibling);
+        }
+    }, 1500);
+});
+
+// Override switchView to handle analytics and hide it when leaving
+const originalSwitchViewPhase13 = window.switchView;
+window.switchView = function(view) {
+    if (originalSwitchViewPhase13) originalSwitchViewPhase13(view);
+    
+    // Hide analytics if switching to a standard view
+    if (view !== 'analytics') {
+        const analyticsView = document.getElementById('view-analytics');
+        if (analyticsView) analyticsView.classList.add('hidden');
+    }
+    // Update active state
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+    const activeNav = document.getElementById('nav-' + view);
+    if (activeNav) activeNav.classList.add('active');
+};
