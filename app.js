@@ -4363,3 +4363,238 @@ document.addEventListener('DOMContentLoaded', () => {
         if (state.currentUser) checkForPendingInvites();
     }, 2000);
 });
+// ============================================
+// PHASE 11 & 12: EMAIL SEQUENCES & GLOBAL SEARCH
+// ============================================
+
+// ---------------------------------------------------
+// 1. AUTOMATED EMAIL SEQUENCES
+// ---------------------------------------------------
+window.openEmailSequencesModal = async function(projectId) {
+    let modal = document.getElementById('ukm-email-seq-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'ukm-email-seq-modal';
+        modal.className = 'hidden fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm';
+        document.body.appendChild(modal);
+    }
+    modal.classList.remove('hidden');
+
+    modal.innerHTML = `
+    <div class="w-full max-w-lg rounded-2xl p-6 glow max-h-[90vh] flex flex-col" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h2 class="text-lg font-bold" style="color: var(--text);">Email Sequences</h2>
+                <p class="text-xs mt-1" style="color: var(--text-muted);">Automate onboarding emails for your users.</p>
+            </div>
+            <button onclick="document.getElementById('ukm-email-seq-modal').classList.add('hidden')" style="color: var(--text-muted);">✕</button>
+        </div>
+        
+        <div class="flex-1 overflow-y-auto space-y-4 pr-2 mb-4">
+            <div id="email-seq-list" class="space-y-2">
+                <p class="text-xs text-center py-4" style="color: var(--text-muted);">Loading...</p>
+            </div>
+            
+            <div class="rounded-xl p-4 mt-4" style="background: var(--bg); border: 1px dashed var(--border);">
+                <h3 class="text-sm font-bold mb-3" style="color: var(--text);">Create New Sequence</h3>
+                <div class="space-y-3">
+                    <div><label class="block text-xs mb-1" style="color: var(--text-muted);">Sequence Name</label><input type="text" id="seq-name" placeholder="e.g. Welcome Email" class="w-full rounded-lg px-3 py-2 text-sm" style="background: var(--surface); border: 1px solid var(--border); color: var(--text);"></div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div><label class="block text-xs mb-1" style="color: var(--text-muted);">Trigger</label><select id="seq-trigger" class="w-full rounded-lg px-3 py-2 text-sm" style="background: var(--surface); border: 1px solid var(--border); color: var(--text);"><option value="user_signup">New User Signup</option><option value="form_submitted">Form Submitted</option></select></div>
+                        <div><label class="block text-xs mb-1" style="color: var(--text-muted);">Delay (Hours)</label><input type="number" id="seq-delay" value="24" class="w-full rounded-lg px-3 py-2 text-sm" style="background: var(--surface); border: 1px solid var(--border); color: var(--text);"></div>
+                    </div>
+                    <div><label class="block text-xs mb-1" style="color: var(--text-muted);">Subject</label><input type="text" id="seq-subject" placeholder="Welcome to our app!" class="w-full rounded-lg px-3 py-2 text-sm" style="background: var(--surface); border: 1px solid var(--border); color: var(--text);"></div>
+                    <div><label class="block text-xs mb-1" style="color: var(--text-muted);">Body (HTML)</label><textarea id="seq-body" rows="3" placeholder="<p>Thanks for joining!</p>" class="w-full rounded-lg px-3 py-2 text-sm" style="background: var(--surface); border: 1px solid var(--border); color: var(--text);"></textarea></div>
+                    <button onclick="saveEmailSequence('${projectId}')" class="w-full font-bold py-2 rounded-lg text-white text-sm" style="background: var(--accent);">Save Sequence</button>
+                </div>
+            </div>
+        </div>
+    </div>`;
+
+    loadEmailSequences(projectId);
+};
+
+window.loadEmailSequences = async function(projectId) {
+    const { data } = await supabaseClient.from('email_sequences').select('*').eq('project_id', projectId).order('created_at', { ascending: false });
+    const list = document.getElementById('email-seq-list');
+    if (!list) return;
+
+    if (!data || data.length === 0) {
+        list.innerHTML = '<p class="text-xs text-center" style="color: var(--text-muted);">No sequences created yet.</p>';
+        return;
+    }
+
+    list.innerHTML = data.map(s => `
+        <div class="p-3 rounded-lg flex items-center justify-between" style="background: var(--surface); border: 1px solid var(--border);">
+            <div>
+                <p class="text-xs font-bold" style="color: var(--text);">${escapeHtml(s.name)}</p>
+                <p class="text-[10px] mono" style="color: var(--text-dim);">Trigger: ${s.trigger_event} · ${s.delay_hours}h delay</p>
+            </div>
+            <button onclick="deleteEmailSequence('${s.id}', '${projectId}')" class="text-red-400 text-xs">Delete</button>
+        </div>
+    `).join('');
+};
+
+window.saveEmailSequence = async function(projectId) {
+    const name = document.getElementById('seq-name').value;
+    const trigger = document.getElementById('seq-trigger').value;
+    const delay = document.getElementById('seq-delay').value;
+    const subject = document.getElementById('seq-subject').value;
+    const body = document.getElementById('seq-body').value;
+
+    if (!name || !subject) return showToast('Name and Subject are required', 'error');
+
+    try {
+        await supabaseClient.from('email_sequences').insert({
+            project_id: projectId,
+            name, trigger_event: trigger, delay_hours: delay, subject, body
+        });
+        showToast('Sequence created!');
+        document.getElementById('seq-name').value = '';
+        document.getElementById('seq-subject').value = '';
+        document.getElementById('seq-body').value = '';
+        loadEmailSequences(projectId);
+    } catch (e) {
+        showToast(e.message, 'error');
+    }
+};
+
+window.deleteEmailSequence = async function(id, projectId) {
+    await supabaseClient.from('email_sequences').delete().eq('id', id);
+    loadEmailSequences(projectId);
+};
+
+// ---------------------------------------------------
+// 2. GLOBAL SEARCH BAR (Command Palette)
+// ---------------------------------------------------
+window.openGlobalSearch = function() {
+    let modal = document.getElementById('ukm-global-search-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'ukm-global-search-modal';
+        modal.className = 'hidden fixed inset-0 z-[100] flex items-start justify-center pt-20 p-4 bg-black/60 backdrop-blur-sm';
+        document.body.appendChild(modal);
+    }
+    modal.classList.remove('hidden');
+
+    modal.innerHTML = `
+    <div class="w-full max-w-xl rounded-xl shadow-2xl overflow-hidden" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex items-center px-4 py-3 border-b" style="border-color: var(--border);">
+            <svg class="w-5 h-5 mr-3" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            <input type="text" id="global-search-input" class="w-full bg-transparent focus:outline-none text-sm" style="color: var(--text);" placeholder="Search projects, tables, or actions..." oninput="runGlobalSearch(this.value)">
+            <button onclick="document.getElementById('ukm-global-search-modal').classList.add('hidden')" class="text-xs px-2 py-1 rounded" style="background: var(--bg); color: var(--text-dim);">ESC</button>
+        </div>
+        <div id="global-search-results" class="p-2 max-h-96 overflow-y-auto">
+            <p class="text-xs text-center py-4" style="color: var(--text-dim);">Type to search...</p>
+        </div>
+    </div>`;
+
+    setTimeout(() => document.getElementById('global-search-input').focus(), 100);
+};
+
+window.runGlobalSearch = async function(query) {
+    const resultsDiv = document.getElementById('global-search-results');
+    if (!query || query.length < 2) {
+        resultsDiv.innerHTML = '<p class="text-xs text-center py-4" style="color: var(--text-dim);">Type to search...</p>';
+        return;
+    }
+
+    const term = query.toLowerCase();
+    let html = '';
+
+    // 1. Search Projects
+    const matchedProjects = state.projectsCache.filter(p => p.name.toLowerCase().includes(term) || p.slug.toLowerCase().includes(term));
+    if (matchedProjects.length > 0) {
+        html += `<p class="text-[10px] uppercase font-bold mt-2 mb-1 px-2" style="color: var(--text-dim);">Projects</p>`;
+        matchedProjects.forEach(p => {
+            html += `<div class="px-3 py-2 rounded-lg cursor-pointer hover:bg-[var(--bg)] text-sm" onclick="document.getElementById('ukm-global-search-modal').classList.add('hidden'); openProjectDetail('${p.id}')">📁 ${escapeHtml(p.name)}</div>`;
+        });
+    }
+
+    // 2. Search Tables (in current project)
+    if (state.ukmDataTables) {
+        const matchedTables = state.ukmDataTables.filter(t => t.table_name.toLowerCase().includes(term));
+        if (matchedTables.length > 0) {
+            html += `<p class="text-[10px] uppercase font-bold mt-4 mb-1 px-2" style="color: var(--text-dim);">Tables (Current Project)</p>`;
+            matchedTables.forEach(t => {
+                html += `<div class="px-3 py-2 rounded-lg cursor-pointer hover:bg-[var(--bg)] text-sm" onclick="document.getElementById('ukm-global-search-modal').classList.add('hidden'); viewTableData('${t.table_name}')">📊 ${escapeHtml(t.table_name)}</div>`;
+            });
+        }
+    }
+
+    // 3. Actions
+    const actions = [
+        { name: 'Create New Project', icon: '✨', action: "openProjectModal()" },
+        { name: 'Go to Ukmbase Data', icon: '⚙️', action: "switchView('ukmdata')" },
+        { name: 'Open UkmAI Copilot', icon: '🧠', action: "switchView('ukmai')" }
+    ].filter(a => a.name.toLowerCase().includes(term));
+
+    if (actions.length > 0) {
+        html += `<p class="text-[10px] uppercase font-bold mt-4 mb-1 px-2" style="color: var(--text-dim);">Actions</p>`;
+        actions.forEach(a => {
+            html += `<div class="px-3 py-2 rounded-lg cursor-pointer hover:bg-[var(--bg)] text-sm" onclick="document.getElementById('ukm-global-search-modal').classList.add('hidden'); ${a.action}">${a.icon} ${a.name}</div>`;
+        });
+    }
+
+    if (!html) {
+        html = '<p class="text-xs text-center py-4" style="color: var(--text-dim);">No results found.</p>';
+    }
+
+    resultsDiv.innerHTML = html;
+};
+
+// ---------------------------------------------------
+// 3. INJECT UI BUTTONS
+// ---------------------------------------------------
+document.addEventListener('DOMContentLoaded', () => {
+    // A. Inject "Email Sequences" into the Integrations tab
+    const integrationsTab = document.getElementById('ukmdata-tab-integrations');
+    if (integrationsTab) {
+        const mailCard = document.getElementById('ukmdata-mail-card');
+        if (mailCard) {
+            const header = mailCard.querySelector('.flex.items-center.justify-between');
+            if (header && !document.getElementById('btn-email-seqs')) {
+                const btn = document.createElement('button');
+                btn.id = 'btn-email-seqs';
+                btn.className = 'text-xs font-bold px-3 py-2 rounded-lg text-white';
+                btn.style.background = 'var(--accent)';
+                btn.textContent = '+ Sequences';
+                btn.onclick = () => openEmailSequencesModal(state.currentUkmDataProjectId);
+                header.appendChild(btn);
+            }
+        }
+    }
+
+    // B. Inject Global Search Bar into Top Nav
+    const navRight = document.querySelector('#dashboard-view nav .flex.items-center.gap-2');
+    if (navRight && !document.getElementById('btn-global-search')) {
+        const searchBtn = document.createElement('button');
+        searchBtn.id = 'btn-global-search';
+        searchBtn.className = 'p-2 rounded-lg hidden sm:flex items-center gap-2 px-3';
+        searchBtn.style.background = 'var(--surface)';
+        searchBtn.style.border = '1px solid var(--border)';
+        searchBtn.style.color = 'var(--text-muted)';
+        searchBtn.innerHTML = `
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            <span class="text-xs">Search</span>
+            <kbd class="text-[10px] px-1.5 py-0.5 rounded" style="background: var(--bg); border: 1px solid var(--border);">⌘K</kbd>
+        `;
+        searchBtn.onclick = openGlobalSearch;
+        
+        // Insert first
+        const themeToggle = document.getElementById('theme-toggle');
+        navRight.insertBefore(searchBtn, navRight.firstChild);
+
+        // Add Keyboard shortcut (Cmd+K or Ctrl+K)
+        document.addEventListener('keydown', (e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                e.preventDefault();
+                openGlobalSearch();
+            }
+            if (e.key === 'Escape') {
+                const modal = document.getElementById('ukm-global-search-modal');
+                if (modal) modal.classList.add('hidden');
+            }
+        });
+    }
+});
