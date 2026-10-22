@@ -3097,3 +3097,191 @@ document.addEventListener('DOMContentLoaded', () => {
     const overviewBtn = document.getElementById('nav-overview');
     if (overviewBtn) overviewBtn.classList.add('active');
 });
+// ============================================
+// PHASE 4: UKMMARKET & API KEYS
+// ============================================
+
+// ---------------------------------------------------
+// 1. UKMMARKET (Template Storefront)
+// ---------------------------------------------------
+window.loadMarketplace = async function() {
+    // Hide other views, show a new one
+    document.querySelectorAll('[id^="view-"]').forEach(el => el.classList.add('hidden'));
+    let marketView = document.getElementById('view-market');
+    if (!marketView) {
+        marketView = document.createElement('div');
+        marketView.id = 'view-market';
+        marketView.className = 'flex-1 overflow-y-auto p-4 md:p-8';
+        document.getElementById('dashboard-view').querySelector('main').appendChild(marketView);
+    }
+    marketView.classList.remove('hidden');
+    marketView.innerHTML = `
+        <div class="max-w-6xl mx-auto">
+            <div class="mb-8">
+                <h1 class="text-2xl font-bold mb-1" style="color: var(--text);">UkmMarket</h1>
+                <p class="text-sm" style="color: var(--text-muted);">Buy and sell production-ready database schemas.</p>
+            </div>
+            <div id="market-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div class="text-center py-12 col-span-full"><div class="inline-block w-8 h-8 border-4 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent);"></div></div>
+            </div>
+        </div>
+    `;
+
+    // Fetch templates
+    const { data: templates } = await supabaseClient.from('project_templates').select('*').order('price_usd', { ascending: false });
+    const grid = document.getElementById('market-grid');
+    
+    if (!templates || templates.length === 0) {
+        grid.innerHTML = '<p class="text-center text-sm col-span-full" style="color: var(--text-muted);">No templates available yet.</p>';
+        return;
+    }
+
+    grid.innerHTML = templates.map(t => `
+        <div class="feature-card rounded-xl p-5 flex flex-col" style="background: var(--surface); border: 1px solid var(--border);">
+            <div class="flex items-start justify-between mb-4">
+                <div class="text-4xl">${t.icon || '📦'}</div>
+                ${t.price_usd > 0 
+                    ? `<span class="font-bold text-lg mono" style="color: var(--green);">$${Number(t.price_usd).toFixed(2)}</span>`
+                    : `<span class="font-bold text-lg mono" style="color: var(--cyan);">FREE</span>`
+                }
+            </div>
+            <h3 class="text-lg font-bold mb-1" style="color: var(--text);">${escapeHtml(t.name)}</h3>
+            <p class="text-xs mb-3" style="color: var(--text-muted);">${escapeHtml(t.tagline)}</p>
+            <p class="text-sm flex-1 mb-4" style="color: var(--text-dim);">${escapeHtml(t.description || '')}</p>
+            
+            <div class="flex gap-2 mt-auto">
+                ${t.price_usd > 0 ? `
+                    <button onclick="buyTemplate('${t.id}', '${t.name}', ${t.price_usd})" class="w-full font-bold py-2 rounded-lg text-white text-sm" style="background: var(--accent);">Buy & Clone</button>
+                ` : `
+                    <button onclick="cloneTemplate('${t.id}')" class="w-full font-bold py-2 rounded-lg text-white text-sm" style="background: var(--green);">Clone Free</button>
+                `}
+            </div>
+        </div>
+    `).join('');
+};
+
+window.buyTemplate = async function(templateId, name, price) {
+    // Since you don't have a bank account yet, we simulate the checkout via WhatsApp/Email
+    // and manually approve the purchase.
+    const msg = `Hi! I want to buy the ${name} template for $${price}. My account email is ${state.currentUser.email}.`;
+    const waLink = `https://wa.me/${SUPPORT_WA_INTL}?text=${encodeURIComponent(msg)}`;
+    
+    if(confirm(`You will be redirected to WhatsApp to complete the payment of $${price}.\n\nOnce paid, Ukmbase support will unlock this template for you.`)) {
+        window.open(waLink, '_blank');
+        
+        // Log the intent to buy
+        await supabaseClient.from('template_purchases').insert({
+            buyer_id: state.currentUser.id,
+            template_id: templateId,
+            amount_paid: price,
+            status: 'pending_payment'
+        });
+        showToast('Request sent! Check WhatsApp.', 'success', 5000);
+    }
+};
+
+// ---------------------------------------------------
+// 2. PROJECT API KEYS (For UkmTest & Integrations)
+// ---------------------------------------------------
+window.openProjectSettings = function(projectId) {
+    const proj = state.projectsCache.find(p => p.id === projectId);
+    if (!proj) return showToast('Project not found', 'error');
+    
+    let modal = document.getElementById('project-settings-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'project-settings-modal';
+        modal.className = 'hidden fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm';
+        document.body.appendChild(modal);
+    }
+    modal.classList.remove('hidden');
+
+    const schema = proj.slug.replace(/-/g, '_');
+
+    modal.innerHTML = `
+    <div class="w-full max-w-2xl rounded-2xl p-6 glow max-h-[90vh] flex flex-col" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex items-center justify-between mb-6">
+            <div>
+                <h2 class="text-lg font-bold" style="color: var(--text);">Project Settings</h2>
+                <p class="text-xs mono mt-1" style="color: var(--cyan);">${escapeHtml(proj.name)}</p>
+            </div>
+            <button onclick="document.getElementById('project-settings-modal').classList.add('hidden')" style="color: var(--text-muted);">✕</button>
+        </div>
+        
+        <div class="flex-1 overflow-y-auto space-y-6 pr-2">
+            <!-- API Credentials -->
+            <div class="rounded-xl p-4" style="background: var(--bg); border: 1px solid var(--border);">
+                <h3 class="text-sm font-bold mb-3" style="color: var(--text);">API Credentials</h3>
+                <div class="space-y-2 text-xs">
+                    <div class="flex justify-between items-center"><span style="color: var(--text-muted);">Project URL</span><span class="mono truncate ml-4" style="color: var(--text);">${SUPABASE_URL}</span></div>
+                    <div class="flex justify-between items-center"><span style="color: var(--text-muted);">Anon Key</span><span class="mono truncate ml-4" style="color: var(--text);">${SUPABASE_ANON_KEY}</span></div>
+                    <div class="flex justify-between items-center"><span style="color: var(--text-muted);">Schema Name</span><span class="mono" style="color: var(--text);">${schema}</span></div>
+                </div>
+            </div>
+
+            <!-- Quick Links -->
+            <div>
+                <h3 class="text-sm font-bold mb-3" style="color: var(--text);">Project Tools</h3>
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="openSchemaDesigner('${projectId}'); document.getElementById('project-settings-modal').classList.add('hidden');" class="p-3 rounded-xl text-left" style="background: var(--bg); border: 1px solid var(--border);">
+                        <p class="text-xs font-bold mb-1" style="color: var(--text);">Schema Designer</p>
+                        <p class="text-[10px]" style="color: var(--text-muted);">View database relationships</p>
+                    </button>
+                    <button onclick="openAgentModal('${projectId}'); document.getElementById('project-settings-modal').classList.add('hidden');" class="p-3 rounded-xl text-left" style="background: var(--bg); border: 1px solid var(--border);">
+                        <p class="text-xs font-bold mb-1" style="color: var(--text);">AI Agents</p>
+                        <p class="text-[10px]" style="color: var(--text-muted);">Scheduled AI tasks</p>
+                    </button>
+                    <button onclick="openMobileSdkModal('${projectId}'); document.getElementById('project-settings-modal').classList.add('hidden');" class="p-3 rounded-xl text-left" style="background: var(--bg); border: 1px solid var(--border);">
+                        <p class="text-xs font-bold mb-1" style="color: var(--text);">Mobile SDK</p>
+                        <p class="text-[10px]" style="color: var(--text-muted);">Connect React Native / Flutter</p>
+                    </button>
+                    <button onclick="openHandoffModal('${projectId}'); document.getElementById('project-settings-modal').classList.add('hidden');" class="p-3 rounded-xl text-left" style="background: var(--bg); border: 1px solid var(--border);">
+                        <p class="text-xs font-bold mb-1" style="color: var(--text);">Code Handoff</p>
+                        <p class="text-[10px]" style="color: var(--text-muted);">Export to Next.js</p>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Danger Zone -->
+            <div class="rounded-xl p-4 mt-6" style="background: rgba(239,68,68,0.05); border: 1px solid rgba(239,68,68,0.2);">
+                <h3 class="text-sm font-bold mb-2 text-red-400">Danger Zone</h3>
+                <p class="text-xs mb-3" style="color: var(--text-muted);">Deleting this project will permanently remove all tables, users, and data.</p>
+                <button onclick="deleteProject('${proj.id}'); document.getElementById('project-settings-modal').classList.add('hidden');" class="text-xs font-bold px-4 py-2 rounded-lg bg-red-500/20 text-red-400">Delete Project</button>
+            </div>
+        </div>
+    </div>`;
+};
+
+// ---------------------------------------------------
+// 3. INJECT MARKETPLACE INTO NEW SIDEBAR
+// ---------------------------------------------------
+document.addEventListener('DOMContentLoaded', () => {
+    // Since we completely rebuilt the sidebar in Phase 3, we need to inject UkmMarket into it.
+    // We look for the 'Products' details group and add a link.
+    setTimeout(() => {
+        const navGroups = document.querySelectorAll('.nav-group');
+        let productsGroup = null;
+        
+        navGroups.forEach(g => {
+            if (g.querySelector('summary').textContent.includes('Products')) productsGroup = g;
+        });
+
+        if (productsGroup) {
+            const itemsDiv = productsGroup.querySelector('.nav-group-items');
+            const marketLink = document.createElement('a');
+            marketLink.href = '#';
+            marketLink.className = 'nav-item';
+            marketLink.innerHTML = `
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
+                <span>UkmMarket</span>
+            `;
+            marketLink.onclick = (e) => {
+                e.preventDefault();
+                loadMarketplace();
+                document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+                marketLink.classList.add('active');
+            };
+            itemsDiv.appendChild(marketLink);
+        }
+    }, 500); // Small delay to ensure Phase 3 sidebar is built
+});
