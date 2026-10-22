@@ -3815,3 +3815,228 @@ window.switchView = function(view) {
         setTimeout(initUkmDataTabs, 100);
     }
 };
+// ============================================
+// PHASE 8: REALTIME STREAMS & GRAPHQL PLAYGROUND
+// ============================================
+
+// ---------------------------------------------------
+// 1. REALTIME LIVE DATA (WebSockets)
+// ---------------------------------------------------
+window.openLiveDataModal = function(tableName) {
+    let modal = document.getElementById('ukm-realtime-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'ukm-realtime-modal';
+        modal.className = 'hidden fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm';
+        document.body.appendChild(modal);
+    }
+    modal.classList.remove('hidden');
+
+    const proj = state.projectsCache.find(p => p.id === state.currentUkmDataProjectId);
+    if (!proj) return showToast('Select a project first', 'error');
+    const schema = proj.slug.replace(/-/g, '_');
+
+    modal.innerHTML = `
+    <div class="w-full max-w-4xl rounded-2xl p-6 glow max-h-[90vh] flex flex-col" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2">
+                <h2 class="text-lg font-bold" style="color: var(--text);">Live Data: <span class="mono text-[var(--cyan)]">${escapeHtml(tableName)}</span></h2>
+                <span class="flex h-2 w-2 relative">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                </span>
+            </div>
+            <button onclick="closeRealtimeModal()" style="color: var(--text-muted);">✕</button>
+        </div>
+        <p class="text-xs mb-4" style="color: var(--text-muted);">Listening for real-time inserts, updates, and deletes via WebSockets.</p>
+        
+        <div class="flex-1 overflow-auto rounded-lg" style="border: 1px solid var(--border); background: var(--bg);">
+            <div id="realtime-log" class="p-4 space-y-2 font-mono text-xs" style="color: var(--text);">
+                <p style="color: var(--text-dim);">// Waiting for database events...</p>
+            </div>
+        </div>
+    </div>`;
+
+    // Fetch initial data
+    supabaseClient.schema(schema).from(tableName).select('*').limit(5).then(({ data }) => {
+        if (data && data.length > 0) {
+            const log = document.getElementById('realtime-log');
+            log.innerHTML = `<p style="color: var(--text-dim);">// Loaded ${data.length} initial rows</p>`;
+            data.forEach(row => appendRealtimeLog('SELECT', row));
+        }
+    });
+
+    // Set up WebSocket channel
+    if (window.ukmRealtimeChannel) {
+        supabaseClient.removeChannel(window.ukmRealtimeChannel);
+    }
+
+    window.ukmRealtimeChannel = supabaseClient
+        .channel('realtime-' + tableName)
+        .on('postgres_changes', { event: '*', schema: schema, table: tableName }, (payload) => {
+            appendRealtimeLog(payload.eventType, payload.new);
+        })
+        .subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+                const log = document.getElementById('realtime-log');
+                log.innerHTML += `<p style="color: var(--green);">// Successfully connected to WebSocket!</p>`;
+            }
+        });
+};
+
+window.appendRealtimeLog = function(eventType, data) {
+    const log = document.getElementById('realtime-log');
+    if (!log) return;
+    
+    const colors = {
+        'INSERT': 'text-green-400',
+        'UPDATE': 'text-yellow-400',
+        'DELETE': 'text-red-400',
+        'SELECT': 'text-cyan-400'
+    };
+    
+    const html = `
+        <div class="p-2 rounded" style="background: var(--surface); border: 1px solid var(--border);">
+            <span class="${colors[eventType] || 'text-gray-400'} font-bold">[${eventType}]</span>
+            <span style="color: var(--text-dim);">${new Date().toLocaleTimeString()}</span>
+            <pre class="mt-1 overflow-x-auto" style="color: var(--text-muted);">${escapeHtml(JSON.stringify(data, null, 2))}</pre>
+        </div>
+    `;
+    log.insertAdjacentHTML('afterbegin', html);
+};
+
+window.closeRealtimeModal = function() {
+    document.getElementById('ukm-realtime-modal').classList.add('hidden');
+    if (window.ukmRealtimeChannel) {
+        supabaseClient.removeChannel(window.ukmRealtimeChannel);
+        window.ukmRealtimeChannel = null;
+    }
+};
+
+// ---------------------------------------------------
+// 2. GRAPHQL PLAYGROUND (For Data Scientists)
+// ---------------------------------------------------
+window.openGraphQLPlayground = function() {
+    let modal = document.getElementById('ukm-graphql-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'ukm-graphql-modal';
+        modal.className = 'hidden fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm';
+        document.body.appendChild(modal);
+    }
+    modal.classList.remove('hidden');
+
+    const proj = state.projectsCache.find(p => p.id === state.currentUkmDataProjectId);
+    if (!proj) return showToast('Select a project first', 'error');
+    const schema = proj.slug.replace(/-/g, '_');
+
+    modal.innerHTML = `
+    <div class="w-full max-w-5xl rounded-2xl p-6 glow max-h-[95vh] flex flex-col" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h2 class="text-lg font-bold" style="color: var(--text);">GraphQL Playground</h2>
+                <p class="text-xs mt-1" style="color: var(--text-muted);">Query your database with GraphQL.</p>
+            </div>
+            <button onclick="document.getElementById('ukm-graphql-modal').classList.add('hidden')" style="color: var(--text-muted);">✕</button>
+        </div>
+        
+        <div class="flex-1 flex flex-col md:flex-row gap-4 min-h-0">
+            <!-- Editor -->
+            <div class="flex-1 flex flex-col">
+                <textarea id="graphql-query" class="flex-1 w-full rounded-lg p-4 font-mono text-sm resize-none focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--cyan);">query {
+  ${schema}_toursCollection(first: 5) {
+    edges {
+      node {
+        id
+        title
+        price
+      }
+    }
+  }
+}</textarea>
+                <button onclick="runGraphQL()" id="gql-run-btn" class="mt-3 w-full font-bold py-2 rounded-lg text-white" style="background: var(--accent);">Run Query (▶)</button>
+            </div>
+            <!-- Results -->
+            <div class="flex-1 flex flex-col">
+                <div class="flex-1 rounded-lg p-4 overflow-auto font-mono text-xs" style="background: var(--bg); border: 1px solid var(--border);">
+                    <pre id="graphql-result" style="color: var(--text-muted);">// Results will appear here...</pre>
+                </div>
+            </div>
+        </div>
+    </div>`;
+};
+
+window.runGraphQL = async function() {
+    const query = document.getElementById('graphql-query').value;
+    const resultEl = document.getElementById('graphql-result');
+    const btn = document.getElementById('gql-run-btn');
+    
+    btn.textContent = 'Running...'; btn.disabled = true;
+    resultEl.textContent = 'Executing query...';
+
+    try {
+        const res = await fetch(SUPABASE_URL + '/graphql/v1', {
+            method: 'POST',
+            headers: {
+                'apikey': SUPABASE_ANON_KEY,
+                'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ query })
+        });
+        
+        const data = await res.json();
+        resultEl.textContent = JSON.stringify(data, null, 2);
+        resultEl.style.color = data.errors ? 'var(--red)' : 'var(--green)';
+    } catch (e) {
+        resultEl.textContent = 'Error: ' + e.message;
+        resultEl.style.color = 'var(--red)';
+    } finally {
+        btn.textContent = 'Run Query (▶)'; btn.disabled = false;
+    }
+};
+
+// ---------------------------------------------------
+// 3. INJECT UI BUTTONS
+// ---------------------------------------------------
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. Inject "Live" button next to "View" in the Ukmbase Data tables list
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            if (mutation.addedNodes.length) {
+                document.querySelectorAll('#ukmdata-tables-list > div').forEach(card => {
+                    if (!card.querySelector('.btn-live-data')) {
+                        const tableName = card.querySelector('.mono').textContent;
+                        const btnContainer = card.querySelector('.flex-wrap.items-center.gap-2');
+                        if (btnContainer) {
+                            const btn = document.createElement('button');
+                            btn.className = 'btn-live-data text-[10px] font-bold px-2 py-1.5 rounded-lg';
+                            btn.style.cssText = 'background: rgba(16,185,129,0.1); color: var(--green); border: 1px solid rgba(16,185,129,0.3);';
+                            btn.innerHTML = 'Live <span class="animate-pulse">🔴</span>';
+                            btn.onclick = () => openLiveDataModal(tableName);
+                            // Insert before the CSV button
+                            btnContainer.insertBefore(btn, btnContainer.querySelector('button[onclick^="document.getElementById(\'csv-input"]'));
+                        }
+                    }
+                });
+            }
+        });
+    });
+    const listContainer = document.getElementById('ukmdata-tables-list');
+    if (listContainer) observer.observe(listContainer, { childList: true, subtree: true });
+
+    // 2. Inject "GraphQL" button into the Developer Hub (Advanced Tab)
+    const devHub = document.getElementById('ukmdata-devhub-card');
+    if (devHub) {
+        const gqlSection = devHub.querySelector('.space-y-4');
+        if (gqlSection && !document.getElementById('btn-open-graphql')) {
+            const btn = document.createElement('button');
+            btn.id = 'btn-open-graphql';
+            btn.className = 'w-full mt-2 font-bold py-2 rounded-lg text-white text-xs';
+            btn.style.background = 'var(--accent)';
+            btn.textContent = 'Open GraphQL Playground';
+            btn.onclick = openGraphQLPlayground;
+            gqlSection.appendChild(btn);
+        }
+    }
+});
