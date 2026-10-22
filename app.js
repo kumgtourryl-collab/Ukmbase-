@@ -4227,3 +4227,139 @@ document.addEventListener('DOMContentLoaded', () => {
 // ============================================
 // END OF PHASE 9
 // ============================================
+// ============================================
+// PHASE 10: TEAM INVITATIONS & SHARED WORKSPACES
+// ============================================
+
+// ---------------------------------------------------
+// 1. SEND TEAM INVITE (With UkmNotify Email)
+// ---------------------------------------------------
+window.sendTeamInvite = async function() {
+    const emailInput = document.getElementById('team-invite-email');
+    const roleSelect = document.getElementById('team-invite-role');
+    const btn = document.getElementById('team-invite-btn');
+    const errorEl = document.getElementById('team-invite-error');
+    
+    const email = emailInput.value.trim().toLowerCase();
+    const role = roleSelect.value;
+
+    if (!email) return showToast('Email required', 'error');
+    
+    btn.textContent = 'Sending...'; btn.disabled = true;
+    errorEl.classList.add('hidden');
+
+    try {
+        // 1. Save to DB
+        const { error } = await supabaseClient.from('team_members').insert([{ 
+            owner_id: state.currentUser.id, 
+            invite_email: email, 
+            role: role, 
+            status: 'pending' 
+        }]);
+        
+        if (error) throw error;
+
+        // 2. Send the email via UkmNotify (The function we built on Day 1!)
+        const emailBody = `
+            <h2>You've been invited to join a team on Ukmbase!</h2>
+            <p><strong>${state.currentProfile.full_name || state.currentUser.email}</strong> has invited you to collaborate as a <strong>${role}</strong>.</p>
+            <p>Log in to your Ukmbase account to accept the invitation and access their projects.</p>
+            <br>
+            <a href="${window.location.origin}" style="background: #4F46E5; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Log in to Ukmbase</a>
+        `;
+        
+        await window.sendNotification(
+            state.currentUser.id, // Fake project_id for platform notifications
+            email, 
+            'email', 
+            'Ukmbase Team Invitation', 
+            emailBody
+        );
+
+        emailInput.value = '';
+        await loadTeam(); 
+        renderTeam(); 
+        showToast('Invite sent successfully!');
+    } catch (e) {
+        errorEl.textContent = e.message; errorEl.classList.remove('hidden');
+    } finally {
+        btn.textContent = 'Send Invite'; btn.disabled = false;
+    }
+};
+
+// ---------------------------------------------------
+// 2. ACCEPT INVITE (Triggered from the Banner)
+// ---------------------------------------------------
+window.acceptTeamInvite = async function() {
+    if (!state.pendingInvite) return;
+    
+    try {
+        const { error } = await supabaseClient.from('team_members')
+            .update({ status: 'active' })
+            .eq('id', state.pendingInvite.id);
+            
+        if (error) throw error;
+        
+        showToast('Invite accepted! Loading shared projects...');
+        document.getElementById('team-invite-banner').classList.add('hidden');
+        state.pendingInvite = null;
+        
+        // Reload projects so the shared ones show up in the dashboard
+        await loadProjects(); 
+        switchView('overview');
+    } catch(e) {
+        showToast(e.message, 'error');
+    }
+};
+
+// ---------------------------------------------------
+// 3. HANDLE LOGIN & TEAM PROJECTS
+// ---------------------------------------------------
+// Override loadProjects so we catch both owned AND shared projects
+const originalLoadProjects = window.loadProjects;
+window.loadProjects = async function() {
+    if (!state.currentUser) return;
+    
+    document.getElementById('projects-loading').classList.remove('hidden'); 
+    document.getElementById('projects-grid').classList.add('hidden'); 
+    document.getElementById('empty-state').classList.add('hidden');
+    
+    // The RLS policy we just added allows fetching both!
+    const { data, error } = await supabaseClient.from('projects').select('*').order('created_at', { ascending: false });
+    
+    document.getElementById('projects-loading').classList.add('hidden'); 
+    if (error) return console.error(error);
+    
+    state.projectsCache = data || []; 
+    renderProjects(); 
+    updateStats(); 
+    populateProjectSelects(); 
+    updateOnboardingChecklist();
+};
+
+// Override checkForPendingInvites to ensure the banner pops up instantly on login
+const originalCheckForPendingInvites = window.checkForPendingInvites;
+window.checkForPendingInvites = async function() {
+    if (!state.currentUser || !state.currentUser.email) return;
+    
+    // Check if we have a pending invite
+    const { data } = await supabaseClient.from('team_members')
+        .select('*, profiles:owner_id(full_name, email)')
+        .eq('invite_email', state.currentUser.email)
+        .eq('status', 'pending')
+        .maybeSingle();
+        
+    if (data) {
+        state.pendingInvite = data; 
+        const owner = data.profiles?.full_name || data.profiles?.email || 'A user';
+        document.getElementById('invite-banner-text').innerHTML = `<strong>${escapeHtml(owner)}</strong> invited you to collaborate as <strong>${escapeHtml(data.role)}</strong>.`;
+        document.getElementById('team-invite-banner').classList.remove('hidden');
+    }
+};
+
+// Run the check on page load
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        if (state.currentUser) checkForPendingInvites();
+    }, 2000);
+});
