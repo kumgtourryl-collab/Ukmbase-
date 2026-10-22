@@ -4040,3 +4040,190 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 });
+// ============================================
+// PHASE 9: UKMCHAT WIDGET & NOTIFICATION CENTER
+// ============================================
+
+// ---------------------------------------------------
+// 1. UKMCHAT (Floating AI Support Widget)
+// ---------------------------------------------------
+// This gets injected into the public facing apps (like ?app=tourism)
+window.initUkmChatWidget = function(projectId) {
+    // Don't show if it already exists
+    if (document.getElementById('ukmchat-widget')) return;
+
+    const widget = document.createElement('div');
+    widget.id = 'ukmchat-widget';
+    widget.innerHTML = `
+        <!-- Chat Window -->
+        <div id="ukmchat-window" class="hidden fixed bottom-24 right-4 sm:right-6 w-80 sm:w-96 rounded-2xl shadow-2xl z-[100] flex flex-col overflow-hidden" style="background: var(--surface); border: 1px solid var(--border); max-height: 500px;">
+            <div class="p-4 flex justify-between items-center" style="background: var(--accent); color: white;">
+                <div class="flex items-center gap-2">
+                    <div class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
+                    <h3 class="font-bold text-sm">AI Support</h3>
+                </div>
+                <button onclick="document.getElementById('ukmchat-window').classList.add('hidden')" class="text-white/80 hover:text-white">✕</button>
+            </div>
+            <div id="ukmchat-messages" class="flex-1 p-4 overflow-y-auto space-y-3 text-sm" style="background: var(--bg); min-height: 250px;">
+                <div class="p-3 rounded-lg rounded-tl-none w-4/5" style="background: var(--surface); border: 1px solid var(--border); color: var(--text);">
+                    Hi there! 👋 How can I help you today?
+                </div>
+            </div>
+            <div class="p-3 border-t" style="border-color: var(--border); background: var(--surface);">
+                <div class="flex gap-2">
+                    <input type="text" id="ukmchat-input" placeholder="Ask a question..." class="flex-1 rounded-lg px-3 py-2 text-sm focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);" onkeydown="if(event.key==='Enter') sendUkmChatMessage('${projectId}')">
+                    <button onclick="sendUkmChatMessage('${projectId}')" id="ukmchat-send" class="p-2 rounded-lg text-white" style="background: var(--accent);">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Floating Button -->
+        <button onclick="document.getElementById('ukmchat-window').classList.toggle('hidden')" class="fixed bottom-6 right-4 sm:right-6 w-14 h-14 rounded-full shadow-xl flex items-center justify-center z-[100] text-white transition-transform hover:scale-105" style="background: var(--accent);">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
+        </button>
+    `;
+    document.body.appendChild(widget);
+};
+
+window.sendUkmChatMessage = async function(projectId) {
+    const input = document.getElementById('ukmchat-input');
+    const messages = document.getElementById('ukmchat-messages');
+    const sendBtn = document.getElementById('ukmchat-send');
+    const text = input.value.trim();
+    if (!text) return;
+
+    // Add user message
+    input.value = '';
+    messages.innerHTML += `
+        <div class="p-3 rounded-lg rounded-tr-none w-4/5 ml-auto text-white" style="background: var(--accent);">
+            ${escapeHtml(text)}
+        </div>
+    `;
+    messages.scrollTop = messages.scrollHeight;
+    sendBtn.disabled = true;
+
+    try {
+        // Get project context for the AI
+        const proj = state.projectsCache.find(p => p.id === projectId);
+        const contextPrompt = `You are a helpful customer support AI for a business called "${proj ? proj.name : 'this business'}". Answer this user question politely and concisely: "${text}"`;
+        
+        const data = await aiCall({ prompt: contextPrompt, mode: 'default', projectId: projectId });
+        
+        messages.innerHTML += `
+            <div class="p-3 rounded-lg rounded-tl-none w-4/5" style="background: var(--surface); border: 1px solid var(--border); color: var(--text);">
+                ${escapeHtml(data.content || "I'm sorry, I couldn't process that.")}
+            </div>
+        `;
+    } catch (e) {
+        messages.innerHTML += `<div class="p-3 text-red-400 text-xs">Error: ${e.message}</div>`;
+    } finally {
+        sendBtn.disabled = false;
+        messages.scrollTop = messages.scrollHeight;
+    }
+};
+
+// Automatically inject the chat widget into the Tourism App
+const originalLoadTourismApp = window.loadTourismApp;
+window.loadTourismApp = async function(projectSlug) {
+    if (originalLoadTourismApp) await originalLoadTourismApp(projectSlug);
+    // Find the project ID to pass to the chat widget
+    const proj = state.projectsCache.find(p => p.slug === projectSlug);
+    if (proj) initUkmChatWidget(proj.id);
+};
+
+// ---------------------------------------------------
+// 2. NOTIFICATION CENTER (For the Dashboard)
+// ---------------------------------------------------
+window.loadPlatformNotifications = async function() {
+    if (!state.currentUser) return;
+    const { data } = await supabaseClient.from('platform_notifications').select('*').eq('user_id', state.currentUser.id).order('created_at', { ascending: false }).limit(10);
+    
+    const dot = document.getElementById('notif-dot');
+    if (!dot) return;
+
+    const unread = data ? data.filter(n => !n.is_read).length : 0;
+    
+    if (unread > 0) {
+        dot.classList.remove('hidden');
+    } else {
+        dot.classList.add('hidden');
+    }
+};
+
+window.openNotificationCenter = async function() {
+    let modal = document.getElementById('ukm-notification-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'ukm-notification-modal';
+        modal.className = 'hidden fixed inset-0 z-[80] flex items-start justify-end p-4 bg-black/50 backdrop-blur-sm';
+        document.body.appendChild(modal);
+    }
+    modal.classList.remove('hidden');
+
+    modal.innerHTML = `
+    <div class="w-full max-w-sm rounded-2xl p-4 glow mt-16 mr-2 sm:mr-4" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-sm font-bold" style="color: var(--text);">Notifications</h2>
+            <button onclick="document.getElementById('ukm-notification-modal').classList.add('hidden')" style="color: var(--text-muted);">✕</button>
+        </div>
+        <div id="notif-list" class="space-y-2 max-h-96 overflow-y-auto">
+            <div class="text-center py-4"><div class="inline-block w-4 h-4 border-2 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent);"></div></div>
+        </div>
+    </div>`;
+
+    const { data } = await supabaseClient.from('platform_notifications').select('*').eq('user_id', state.currentUser.id).order('created_at', { ascending: false }).limit(20);
+    const list = document.getElementById('notif-list');
+    
+    if (!data || data.length === 0) {
+        list.innerHTML = '<p class="text-xs text-center py-6" style="color: var(--text-muted);">No notifications yet.</p>';
+        return;
+    }
+
+    // Mark as read
+    await supabaseClient.from('platform_notifications').update({ is_read: true }).eq('user_id', state.currentUser.id).eq('is_read', false);
+    document.getElementById('notif-dot').classList.add('hidden');
+
+    list.innerHTML = data.map(n => `
+        <div class="p-3 rounded-lg text-xs" style="background: var(--bg); border: 1px solid var(--border); ${n.is_read ? 'opacity: 0.6;' : ''}">
+            <div class="flex items-center gap-2 mb-1">
+                <div class="w-2 h-2 rounded-full ${n.type === 'success' ? 'bg-green-400' : n.type === 'warning' ? 'bg-yellow-400' : 'bg-cyan-400'}"></div>
+                <p class="font-bold" style="color: var(--text);">${escapeHtml(n.title)}</p>
+                <span class="ml-auto" style="color: var(--text-dim);">${new Date(n.created_at).toLocaleTimeString()}</span>
+            </div>
+            <p style="color: var(--text-muted);">${escapeHtml(n.message)}</p>
+        </div>
+    `).join('');
+};
+
+// ---------------------------------------------------
+// 3. INJECT NOTIFICATION BELL INTO TOP NAV
+// ---------------------------------------------------
+document.addEventListener('DOMContentLoaded', () => {
+    const navRight = document.querySelector('#dashboard-view nav .flex.items-center.gap-2');
+    if (navRight && !document.getElementById('notif-bell')) {
+        const bellBtn = document.createElement('button');
+        bellBtn.id = 'notif-bell';
+        bellBtn.className = 'p-2 rounded-lg relative';
+        bellBtn.style.background = 'var(--surface)';
+        bellBtn.style.border = '1px solid var(--border)';
+        bellBtn.style.color = 'var(--text-muted)';
+        bellBtn.innerHTML = `
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+            <span id="notif-dot" class="hidden absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-[var(--surface)]"></span>
+        `;
+        bellBtn.onclick = openNotificationCenter;
+        
+        // Insert before the theme toggle
+        const themeToggle = document.getElementById('theme-toggle');
+        navRight.insertBefore(bellBtn, themeToggle);
+        
+        // Initial load
+        setTimeout(loadPlatformNotifications, 1000);
+    }
+});
+
+// ============================================
+// END OF PHASE 9
+// ============================================
