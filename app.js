@@ -3285,3 +3285,212 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }, 500); // Small delay to ensure Phase 3 sidebar is built
 });
+// ============================================
+// PHASE 5: API KEYS, METERING & PUSH NOTIFICATIONS
+// ============================================
+
+// ---------------------------------------------------
+// 1. PROJECT API KEYS & METERING (Overrides Settings Modal)
+// ---------------------------------------------------
+window.openProjectSettings = async function(projectId) {
+    const proj = state.projectsCache.find(p => p.id === projectId);
+    if (!proj) return showToast('Project not found', 'error');
+    
+    let modal = document.getElementById('project-settings-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'project-settings-modal';
+        modal.className = 'hidden fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm';
+        document.body.appendChild(modal);
+    }
+    modal.classList.remove('hidden');
+
+    const schema = proj.slug.replace(/-/g, '_');
+
+    modal.innerHTML = `
+    <div class="w-full max-w-2xl rounded-2xl p-6 glow max-h-[90vh] flex flex-col" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex items-center justify-between mb-6">
+            <div>
+                <h2 class="text-lg font-bold" style="color: var(--text);">Project Settings</h2>
+                <p class="text-xs mono mt-1" style="color: var(--cyan);">${escapeHtml(proj.name)}</p>
+            </div>
+            <button onclick="document.getElementById('project-settings-modal').classList.add('hidden')" style="color: var(--text-muted);">✕</button>
+        </div>
+        
+        <div class="flex-1 overflow-y-auto space-y-6 pr-2">
+            
+            <!-- Usage Metering -->
+            <div class="rounded-xl p-4" style="background: var(--bg); border: 1px solid var(--border);">
+                <h3 class="text-sm font-bold mb-3" style="color: var(--text);">Usage Metering</h3>
+                <div class="space-y-3">
+                    <div>
+                        <div class="flex justify-between text-xs mb-1"><span style="color: var(--text-muted);">API Calls</span><span class="mono" style="color: var(--text);">${(proj.api_calls_used || 0).toLocaleString()} / 100k</span></div>
+                        <div class="w-full rounded-full h-1.5" style="background: var(--surface);"><div class="h-1.5 rounded-full" style="width: ${Math.min(100, ((proj.api_calls_used || 0) / 100000) * 100)}%; background: var(--accent);"></div></div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-xs mb-1"><span style="color: var(--text-muted);">Storage</span><span class="mono" style="color: var(--text);">${formatBytes(proj.storage_bytes_used || 0)} / 500 MB</span></div>
+                        <div class="w-full rounded-full h-1.5" style="background: var(--surface);"><div class="h-1.5 rounded-full" style="width: ${Math.min(100, ((proj.storage_bytes_used || 0) / (500*1024*1024)) * 100)}%; background: var(--cyan);"></div></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API Credentials -->
+            <div class="rounded-xl p-4" style="background: var(--bg); border: 1px solid var(--border);">
+                <h3 class="text-sm font-bold mb-3" style="color: var(--text);">API Credentials</h3>
+                <div class="space-y-2 text-xs">
+                    <div class="flex justify-between items-center"><span style="color: var(--text-muted);">Project URL</span><span class="mono truncate ml-4" style="color: var(--text);">${SUPABASE_URL}</span></div>
+                    <div class="flex justify-between items-center"><span style="color: var(--text-muted);">Anon Key</span><span class="mono truncate ml-4" style="color: var(--text);">${SUPABASE_ANON_KEY}</span></div>
+                </div>
+            </div>
+
+            <!-- API Keys Generator -->
+            <div class="rounded-xl p-4" style="background: var(--bg); border: 1px solid var(--border);">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-sm font-bold" style="color: var(--text);">Project API Keys</h3>
+                    <button onclick="generateProjectApiKey('${projectId}')" class="text-[10px] font-bold px-3 py-1 rounded" style="background: var(--accent); color: white;">+ Generate</button>
+                </div>
+                <div id="project-api-keys-list" class="space-y-2 text-xs">
+                    <p style="color: var(--text-muted);">Loading keys...</p>
+                </div>
+            </div>
+
+            <!-- Quick Links -->
+            <div>
+                <h3 class="text-sm font-bold mb-3" style="color: var(--text);">Project Tools</h3>
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="openSchemaDesigner('${projectId}'); document.getElementById('project-settings-modal').classList.add('hidden');" class="p-3 rounded-xl text-left" style="background: var(--bg); border: 1px solid var(--border);">
+                        <p class="text-xs font-bold mb-1" style="color: var(--text);">Schema Designer</p>
+                    </button>
+                    <button onclick="openMobileSdkModal('${projectId}'); document.getElementById('project-settings-modal').classList.add('hidden');" class="p-3 rounded-xl text-left" style="background: var(--bg); border: 1px solid var(--border);">
+                        <p class="text-xs font-bold mb-1" style="color: var(--text);">Mobile SDK</p>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>`;
+
+    loadProjectApiKeys(projectId);
+};
+
+window.loadProjectApiKeys = async function(projectId) {
+    const list = document.getElementById('project-api-keys-list');
+    if (!list) return;
+    const { data } = await supabaseClient.from('project_api_keys').select('*').eq('project_id', projectId).order('created_at', { ascending: false });
+    
+    if (!data || data.length === 0) {
+        list.innerHTML = '<p style="color: var(--text-muted);">No API keys generated yet.</p>';
+        return;
+    }
+    
+    list.innerHTML = data.map(k => `
+        <div class="flex items-center justify-between p-2 rounded" style="background: var(--surface);">
+            <div class="min-w-0">
+                <p class="font-bold truncate" style="color: var(--text);">${escapeHtml(k.name)}</p>
+                <p class="mono truncate" style="color: var(--text-dim);">${escapeHtml(k.key_string)}</p>
+            </div>
+            <div class="flex gap-1 flex-shrink-0">
+                <button onclick="copyToClipboardText('${escapeHtml(k.key_string)}')" class="px-2 py-1 text-cyan-400">Copy</button>
+                <button onclick="revokeProjectApiKey('${k.id}', '${projectId}')" class="px-2 py-1 text-red-400">Revoke</button>
+            </div>
+        </div>
+    `).join('');
+};
+
+window.generateProjectApiKey = async function(projectId) {
+    const name = prompt('Name this API key (e.g., "Production Server"):');
+    if (!name) return;
+    
+    const key = `ukm_live_${Array.from(crypto.getRandomValues(new Uint8Array(24))).map(b => b.toString(16).padStart(2, '0')).join('')}`;
+    
+    const { error } = await supabaseClient.from('project_api_keys').insert({
+        project_id: projectId,
+        name: name,
+        key_string: key
+    });
+    
+    if (error) return showToast(error.message, 'error');
+    showToast('API Key generated!');
+    loadProjectApiKeys(projectId);
+};
+
+window.revokeProjectApiKey = async function(keyId, projectId) {
+    if (!confirm('Revoke this API key? Apps using it will stop working.')) return;
+    await supabaseClient.from('project_api_keys').delete().eq('id', keyId);
+    showToast('Key revoked');
+    loadProjectApiKeys(projectId);
+};
+
+// ---------------------------------------------------
+// 2. WEB PUSH NOTIFICATIONS (For mobile alerts)
+// ---------------------------------------------------
+window.requestPushPermission = async function() {
+    if (!('Notification' in window)) {
+        return showToast('This browser does not support notifications.', 'error');
+    }
+    
+    if (Notification.permission === 'granted') {
+        return showToast('Notifications are already enabled!', 'success');
+    }
+
+    const permission = await Notification.requestPermission();
+    if (permission === 'granted') {
+        showToast('Notifications enabled! We will alert you when things happen.', 'success');
+        sendPushNotification('Ukmbase Connected', 'You will now receive alerts for sales and form submissions.');
+    } else {
+        showToast('Notifications blocked. Please enable them in browser settings.', 'error');
+    }
+};
+
+window.sendPushNotification = function(title, body) {
+    if (Notification.permission === 'granted') {
+        new Notification(title, {
+            body: body,
+            icon: 'https://kumgtourryl-collab.github.io/Ukmbase-/icon-192.png' // Your app icon
+        });
+    }
+};
+
+// ---------------------------------------------------
+// 3. INJECT SETTINGS & NOTIFICATION BUTTONS INTO NAV
+// ---------------------------------------------------
+document.addEventListener('DOMContentLoaded', () => {
+    // Add "Enable Notifications" to the top nav bar
+    const navRight = document.querySelector('#dashboard-view nav .flex.items-center.gap-2');
+    if (navRight) {
+        const notifBtn = document.createElement('button');
+        notifBtn.className = 'p-2 rounded-lg hidden sm:block';
+        notifBtn.style.background = 'var(--surface)';
+        notifBtn.style.border = '1px solid var(--border)';
+        notifBtn.style.color = 'var(--text-muted)';
+        notifBtn.title = 'Enable Push Notifications';
+        notifBtn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>';
+        notifBtn.onclick = requestPushPermission;
+        
+        // Insert before theme toggle
+        const themeToggle = document.getElementById('theme-toggle');
+        navRight.insertBefore(notifBtn, themeToggle);
+    }
+
+    // Hook into Project Settings modal buttons dynamically
+    // (Because the cards in the "Overview" tab call openProjectDetail, not openProjectSettings)
+    const observer = new MutationObserver(() => {
+        const pdBody = document.getElementById('pd-body');
+        if (pdBody && state.viewingProjectId && !pdBody.querySelector('.btn-project-settings')) {
+            const settingsBtn = document.createElement('button');
+            settingsBtn.className = 'btn-project-settings w-full mt-2 font-bold py-3 rounded-lg text-white';
+            settingsBtn.style.background = 'var(--surface-2)';
+            settingsBtn.style.border = '1px solid var(--border)';
+            settingsBtn.innerHTML = '⚙️ Project Settings & API Keys';
+            settingsBtn.onclick = () => {
+                document.getElementById('project-detail-modal').classList.add('hidden');
+                openProjectSettings(state.viewingProjectId);
+            };
+            
+            const dangerZone = pdBody.querySelector('.space-y-2');
+            if (dangerZone) dangerZone.insertBefore(settingsBtn, dangerZone.firstChild);
+        }
+    });
+    const pdModal = document.getElementById('project-detail-modal');
+    if (pdModal) observer.observe(pdModal, { childList: true, subtree: true });
+});
