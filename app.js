@@ -4949,3 +4949,103 @@ window.showDashboardView = async function(user) {
 document.addEventListener('DOMContentLoaded', () => {
     setTimeout(window.ensureSidebarExtras, 1000);
 });
+// ============================================
+// PHASE 15: BULLETPROOF SIDEBAR INJECTION
+// ============================================
+
+window.ensureSidebarExtras = function() {
+    if (!state.currentUser) return;
+
+    // Find the NEW visible sidebar group
+    const navGroup = document.querySelector('#sidebar .nav-group');
+    if (!navGroup) return;
+    const navGroupItems = navGroup.querySelector('.nav-group-items');
+    if (!navGroupItems) return;
+
+    // 1. INJECT ANALYTICS (Next to Overview)
+    if (!document.getElementById('nav-analytics')) {
+        const overviewBtn = document.getElementById('nav-overview');
+        if (overviewBtn) {
+            const analyticsBtn = document.createElement('a');
+            analyticsBtn.href = '#';
+            analyticsBtn.id = 'nav-analytics';
+            analyticsBtn.className = 'nav-item';
+            analyticsBtn.innerHTML = `
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                <span>Analytics</span>
+            `;
+            analyticsBtn.onclick = (e) => {
+                e.preventDefault();
+                window.switchView('analytics');
+            };
+            overviewBtn.parentNode.insertBefore(analyticsBtn, overviewBtn.nextSibling);
+        }
+    }
+
+    // 2. INJECT OWNER CONSOLE (If user is staff)
+    if (state.currentProfile && STAFF_ROLES.includes(state.currentProfile.role)) {
+        if (!document.getElementById('nav-owner-new')) {
+            const sidebarNav = document.querySelector('#sidebar .p-3.space-y-1');
+            if (sidebarNav) {
+                const ownerGroup = document.createElement('details');
+                ownerGroup.className = 'nav-group';
+                ownerGroup.open = true;
+                
+                // ✨ THE FIX: Put the onclick directly inside the HTML string!
+                ownerGroup.innerHTML = `
+                    <summary>Owner <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="transform: none;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg></summary>
+                    <div class="nav-group-items">
+                        <a href="#" id="nav-owner-new" class="nav-item" onclick="event.preventDefault(); window.switchView('owner');" style="color: var(--amber);">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                            <span>Owner Console</span>
+                        </a>
+                    </div>
+                `;
+                // Append it to the sidebar ONLY AFTER the HTML is built
+                sidebarNav.appendChild(ownerGroup);
+            }
+        }
+    }
+};
+
+// 3. FIX THE SWITCHVIEW ROUTING (Again, just to be safe)
+const finalSwitchViewPhase15 = window.switchView;
+window.switchView = function(view) {
+    // Intercept 'analytics'
+    if (view === 'analytics') {
+        document.querySelectorAll('[id^="view-"]').forEach(el => el.classList.add('hidden'));
+        const analyticsView = document.getElementById('view-analytics');
+        if (analyticsView) analyticsView.classList.remove('hidden');
+        
+        // Update active state
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        const navAnalytics = document.getElementById('nav-analytics');
+        if (navAnalytics) navAnalytics.classList.add('active');
+        
+        window.loadAnalyticsDashboard();
+        
+        // Close mobile sidebar
+        const sidebar = document.getElementById('sidebar');
+        if (sidebar) sidebar.classList.add('-translate-x-full');
+        return;
+    }
+
+    // Run the original switch view
+    if (finalSwitchViewPhase15) finalSwitchViewPhase15(view);
+    
+    // Ensure extras are injected after every view change
+    setTimeout(window.ensureSidebarExtras, 100);
+};
+
+// 4. RUN ON STARTUP
+document.addEventListener('DOMContentLoaded', () => {
+    // Run it once on load
+    setTimeout(window.ensureSidebarExtras, 1000);
+    
+    // Also run it whenever the dashboard opens
+    const originalShowDashboardPhase15 = window.showDashboardView;
+    window.showDashboardView = async function(user) {
+        if (originalShowDashboardPhase15) await originalShowDashboardPhase15(user);
+        setTimeout(window.ensureSidebarExtras, 500);
+    };
+});
