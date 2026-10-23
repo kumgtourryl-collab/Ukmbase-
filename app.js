@@ -5236,3 +5236,25 @@ document.addEventListener('DOMContentLoaded', () => {
         window.updateSidebarActiveState('overview');
     }, 500);
 });
+// Bulletproof Icon Size Fix
+(function fixIcons() {
+    const style = document.createElement('style');
+    style.innerHTML = `
+        /* Force perfect icon sizing everywhere in the sidebar */
+        #sidebar .sb-item svg, 
+        #sidebar .sb-group-header svg {
+            width: 18px !important;
+            height: 18px !important;
+            min-width: 18px !important;
+            max-width: 18px !important;
+            flex-shrink: 0 !important;
+            display: inline-block !important;
+        }
+        #sidebar .sb-group-header svg {
+            width: 12px !important;
+            height: 12px !important;
+            min-width: 12px !important;
+        }
+    `;
+    document.head.appendChild(style);
+})();
