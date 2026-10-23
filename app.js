@@ -5049,3 +5049,138 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(window.ensureSidebarExtras, 500);
     };
 });
+// ============================================
+// PHASE 16: THE SUPABASE-STYLE OVERHAUL
+// ============================================
+
+window.rebuildSidebar = function() {
+    const sidebar = document.getElementById('sidebar');
+    if (!sidebar) return;
+
+    // Hide the original ugly list
+    const originalNav = sidebar.querySelector('.p-4.space-y-1');
+    if (originalNav) originalNav.style.display = 'none';
+
+    // Check if we already built the new one
+    if (document.getElementById('ukm-pro-sidebar')) return;
+
+    // Icons
+    const ic = {
+        chevron: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>',
+        home: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>',
+        chart: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>',
+        db: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>',
+        ai: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>',
+        code: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>',
+        money: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>',
+        sync: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>',
+        settings: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>',
+        tools: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>'
+    };
+
+    const makeItem = (id, icon, label, onclick) => `
+        <a href="#" id="sb-${id}" class="sb-item" onclick="event.preventDefault(); ${onclick}">
+            ${ic[icon] || ic.tools} <span>${label}</span>
+        </a>
+    `;
+
+    const makeGroup = (title, items, open = false) => `
+        <div class="sb-group ${open ? 'open' : ''}">
+            <div class="sb-group-header" onclick="this.parentElement.classList.toggle('open')">
+                <span>${title}</span> ${ic.chevron}
+            </div>
+            <div class="sb-items">${items}</div>
+        </div>
+    `;
+
+    // Build the HTML
+    let html = `<div id="ukm-pro-sidebar" class="sb-scroll">`;
+    
+    // Group 1: Project
+    html += makeGroup('Project', `
+        ${makeItem('overview', 'home', 'Overview', "window.switchView('overview')")}
+        ${makeItem('analytics', 'chart', 'Analytics', "window.switchView('analytics')")}
+        ${makeItem('settings', 'settings', 'Project Settings', "window.switchView('settings')")}
+    `, true);
+
+    // Group 2: Database
+    html += makeGroup('Database', `
+        ${makeItem('ukmdata', 'db', 'Data & Tables', "window.switchView('ukmdata')")}
+        ${makeItem('ukmtables', 'db', 'UkmTables', "window.switchView('ukmtables')")}
+        ${makeItem('ukmquery', 'code', 'UkmQuery', "window.switchView('ukmquery')")}
+        ${makeItem('search', 'tools', 'Global Search', "openGlobalSearch()")}
+        ${makeItem('backups', 'db', 'Backups', "openBackupModal()")}
+    `, true);
+
+    // Group 3: AI & Automation
+    html += makeGroup('AI & Automation', `
+        ${makeItem('ukmai', 'ai', 'UkmAI Copilot', "window.switchView('ukmai')")}
+        ${makeItem('flow', 'ai', 'UkmFlow', "openFlowModal()")}
+    `);
+
+    // Group 4: Products
+    html += makeGroup('Products', `
+        ${makeItem('ukmpay', 'money', 'UkmPay', "window.switchView('ukmpay')")}
+        ${makeItem('ukmsync', 'sync', 'UkmSync', "window.switchView('ukmsync')")}
+        ${makeItem('connect', 'code', 'Connect App', "window.switchView('connect')")}
+        ${makeItem('market', 'tools', 'UkmMarket', "loadMarketplace()")}
+    `);
+
+    // Group 5: Settings & Team
+    html += makeGroup('Workspace', `
+        ${makeItem('team', 'settings', 'Team', "window.switchView('team')")}
+        ${makeItem('billing', 'money', 'Billing', "window.switchView('billing')")}
+    `);
+
+    // Group 6: Owner (Only for staff)
+    if (state.currentProfile && STAFF_ROLES.includes(state.currentProfile.role)) {
+        html += makeGroup('Staff Only', `
+            ${makeItem('owner', 'settings', 'Owner Console', "window.switchView('owner')")}
+        `);
+    }
+
+    html += `</div>`;
+
+    // Inject into sidebar
+    sidebar.appendChild(html);
+    
+    // Make sure the sidebar items trigger the original switchView and update UI state
+    window.updateSidebarActiveState = function(view) {
+        document.querySelectorAll('.sb-item').forEach(el => el.classList.remove('active'));
+        const activeEl = document.getElementById('sb-' + view);
+        if (activeEl) activeEl.classList.add('active');
+    };
+};
+
+// Override switchView to handle analytics and update active states
+const originalSwitchViewPhase16 = window.switchView;
+window.switchView = function(view) {
+    if (view === 'analytics') {
+        document.querySelectorAll('[id^="view-"]').forEach(el => el.classList.add('hidden'));
+        const analyticsView = document.getElementById('view-analytics');
+        if (analyticsView) analyticsView.classList.remove('hidden');
+        window.updateSidebarActiveState('analytics');
+        window.loadAnalyticsDashboard();
+        document.getElementById('sidebar').classList.add('-translate-x-full');
+        return;
+    }
+    
+    if (view === 'market') {
+        window.updateSidebarActiveState('market');
+        window.loadMarketplace();
+        document.getElementById('sidebar').classList.add('-translate-x-full');
+        return;
+    }
+
+    if (originalSwitchViewPhase16) originalSwitchViewPhase16(view);
+    window.updateSidebarActiveState(view);
+};
+
+// Initialize on load
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        window.rebuildSidebar();
+        // Auto-open Overview on boot
+        window.updateSidebarActiveState('overview');
+    }, 1000);
+});
