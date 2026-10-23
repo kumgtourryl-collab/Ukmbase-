@@ -29,7 +29,6 @@
     }
     body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var(--text); transition: background-color 0.25s ease, color 0.25s ease; }
     .mono { font-family: 'JetBrains Mono', monospace; }
-    .sidebar-active { background-color: rgba(79, 70, 229, 0.1); border-left: 3px solid var(--accent); }
     .glow { box-shadow: 0 0 40px -10px rgba(79, 70, 229, 0.4); }
     .feature-card { transition: all 0.3s ease; cursor: pointer; }
     .feature-card:hover { border-color: var(--accent); transform: translateY(-2px); }
@@ -82,30 +81,35 @@
     .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background: white; transition: 0.3s; border-radius: 50%; }
     input:checked + .slider { background: var(--accent); }
     input:checked + .slider:before { transform: translateX(20px); }
-    <style>
-    /* Supabase-style Sidebar Accordion */
-    .nav-group { margin-bottom: 8px; }
-    .nav-group summary {
+
+    /* Perfect Supabase-Style Sidebar */
+    #sidebar { display: flex; flex-direction: column; height: calc(100vh - 60px); }
+    .sb-scroll { flex: 1; overflow-y: auto; padding: 12px; -webkit-overflow-scrolling: touch; }
+    .sb-scroll::-webkit-scrollbar { width: 4px; }
+    .sb-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    
+    .sb-group { margin-bottom: 4px; }
+    .sb-group-header {
         display: flex; align-items: center; justify-content: space-between;
-        padding: 8px 12px; font-size: 11px; font-weight: 700; text-transform: uppercase;
-        letter-spacing: 0.05em; color: var(--text-dim); cursor: pointer; list-style: none;
-        border-radius: 6px; transition: color 0.2s;
+        padding: 6px 8px; font-size: 11px; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.05em; color: var(--text-dim); cursor: pointer; border-radius: 4px;
     }
-    .nav-group summary:hover { color: var(--text-muted); }
-    .nav-group summary::-webkit-details-marker { display: none; }
-    .nav-group[open] summary svg { transform: rotate(90deg); }
-    .nav-group summary svg { transition: transform 0.2s; width: 14px; height: 14px; }
-    .nav-group-items { padding-left: 4px; padding-top: 4px; display: flex; flex-direction: column; gap: 2px; }
-    .nav-item {
-        display: flex; align-items: center; gap: 10px; padding: 8px 12px;
-        border-radius: 6px; font-size: 13px; font-weight: 500; color: var(--text-muted);
-        text-decoration: none; cursor: pointer; transition: all 0.2s;
+    .sb-group-header:hover { color: var(--text-muted); background: rgba(255,255,255,0.03); }
+    .sb-group-header svg { width: 12px; height: 12px; transition: transform 0.2s; }
+    .sb-group.open .sb-group-header svg { transform: rotate(90deg); }
+    
+    .sb-items { display: none; flex-direction: column; gap: 2px; padding-left: 8px; margin-top: 2px; }
+    .sb-group.open .sb-items { display: flex; }
+    
+    .sb-item {
+        display: flex; align-items: center; gap: 10px; padding: 6px 10px;
+        font-size: 13px; font-weight: 500; color: var(--text-muted);
+        border-radius: 6px; text-decoration: none; cursor: pointer; transition: all 0.15s;
     }
-    .nav-item:hover { background: rgba(255,255,255,0.05); color: var(--text); }
-    .nav-item.active { background: rgba(79, 70, 229, 0.1); color: var(--accent); border-left: 2px solid var(--accent); }
-    .nav-item svg { width: 16px; height: 16px; opacity: 0.7; }
-    .nav-item:hover svg, .nav-item.active svg { opacity: 1; }
-</style>
+    .sb-item:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+    .sb-item.active { background: rgba(79, 70, 229, 0.15); color: var(--accent); border-left: 2px solid var(--accent); }
+    .sb-item svg { width: 16px; height: 16px; opacity: 0.7; }
+    .sb-item:hover svg, .sb-item.active svg { opacity: 1; }
 </style>
 </head>
 <body class="min-h-screen">
@@ -211,13 +215,13 @@
     <main class="max-w-3xl w-full">
         <div class="inline-flex items-center gap-2 bg-[#4F46E5]/10 border border-[#4F46E5]/30 text-[#06B6D4] px-4 py-1.5 rounded-full text-xs font-semibold mb-6">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-            Built entirely on a phone. $0 budget.
+            The AI-native infrastructure layer.
         </div>
         <h1 class="text-4xl md:text-6xl font-extrabold tracking-tight mb-6 leading-tight text-white">
             Forge your backend.<br>
             <span class="text-transparent bg-clip-text bg-gradient-to-r from-[#4F46E5] to-[#06B6D4]">Ship your SaaS.</span>
         </h1>
-        <p class="text-[#94A3B8] text-lg md:text-xl mb-8 max-w-xl mx-auto">The AI-native backend platform for mobile-first founders. Offline-first sync, full-stack AI generation, and built-in mobile money.</p>
+        <p class="text-[#94A3B8] text-lg md:text-xl mb-8 max-w-xl mx-auto">The AI-native backend platform for modern founders. Offline-first sync, full-stack AI generation, and built-in mobile money.</p>
         
         <!-- NEW: INTERACTIVE AI DEMO -->
         <div class="w-full max-w-2xl mx-auto mb-16 text-left">
@@ -264,7 +268,23 @@
             </div>
         </div>
     </main>
-    <footer class="mt-20 text-[#64748B] text-xs flex gap-4">
+
+    <!-- Ukmbase Manifesto -->
+    <section class="w-full max-w-4xl mx-auto px-6 py-20 mt-10 text-center border-t border-[#2A3347]">
+        <h2 class="text-3xl font-extrabold text-white mb-6">The Infrastructure of Tomorrow</h2>
+        <p class="text-[#94A3B8] text-lg leading-relaxed mb-6">
+            We believe that the next generation of world-changing software will be built by those who have been historically overlooked. Brilliant minds should not be limited by geography, financial barriers, or a lack of expensive infrastructure. 
+        </p>
+        <p class="text-[#94A3B8] text-lg leading-relaxed mb-8">
+            Ukmbase is the great equalizer. We are providing enterprise-grade database management, AI-driven architecture, and seamless payment integrations to anyone, anywhere. You bring the vision; we provide the engine. 
+        </p>
+        <div class="inline-flex items-center gap-2 text-[#10B981] font-bold">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+            Build without limits. Ship without permission.
+        </div>
+    </section>
+
+    <footer class="mt-10 pb-10 text-[#64748B] text-xs flex gap-4">
         <p>© 2026 Ukmbase. All rights reserved.</p>
         <a href="terms.html" class="hover:text-white">Terms</a>
         <a href="privacy.html" class="hover:text-white">Privacy</a>
@@ -387,11 +407,20 @@
             <span id="role-badge" class="hidden text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded">User</span>
         </div>
         <div class="flex items-center gap-2">
-            <!-- NEW: UPGRADE PILL -->
-            <button onclick="switchView('billing')" class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold" style="background: rgba(79,70,229,0.1); border: 1px solid rgba(79,70,229,0.3); color: var(--accent);">
-                <span id="nav-plan-name">Free Plan</span>
-                <span class="bg-[var(--accent)] text-white px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wider ml-1">Upgrade</span>
+            <!-- GLOBAL SEARCH -->
+            <button id="btn-global-search" onclick="openGlobalSearch()" class="flex items-center gap-2 px-3 py-1.5 rounded-lg" style="background: var(--surface); border: 1px solid var(--border); color: var(--text-muted);">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                <span class="text-xs hidden sm:block">Search</span>
+                <kbd class="text-[10px] px-1.5 py-0.5 rounded hidden sm:block" style="background: var(--bg); border: 1px solid var(--border);">⌘K</kbd>
             </button>
+
+            <!-- NOTIFICATIONS -->
+            <button id="notif-bell" onclick="openNotificationCenter()" class="p-2 rounded-lg relative" style="background: var(--surface); border: 1px solid var(--border); color: var(--text-muted);">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                <span id="notif-dot" class="hidden absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-[var(--surface)]"></span>
+            </button>
+
+            <!-- THEME -->
             <button id="theme-toggle" onclick="toggleTheme()" class="theme-btn p-2 rounded-lg" style="background: var(--surface); border: 1px solid var(--border); color: var(--text-muted);" title="Toggle theme">
                 <svg id="theme-icon-sun" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
                 <svg id="theme-icon-moon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
@@ -401,59 +430,143 @@
     </nav>
 
     <div class="flex flex-1 overflow-hidden">
+        <!-- SUPABASE-STYLE SIDEBAR -->
         <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-64 transform -translate-x-full transition-transform duration-200 ease-in-out md:relative md:translate-x-0 mt-14 md:mt-0" style="background: var(--surface); border-right: 1px solid var(--border);">
-            <div class="p-4 space-y-1">
-                <a href="#" onclick="switchView('overview')" id="nav-overview" class="flex items-center gap-3 px-3 py-2.5 rounded-lg sidebar-active text-sm font-medium" style="color: var(--text);">
-                    <svg class="w-5 h-5" style="color: var(--accent);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
-                    Overview
-                </a>
-                <a href="#" onclick="switchView('ukmai')" id="nav-ukmai" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors" style="color: var(--text-muted);">
-                    <svg class="w-5 h-5 text-[#F59E0B]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path></svg>
-                    UkmAI Copilot
-                </a>
-                <a href="#" onclick="switchView('ukmquery')" id="nav-ukmquery" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors" style="color: var(--text-muted);">
-                    <svg class="w-5 h-5 text-[#10B981]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                    UkmQuery
-                </a>
-                <a href="#" onclick="switchView('ukmsync')" id="nav-ukmsync" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors" style="color: var(--text-muted);">
-                    <svg class="w-5 h-5" style="color: var(--cyan);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-                    UkmSync
-                </a>
-                <a href="#" onclick="switchView('ukmdata')" id="nav-ukmdata" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors" style="color: var(--text-muted);">
-                    <svg class="w-5 h-5" style="color: #8B5CF6;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"></path></svg>
-                    Ukmbase Data
-                </a>
-                <a href="#" onclick="switchView('ukmtables')" id="nav-ukmtables" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors" style="color: var(--text-muted);">
-                    <svg class="w-5 h-5 text-[#06B6D4]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
-                    UkmTables
-                </a>
-                <a href="#" onclick="switchView('connect')" id="nav-connect" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors" style="color: var(--text-muted);">
-                    <svg class="w-5 h-5 text-[#10B981]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                    Connect App
-                </a>
-                <a href="#" onclick="switchView('ukmpay')" id="nav-ukmpay" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors" style="color: var(--text-muted);">
-                    <svg class="w-5 h-5 text-[#06B6D4]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
-                    UkmPay
-                </a>
-                <a href="#" onclick="switchView('team')" id="nav-team" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors" style="color: var(--text-muted);">
-                    <svg class="w-5 h-5 text-[#8B5CF6]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-                    Team
-                </a>
-                <a href="#" onclick="switchView('billing')" id="nav-billing" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors" style="color: var(--text-muted);">
-                    <svg class="w-5 h-5 text-[#10B981]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
-                    Billing
-                </a>
-                <div id="nav-owner-wrap" class="hidden pt-3 mt-3" style="border-top: 1px solid var(--border);">
-                    <a href="#" onclick="switchView('owner')" id="nav-owner" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors" style="color: var(--text-muted);">
-                        <svg class="w-5 h-5 text-[#F59E0B]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
-                        Owner Console
-                    </a>
+            <div class="sb-scroll">
+                <!-- PROJECT -->
+                <div class="sb-group open">
+                    <div class="sb-group-header" onclick="this.parentElement.classList.toggle('open')">
+                        <span>Project</span>
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                    </div>
+                    <div class="sb-items">
+                        <a href="#" id="nav-overview" class="sb-item" onclick="event.preventDefault(); switchView('overview')">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                            <span>Overview</span>
+                        </a>
+                        <a href="#" id="nav-analytics" class="sb-item" onclick="event.preventDefault(); switchView('analytics')">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                            <span>Analytics</span>
+                        </a>
+                        <a href="#" id="nav-settings" class="sb-item" onclick="event.preventDefault(); switchView('settings')">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                            <span>Project Settings</span>
+                        </a>
+                    </div>
                 </div>
-                <div class="pt-3 mt-3" style="border-top: 1px solid var(--border);">
-                    <a href="#" onclick="switchView('settings')" id="nav-settings" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors" style="color: var(--text-muted);">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                        Settings
-                    </a>
+
+                <!-- DATABASE -->
+                <div class="sb-group open">
+                    <div class="sb-group-header" onclick="this.parentElement.classList.toggle('open')">
+                        <span>Database</span>
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                    </div>
+                    <div class="sb-items">
+                        <a href="#" id="nav-ukmdata" class="sb-item" onclick="event.preventDefault(); switchView('ukmdata')">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
+                            <span>Data & Tables</span>
+                        </a>
+                        <a href="#" id="nav-ukmtables" class="sb-item" onclick="event.preventDefault(); switchView('ukmtables')">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
+                            <span>UkmTables</span>
+                        </a>
+                        <a href="#" id="nav-ukmquery" class="sb-item" onclick="event.preventDefault(); switchView('ukmquery')">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                            <span>UkmQuery</span>
+                        </a>
+                        <a href="#" class="sb-item" onclick="event.preventDefault(); openSearchModal()">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                            <span>Global Search</span>
+                        </a>
+                        <a href="#" class="sb-item" onclick="event.preventDefault(); openBackupModal()">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
+                            <span>Backups</span>
+                        </a>
+                        <a href="#" class="sb-item" onclick="event.preventDefault(); openAuditModal()">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                            <span>Audit Logs</span>
+                        </a>
+                        <a href="#" class="sb-item" onclick="event.preventDefault(); openTemplatesModal()">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"></path></svg>
+                            <span>Templates</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- AI & AUTOMATION -->
+                <div class="sb-group">
+                    <div class="sb-group-header" onclick="this.parentElement.classList.toggle('open')">
+                        <span>AI & Automation</span>
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                    </div>
+                    <div class="sb-items">
+                        <a href="#" id="nav-ukmai" class="sb-item" onclick="event.preventDefault(); switchView('ukmai')">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                            <span>UkmAI Copilot</span>
+                        </a>
+                        <a href="#" class="sb-item" onclick="event.preventDefault(); openFlowModal()">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                            <span>UkmFlow</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- PRODUCTS -->
+                <div class="sb-group">
+                    <div class="sb-group-header" onclick="this.parentElement.classList.toggle('open')">
+                        <span>Products</span>
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                    </div>
+                    <div class="sb-items">
+                        <a href="#" id="nav-ukmpay" class="sb-item" onclick="event.preventDefault(); switchView('ukmpay')">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            <span>UkmPay</span>
+                        </a>
+                        <a href="#" id="nav-ukmsync" class="sb-item" onclick="event.preventDefault(); switchView('ukmsync')">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                            <span>UkmSync</span>
+                        </a>
+                        <a href="#" id="nav-connect" class="sb-item" onclick="event.preventDefault(); switchView('connect')">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                            <span>Connect App</span>
+                        </a>
+                        <a href="#" class="sb-item" onclick="event.preventDefault(); loadMarketplace()">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
+                            <span>UkmMarket</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- WORKSPACE -->
+                <div class="sb-group">
+                    <div class="sb-group-header" onclick="this.parentElement.classList.toggle('open')">
+                        <span>Workspace</span>
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                    </div>
+                    <div class="sb-items">
+                        <a href="#" id="nav-team" class="sb-item" onclick="event.preventDefault(); switchView('team')">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                            <span>Team</span>
+                        </a>
+                        <a href="#" id="nav-billing" class="sb-item" onclick="event.preventDefault(); switchView('billing')">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
+                            <span>Billing</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- OWNER -->
+                <div id="nav-owner-wrap" class="sb-group hidden">
+                    <div class="sb-group-header" onclick="this.parentElement.classList.toggle('open')">
+                        <span style="color: var(--amber);">Staff Only</span>
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                    </div>
+                    <div class="sb-items">
+                        <a href="#" id="nav-owner" class="sb-item" onclick="event.preventDefault(); switchView('owner')">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                            <span>Owner Console</span>
+                        </a>
+                    </div>
                 </div>
             </div>
         </aside>
@@ -468,7 +581,7 @@
                         <p class="text-sm" style="color: var(--text-muted);">Here is what's happening with your projects today.</p>
                     </div>
                     
-                    <!-- NEW: ONBOARDING CHECKLIST -->
+                    <!-- ONBOARDING CHECKLIST -->
                     <div id="onboarding-checklist" class="mb-8 rounded-xl p-5" style="background: var(--surface); border: 1px solid var(--accent); box-shadow: 0 4px 20px rgba(79,70,229,0.1);">
                         <div class="flex items-center justify-between mb-4">
                             <div>
@@ -569,6 +682,9 @@
                 <div class="p-3" style="background: var(--bg); border-top: 1px solid var(--border);">
                     <div class="flex gap-2 items-end max-w-4xl mx-auto">
                         <textarea id="chat-input" rows="1" placeholder="Describe your app..." onkeydown="handleChatKeydown(event)" class="flex-1 rounded-lg px-4 py-3 focus:outline-none resize-none text-sm" style="background: var(--surface); border: 1px solid var(--border); color: var(--text); max-height: 120px;"></textarea>
+                        <button id="ukm-voice-btn" class="p-3 rounded-lg transition-colors text-white mb-1 mr-2" style="background: var(--surface); border: 1px solid var(--border); color: var(--text-muted);">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+                        </button>
                         <button id="chat-send" onclick="sendChat()" class="p-3 rounded-lg transition-colors glow disabled:opacity-50 text-white" style="background: var(--accent);">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
                         </button>
@@ -732,6 +848,7 @@
                             </ul>
                             <button id="ukmdata-enable-btn" onclick="enableUkmData()" class="w-full font-bold py-3 rounded-lg text-white" style="background: var(--accent);">Enable for this project</button>
                         </div>
+                        
                         <div id="ukmdata-info-card" class="hidden rounded-xl p-5 mb-6" style="background: var(--surface); border: 1px solid rgba(16,185,129,0.3);">
                             <div class="flex items-center justify-between mb-4">
                                 <div class="flex items-center gap-3">
@@ -787,7 +904,11 @@
                             <textarea id="sql-editor-input" rows="6" placeholder="SELECT * FROM customers LIMIT 10;" class="w-full rounded-lg p-4 mono text-sm focus:outline-none resize-y" style="background: var(--bg); border: 1px solid var(--border); color: var(--cyan); min-height: 120px;"></textarea>
                             <div class="flex items-center justify-between mt-3 mb-4">
                                 <p class="text-[10px]" style="color: var(--red);">⚠️ Destructive queries (DROP, DELETE) cannot be undone.</p>
-                                <button id="sql-run-btn" onclick="executeRawSQL()" class="text-xs font-bold px-6 py-2 rounded-lg text-white" style="background: var(--accent);">Run Query</button>
+                                <div class="flex gap-2">
+                                    <button onclick="askCopilot('explain')" class="text-xs font-bold px-3 py-2 rounded-lg" style="background: rgba(245,158,11,0.15); color: var(--amber); border: 1px solid rgba(245,158,11,0.3);">Explain</button>
+                                    <button onclick="askCopilot('optimize')" class="text-xs font-bold px-3 py-2 rounded-lg" style="background: rgba(6,182,212,0.15); color: var(--cyan); border: 1px solid rgba(6,182,212,0.3);">Optimize</button>
+                                    <button id="sql-run-btn" onclick="executeRawSQL()" class="text-xs font-bold px-6 py-2 rounded-lg text-white" style="background: var(--accent);">Run Query</button>
+                                </div>
                             </div>
                             <div id="sql-results-wrap" class="hidden rounded-lg overflow-hidden" style="border: 1px solid var(--border);">
                                 <div id="sql-error-msg" class="hidden p-3 text-xs bg-red-500/10 text-red-400 border-b border-red-500/30"></div>
