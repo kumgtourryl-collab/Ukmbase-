@@ -110,7 +110,19 @@
     .sb-item.active { background: rgba(79, 70, 229, 0.15); color: var(--accent); border-left: 2px solid var(--accent); }
     .sb-item svg { width: 16px; height: 16px; opacity: 0.7; }
     .sb-item:hover svg, .sb-item.active svg { opacity: 1; }
-</style>
+    /* Force sidebar icons to stay small and neat */
+#sidebar .sb-item svg {
+    width: 18px !important;
+    height: 18px !important;
+    min-width: 18px !important;
+    flex-shrink: 0 !important;
+}
+#sidebar .sb-group-header svg {
+    width: 14px !important;
+    height: 14px !important;
+    flex-shrink: 0 !important;
+}
+</style> 
 </head>
 <body class="min-h-screen">
 
