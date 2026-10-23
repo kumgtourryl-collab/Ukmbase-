@@ -5184,3 +5184,55 @@ document.addEventListener('DOMContentLoaded', () => {
         window.updateSidebarActiveState('overview');
     }, 1000);
 });
+// ============================================
+// PHASE 17: SIDEBAR FIX (Kill dynamic injection)
+// ============================================
+
+// 1. Stop the old buggy rebuild from running
+window.rebuildSidebar = function() { /* Disabled - HTML is now hardcoded */ };
+
+// 2. Fix the active state logic
+window.updateSidebarActiveState = function(view) {
+    // Remove active from all sidebar items
+    document.querySelectorAll('.sb-item').forEach(el => el.classList.remove('active'));
+    
+    // Add active to the clicked one
+    const activeEl = document.getElementById('nav-' + view);
+    if (activeEl) activeEl.classList.add('active');
+};
+
+// 3. Take over the switchView function smoothly
+const finalSwitchViewFix = window.switchView;
+window.switchView = function(view) {
+    // Intercept Analytics
+    if (view === 'analytics') {
+        document.querySelectorAll('[id^="view-"]').forEach(el => el.classList.add('hidden'));
+        let analyticsView = document.getElementById('view-analytics');
+        if (analyticsView) analyticsView.classList.remove('hidden');
+        window.updateSidebarActiveState('analytics');
+        window.loadAnalyticsDashboard();
+        document.getElementById('sidebar').classList.add('-translate-x-full');
+        return;
+    }
+    
+    // Intercept UkmMarket
+    if (view === 'market') {
+        window.updateSidebarActiveState('market');
+        window.loadMarketplace();
+        document.getElementById('sidebar').classList.add('-translate-x-full');
+        return;
+    }
+
+    // Run original view switch
+    if (finalSwitchViewFix) finalSwitchViewFix(view);
+    
+    // Update the highlight
+    window.updateSidebarActiveState(view);
+};
+
+// 4. Fix the active state on page load
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        window.updateSidebarActiveState('overview');
+    }, 500);
+});
