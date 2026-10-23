@@ -5258,3 +5258,228 @@ document.addEventListener('DOMContentLoaded', () => {
     `;
     document.head.appendChild(style);
 })();
+// ============================================
+// PHASE 18: UKMRPC & UKMNOSQL (FUSION FEATURES)
+// ============================================
+
+// ---------------------------------------------------
+// 1. UKMRPC (Serverless SQL Functions)
+// ---------------------------------------------------
+window.openRPCModal = function(projectId) {
+    let modal = document.getElementById('ukmrpc-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'ukmrpc-modal';
+        modal.className = 'hidden fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm';
+        document.body.appendChild(modal);
+    }
+    modal.classList.remove('hidden');
+
+    modal.innerHTML = `
+    <div class="w-full max-w-3xl rounded-2xl p-6 glow max-h-[90vh] flex flex-col" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex items-center justify-between mb-4">
+            <div><h2 class="text-lg font-bold" style="color: var(--text);">UkmRPC Builder</h2><p class="text-xs mt-1" style="color: var(--text-muted);">Write a custom Postgres function. Call it via REST.</p></div>
+            <button onclick="document.getElementById('ukmrpc-modal').classList.add('hidden')" style="color: var(--text-muted);">✕</button>
+        </div>
+        
+        <div class="flex-1 flex flex-col md:flex-row gap-4 min-h-0">
+            <div class="flex-1 flex flex-col">
+                <label class="block text-xs mb-1" style="color: var(--text-muted);">Function Definition (SQL)</label>
+                <textarea id="rpc-sql-input" class="flex-1 w-full rounded-lg p-4 font-mono text-sm resize-none focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--cyan);">CREATE OR REPLACE FUNCTION calculate_total(order_id UUID)
+RETURNS numeric AS $$
+DECLARE
+  total numeric;
+BEGIN
+  SELECT SUM(amount) INTO total FROM orders WHERE id = order_id;
+  RETURN total;
+END;
+$$ LANGUAGE plpgsql;</textarea>
+                <button onclick="deployRPC('${projectId}')" id="rpc-deploy-btn" class="mt-3 w-full font-bold py-2 rounded-lg text-white" style="background: var(--accent);">Deploy Function</button>
+            </div>
+            <div class="flex-1 flex flex-col">
+                <label class="block text-xs mb-1" style="color: var(--text-muted);">API Usage</label>
+                <div class="flex-1 rounded-lg p-4 overflow-auto font-mono text-xs" style="background: var(--bg); border: 1px solid var(--border);">
+                    <pre id="rpc-api-snippet" style="color: var(--text-muted);">Deploy a function to see the API snippet...</pre>
+                </div>
+            </div>
+        </div>
+    </div>`;
+};
+
+window.deployRPC = async function(projectId) {
+    const sql = document.getElementById('rpc-sql-input').value;
+    const btn = document.getElementById('rpc-deploy-btn');
+    const snippet = document.getElementById('rpc-api-snippet');
+    
+    btn.textContent = 'Deploying...'; btn.disabled = true;
+
+    try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        // We run this through our ukmdata edge function which executes raw SQL
+        const res = await fetch(SUPABASE_URL + '/functions/v1/ukmdata', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'execute_sql', project_id: projectId, sql_query: sql })
+        });
+        
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        // Extract function name (naive regex for v0.1)
+        const match = sql.match(/FUNCTION\s+([a-zA-Z0-9_]+)/i);
+        const funcName = match ? match[1] : 'my_function';
+
+        showToast('Function deployed successfully!');
+        snippet.style.color = 'var(--green)';
+        snippet.textContent = `// JavaScript SDK\nconst { data, error } = await supabase.rpc('${funcName}', {\n  order_id: '123e4567-e89b-12d3-a456-426614174000'\n})\n\n// cURL\ncurl -X POST '${SUPABASE_URL}/rest/v1/rpc/${funcName}' \\\n-H "apikey: ${SUPABASE_ANON_KEY}" \\\n-H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \\\n-H "Content-Type: application/json" \\\n-d '{"order_id": "123e4567-e89b-12d3-a456-426614174000"}'`;
+    } catch (e) {
+        showToast(e.message, 'error');
+    } finally {
+        btn.textContent = 'Deploy Function'; btn.disabled = false;
+    }
+};
+
+// ---------------------------------------------------
+// 2. UKMNOSQL (Firebase-style Document Collections)
+// ---------------------------------------------------
+window.openNoSQLModal = async function(projectId) {
+    let modal = document.getElementById('ukmnosql-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'ukmnosql-modal';
+        modal.className = 'hidden fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm';
+        document.body.appendChild(modal);
+    }
+    modal.classList.remove('hidden');
+
+    modal.innerHTML = `
+    <div class="w-full max-w-lg rounded-2xl p-6 glow" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex items-center justify-between mb-4">
+            <div><h2 class="text-lg font-bold" style="color: var(--text);">UkmNoSQL</h2><p class="text-xs mt-1" style="color: var(--text-muted);">Create a JSON document collection instantly.</p></div>
+            <button onclick="document.getElementById('ukmnosql-modal').classList.add('hidden')" style="color: var(--text-muted);">✕</button>
+        </div>
+        
+        <div class="space-y-4 mb-6">
+            <div><label class="block text-xs mb-1" style="color: var(--text-muted);">Collection Name</label><input type="text" id="nosql-name" placeholder="e.g. user_settings" class="w-full rounded-lg px-3 py-2 text-sm mono" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></div>
+            <button onclick="createNoSQLCollection('${projectId}')" id="nosql-create-btn" class="w-full font-bold py-2 rounded-lg text-white" style="background: var(--accent);">Create Collection</button>
+        </div>
+
+        <div id="nosql-collections-list" class="space-y-2 max-h-48 overflow-y-auto">
+            <p class="text-xs text-center" style="color: var(--text-muted);">Loading collections...</p>
+        </div>
+    </div>`;
+
+    loadNoSQLCollections(projectId);
+};
+
+window.loadNoSQLCollections = async function(projectId) {
+    const { data } = await supabaseClient.from('project_collections').select('*').eq('project_id', projectId);
+    const list = document.getElementById('nosql-collections-list');
+    
+    if (!data || data.length === 0) {
+        list.innerHTML = '<p class="text-xs text-center" style="color: var(--text-muted);">No collections yet.</p>';
+        return;
+    }
+
+    list.innerHTML = data.map(c => `
+        <div class="p-3 rounded-lg flex items-center justify-between" style="background: var(--bg); border: 1px solid var(--border);">
+            <div>
+                <p class="text-sm font-bold mono" style="color: var(--cyan);">${escapeHtml(c.name)}</p>
+                <p class="text-[10px]" style="color: var(--text-dim);">Firestore-style JSON</p>
+            </div>
+            <button onclick="deleteNoSQLCollection('${c.id}', '${c.name}', '${projectId}')" class="text-red-400 text-xs">Delete</button>
+        </div>
+    `).join('');
+};
+
+window.createNoSQLCollection = async function(projectId) {
+    const name = document.getElementById('nosql-name').value.trim().toLowerCase();
+    if (!name || !/^[a-z0-9_]+$/.test(name)) return showToast('Invalid name. Use lowercase letters, numbers, and underscores.', 'error');
+    
+    const btn = document.getElementById('nosql-create-btn');
+    btn.textContent = 'Creating...'; btn.disabled = true;
+
+    try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        
+        // 1. Create the actual table with a JSONB 'data' column
+        const sql = `CREATE TABLE ${name} (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), data JSONB NOT NULL, created_at TIMESTAMPTZ DEFAULT now());`;
+        
+        const res = await fetch(SUPABASE_URL + '/functions/v1/ukmdata', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'execute_sql', project_id: projectId, sql_query: sql })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        // 2. Log it in our metadata table
+        await supabaseClient.from('project_collections').insert({ project_id: projectId, name });
+
+        showToast('Collection created!');
+        document.getElementById('nosql-name').value = '';
+        loadNoSQLCollections(projectId);
+    } catch (e) {
+        showToast(e.message, 'error');
+    } finally {
+        btn.textContent = 'Create Collection'; btn.disabled = false;
+    }
+};
+
+window.deleteNoSQLCollection = async function(id, name, projectId) {
+    if (!confirm('Delete this collection and all its data?')) return;
+    try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        // Drop the table
+        await fetch(SUPABASE_URL + '/functions/v1/ukmdata', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'execute_sql', project_id: projectId, sql_query: `DROP TABLE ${name};` })
+        });
+        // Remove metadata
+        await supabaseClient.from('project_collections').delete().eq('id', id);
+        showToast('Collection deleted');
+        loadNoSQLCollections(projectId);
+    } catch (e) {
+        showToast(e.message, 'error');
+    }
+};
+
+// ---------------------------------------------------
+// 3. INJECT BUTTONS INTO THE DATA TAB
+// ---------------------------------------------------
+document.addEventListener('DOMContentLoaded', () => {
+    // We inject these buttons into the "Developer Hub" or "Tables" section
+    const observer = new MutationObserver(() => {
+        const tablesCard = document.getElementById('ukmdata-tables-card');
+        if (tablesCard && !document.getElementById('btn-rpc-builder')) {
+            const header = tablesCard.querySelector('.flex.items-center.justify-between');
+            if (header) {
+                // RPC Button
+                const rpcBtn = document.createElement('button');
+                rpcBtn.id = 'btn-rpc-builder';
+                rpcBtn.className = 'text-xs font-bold px-3 py-2 rounded-lg text-white ml-2';
+                rpcBtn.style.background = 'var(--purple)';
+                rpcBtn.textContent = 'UkmRPC';
+                rpcBtn.onclick = () => openRPCModal(state.currentUkmDataProjectId);
+                
+                // NoSQL Button
+                const nosqlBtn = document.createElement('button');
+                nosqlBtn.id = 'btn-nosql-builder';
+                nosqlBtn.className = 'text-xs font-bold px-3 py-2 rounded-lg text-white ml-2';
+                nosqlBtn.style.background = 'var(--amber)';
+                nosqlBtn.textContent = 'UkmNoSQL';
+                nosqlBtn.onclick = () => openNoSQLModal(state.currentUkmDataProjectId);
+
+                // Insert into the header (before Import/Export)
+                const btnGroup = header.querySelector('.flex.gap-2');
+                if (btnGroup) {
+                    btnGroup.insertBefore(nosqlBtn, btnGroup.firstChild);
+                    btnGroup.insertBefore(rpcBtn, btnGroup.firstChild);
+                }
+            }
+        }
+    });
+    const container = document.getElementById('ukmdata-panel');
+    if (container) observer.observe(container, { childList: true, subtree: true });
+});
