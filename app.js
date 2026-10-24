@@ -2337,3 +2337,294 @@ window.openProjectSettings = function(projectId) {
         }
     }, 500);
 };
+// ============================================
+// PHASE 27: UKMFORMS & UKMLIVE REALTIME
+// ============================================
+
+// ---------------------------------------------------
+// 1. Fix the Docs Link Bug
+// ---------------------------------------------------
+const originalOpenProjectSettingsPhase27 = window.openProjectSettings;
+window.openProjectSettings = function(projectId) {
+    if (originalOpenProjectSettingsPhase27) originalOpenProjectSettingsPhase27(projectId);
+    
+    setTimeout(() => {
+        const proj = state.projectsCache.find(p => p.id === projectId);
+        if (!proj) return;
+        
+        const docUrl = window.location.origin + window.location.pathname + '?docs=' + proj.slug;
+        const modalBody = document.querySelector('#project-settings-modal .flex-1.overflow-y-auto');
+        
+        if (modalBody && !document.getElementById('btn-public-docs')) {
+            const docBtnWrap = document.createElement('div');
+            docBtnWrap.innerHTML = `
+                <div class="mt-4 space-y-2">
+                    <button onclick="window.open('${docUrl}', '_blank')" class="w-full text-xs font-bold py-3 rounded-lg flex items-center justify-center gap-2" style="background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); color: var(--green);">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                        Open Public Docs Page
+                    </button>
+                    <button onclick="copyToClipboardText('${docUrl}')" class="w-full text-[10px] font-bold py-2 rounded-lg" style="background: var(--bg); border: 1px solid var(--border); color: var(--text-muted);">Copy Link</button>
+                </div>
+            `;
+            modalBody.appendChild(docBtnWrap);
+        }
+    }, 500);
+};
+
+// ---------------------------------------------------
+// 2. UkmForms (Visual Builder)
+// ---------------------------------------------------
+window.openFormsBuilder = function() {
+    if (!state.currentUkmDataProjectId) return showToast('Select a project first', 'error');
+    
+    let modal = document.getElementById('ukmforms-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'ukmforms-modal';
+        modal.className = 'fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm';
+        document.body.appendChild(modal);
+    }
+    modal.classList.remove('hidden');
+    
+    modal.innerHTML = `
+    <div class="w-full max-w-lg rounded-2xl p-6 glow max-h-[90vh] flex flex-col" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex items-center justify-between mb-4">
+            <div><h2 class="text-lg font-bold" style="color: var(--text);">UkmForms Builder</h2><p class="text-xs mt-1" style="color: var(--text-muted);">Create a public form for your table.</p></div>
+            <button onclick="document.getElementById('ukmforms-modal').classList.add('hidden')" style="color: var(--text-muted);">✕</button>
+        </div>
+        
+        <div class="space-y-4 flex-1 overflow-y-auto pr-2">
+            <div><label class="block text-xs mb-1" style="color: var(--text-muted);">Form Title</label><input type="text" id="form-title" placeholder="e.g. Join our waitlist" class="w-full rounded-lg px-3 py-2 text-sm" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></div>
+            <div><label class="block text-xs mb-1" style="color: var(--text-muted);">Target Table</label>
+                <select id="form-table" class="w-full rounded-lg px-3 py-2 text-sm mono" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
+                    ${state.ukmDataTables.map(t => `<option value="${t.table_name}">${t.table_name}</option>`).join('')}
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs mb-2" style="color: var(--text-muted);">Fields</label>
+                <div id="form-fields-container" class="space-y-2">
+                    <!-- Fields injected here -->
+                </div>
+                <button onclick="addFormField()" class="mt-2 text-xs font-bold text-[var(--cyan)]">+ Add Field</button>
+            </div>
+            <button onclick="saveUkmForm()" id="save-form-btn" class="w-full font-bold py-3 rounded-lg text-white mt-4" style="background: var(--accent);">Publish Form</button>
+        </div>
+        
+        <div id="forms-list" class="mt-6 pt-4 border-t border-[var(--border)] space-y-2 max-h-40 overflow-y-auto"></div>
+    </div>`;
+    
+    // Add one default field
+    document.getElementById('form-fields-container').innerHTML = '';
+    addFormField();
+    
+    // Load existing forms
+    loadUkmFormsList();
+};
+
+window.addFormField = function() {
+    const container = document.getElementById('form-fields-container');
+    const id = 'field_' + Date.now() + Math.floor(Math.random()*100);
+    const html = `
+        <div class="flex gap-2 items-center" id="${id}">
+            <input type="text" placeholder="Column Name (e.g. email)" class="field-name flex-1 rounded-lg px-3 py-2 text-xs mono" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
+            <select class="field-type rounded-lg px-2 py-2 text-xs" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
+                <option value="text">Text</option>
+                <option value="email">Email</option>
+                <option value="number">Number</option>
+                <option value="date">Date</option>
+            </select>
+            <button onclick="document.getElementById('${id}').remove()" class="text-red-400 p-1">✕</button>
+        </div>
+    `;
+    container.insertAdjacentHTML('beforeend', html);
+};
+
+window.saveUkmForm = async function() {
+    const title = document.getElementById('form-title').value;
+    const tableName = document.getElementById('form-table').value;
+    if (!title) return showToast('Form title required', 'error');
+    
+    // Gather fields
+    const fields = [];
+    document.querySelectorAll('#form-fields-container > div').forEach(div => {
+        const name = div.querySelector('.field-name').value.trim();
+        const type = div.querySelector('.field-type').value;
+        if (name) fields.push({ name, type });
+    });
+    
+    if (fields.length === 0) return showToast('Add at least one field', 'error');
+    
+    const slug = title.toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + Math.floor(Math.random()*1000);
+    const btn = document.getElementById('save-form-btn');
+    btn.textContent = 'Publishing...'; btn.disabled = true;
+
+    try {
+        const { error } = await supabaseClient.from('project_forms').insert({
+            project_id: state.currentUkmDataProjectId,
+            title,
+            slug,
+            table_name: tableName,
+            fields
+        });
+        if (error) throw error;
+        
+        const proj = state.projectsCache.find(p => p.id === state.currentUkmDataProjectId);
+        const url = window.location.origin + window.location.pathname + `?form=${slug}&project=${proj.slug}`;
+        
+        showToast('Form published successfully!');
+        document.getElementById('form-title').value = '';
+        document.getElementById('form-fields-container').innerHTML = '';
+        addFormField();
+        loadUkmFormsList();
+        
+        // Auto-copy link
+        navigator.clipboard.writeText(url);
+        showToast('Form link copied to clipboard!');
+    } catch (e) {
+        showToast(e.message, 'error');
+    } finally {
+        btn.textContent = 'Publish Form'; btn.disabled = false;
+    }
+};
+
+window.loadUkmFormsList = async function() {
+    const { data } = await supabaseClient.from('project_forms').select('*').eq('project_id', state.currentUkmDataProjectId).order('created_at', { ascending: false });
+    const list = document.getElementById('forms-list');
+    if (!data || data.length === 0) { list.innerHTML = ''; return; }
+    
+    list.innerHTML = `<p class="text-[10px] uppercase font-bold" style="color: var(--text-dim);">Active Forms</p>` + data.map(f => {
+        const proj = state.projectsCache.find(p => p.id === state.currentUkmDataProjectId);
+        const url = window.location.origin + window.location.pathname + `?form=${f.slug}&project=${proj.slug}`;
+        return `
+            <div class="flex items-center justify-between p-2 rounded-lg" style="background: var(--bg); border: 1px solid var(--border);">
+                <div>
+                    <p class="text-xs font-bold" style="color: var(--text);">${escapeHtml(f.title)}</p>
+                    <p class="text-[10px] mono truncate" style="color: var(--text-dim);">/${f.slug}</p>
+                </div>
+                <button onclick="copyToClipboardText('${url}')" class="text-[10px] text-cyan-400 font-bold">Copy Link</button>
+            </div>
+        `;
+    }).join('');
+};
+
+// ---------------------------------------------------
+// 3. UkmLive (Realtime Database Feed)
+// ---------------------------------------------------
+let liveFeedChannel = null;
+
+window.openLiveFeed = function() {
+    if (!state.currentUkmDataProjectId) return showToast('Select a project first', 'error');
+    
+    let modal = document.getElementById('ukmlive-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'ukmlive-modal';
+        modal.className = 'fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm';
+        document.body.appendChild(modal);
+    }
+    modal.classList.remove('hidden');
+    
+    const proj = state.projectsCache.find(p => p.id === state.currentUkmDataProjectId);
+    const schema = proj.slug.replace(/-/g, '_');
+    
+    modal.innerHTML = `
+    <div class="w-full max-w-2xl rounded-2xl p-6 glow max-h-[90vh] flex flex-col" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2">
+                <h2 class="text-lg font-bold" style="color: var(--text);">UkmLive Feed</h2>
+                <span class="flex h-2 w-2 relative"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span></span>
+            </div>
+            <button onclick="closeLiveFeed()" style="color: var(--text-muted);">✕</button>
+        </div>
+        
+        <div class="mb-4">
+            <select id="live-table-select" onchange="subscribeToLiveTable('${schema}')" class="w-full rounded-lg px-3 py-2 text-sm mono" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
+                ${state.ukmDataTables.map(t => `<option value="${t.table_name}">${t.table_name}</option>`).join('')}
+            </select>
+        </div>
+
+        <div class="flex-1 overflow-y-auto rounded-xl p-4 font-mono text-xs" style="background: var(--bg); border: 1px solid var(--border);">
+            <div id="live-feed-terminal" class="space-y-1">
+                <p style="color: var(--text-dim);">// Listening for changes...</p>
+            </div>
+        </div>
+    </div>`;
+    
+    // Initial subscribe
+    setTimeout(() => subscribeToLiveTable(schema), 100);
+};
+
+window.subscribeToLiveTable = function(schema) {
+    const table = document.getElementById('live-table-select').value;
+    if (!table) return;
+    
+    if (liveFeedChannel) {
+        supabaseClient.removeChannel(liveFeedChannel);
+    }
+    
+    const terminal = document.getElementById('live-feed-terminal');
+    terminal.innerHTML = `<p style="color: var(--text-dim);">// Listening to <b>${table}</b>...</p>`;
+    
+    liveFeedChannel = supabaseClient.channel('live-feed-' + table)
+        .on('postgres_changes', { event: '*', schema: schema, table: table }, (payload) => {
+            const type = payload.eventType;
+            const colors = { 'INSERT': 'text-green-400', 'UPDATE': 'text-yellow-400', 'DELETE': 'text-red-400' };
+            const data = payload.new && Object.keys(payload.new).length ? payload.new : payload.old;
+            
+            const log = document.createElement('div');
+            log.innerHTML = `
+                <span class="${colors[type] || 'text-white'} font-bold">[${type}]</span>
+                <span class="text-gray-400 ml-2">${new Date().toLocaleTimeString()}</span>
+                <pre class="mt-1 overflow-x-auto" style="color: var(--text-muted);">${escapeHtml(JSON.stringify(data, null, 2))}</pre>
+                <hr class="my-2 border-[var(--border)]">
+            `;
+            terminal.insertBefore(log, terminal.firstChild); // newest at top
+        })
+        .subscribe();
+};
+
+window.closeLiveFeed = function() {
+    document.getElementById('ukmlive-modal').classList.add('hidden');
+    if (liveFeedChannel) {
+        supabaseClient.removeChannel(liveFeedChannel);
+        liveFeedChannel = null;
+    }
+};
+
+// ---------------------------------------------------
+// 4. Inject Buttons into the UI
+// ---------------------------------------------------
+document.addEventListener('DOMContentLoaded', () => {
+    // Inject "Forms" and "Live Feed" buttons into the Data Tab header
+    const observer = new MutationObserver(() => {
+        const tablesCard = document.getElementById('ukmdata-tables-card');
+        if (tablesCard && !document.getElementById('btn-ukm-forms')) {
+            const header = tablesCard.querySelector('.flex.items-center.justify-between');
+            if (header) {
+                const btnGroup = header.querySelector('.flex.gap-2');
+                if (btnGroup) {
+                    // Live Feed Button
+                    const liveBtn = document.createElement('button');
+                    liveBtn.id = 'btn-ukm-live';
+                    liveBtn.className = 'text-xs font-bold px-3 py-2 rounded-lg text-white ml-2';
+                    liveBtn.style.background = 'var(--green)';
+                    liveBtn.innerHTML = 'Live Feed';
+                    liveBtn.onclick = openLiveFeed;
+                    
+                    // Forms Button
+                    const formsBtn = document.createElement('button');
+                    formsBtn.id = 'btn-ukm-forms';
+                    formsBtn.className = 'text-xs font-bold px-3 py-2 rounded-lg text-white ml-2';
+                    formsBtn.style.background = 'var(--cyan)';
+                    formsBtn.innerHTML = 'Build Form';
+                    formsBtn.onclick = openFormsBuilder;
+
+                    btnGroup.insertBefore(liveBtn, btnGroup.firstChild);
+                    btnGroup.insertBefore(formsBtn, btnGroup.firstChild);
+                }
+            }
+        }
+    });
+    const container = document.getElementById('ukmdata-panel');
+    if (container) observer.observe(container, { childList: true, subtree: true });
+});
