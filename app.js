@@ -5499,3 +5499,57 @@ setInterval(() => {
         }
     });
 }, 1000); // Run every second to catch dynamically loaded views
+// ============================================
+// PHASE 20: PERFECT SIDEBAR LOGIC
+// ============================================
+
+window.updateSidebarActiveState = function(view) {
+    // Remove active from all
+    document.querySelectorAll('.sb-item').forEach(el => el.classList.remove('active'));
+    // Add active to the matching ID
+    const activeEl = document.getElementById('nav-' + view);
+    if (activeEl) activeEl.classList.add('active');
+};
+
+// Override switchView one last time
+const finalSwitchView = window.switchView;
+window.switchView = function(view) {
+    // 1. Handle custom views that don't have a "view-" div
+    if (view === 'analytics') {
+        document.querySelectorAll('[id^="view-"]').forEach(el => el.classList.add('hidden'));
+        let analyticsView = document.getElementById('view-analytics');
+        if (analyticsView) analyticsView.classList.remove('hidden');
+        window.updateSidebarActiveState('analytics');
+        window.loadAnalyticsDashboard();
+        document.getElementById('sidebar').classList.add('-translate-x-full');
+        return;
+    }
+
+    if (view === 'market') {
+        window.updateSidebarActiveState('market');
+        window.loadMarketplace();
+        document.getElementById('sidebar').classList.add('-translate-x-full');
+        return;
+    }
+
+    // 2. Run the original switch view
+    if (finalSwitchView) finalSwitchView(view);
+    
+    // 3. Update active states
+    window.updateSidebarActiveState(view);
+    
+    // 4. Close sidebar on mobile after clicking
+    document.getElementById('sidebar').classList.add('-translate-x-full');
+};
+
+// Show Owner Console if staff
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        if (state.currentProfile && STAFF_ROLES.includes(state.currentProfile.role)) {
+            const ownerWrap = document.getElementById('nav-owner-wrap');
+            if (ownerWrap) ownerWrap.classList.remove('hidden');
+        }
+        // Default active state
+        window.updateSidebarActiveState('overview');
+    }, 800);
+});
