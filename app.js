@@ -3245,3 +3245,110 @@ window.loadFunctionsView = function() {
         }
     }, 100);
 };
+// ============================================
+// PHASE 33: ROLE-BASED FUNCTIONS & HAMBURGER FIX
+// ============================================
+
+// 1. Fix the Edge Functions to respect user roles
+window.loadFunctionsView = function() {
+    const main = document.querySelector('#dashboard-view main');
+    
+    let view = document.getElementById('view-functions');
+    if (!view) {
+        view = document.createElement('div');
+        view.id = 'view-functions';
+        view.className = 'flex-1 overflow-y-auto p-4 md:p-8';
+        main.appendChild(view);
+    }
+    
+    document.querySelectorAll('[id^="view-"]').forEach(el => el.classList.add('hidden'));
+    view.classList.remove('hidden');
+    
+    document.querySelectorAll('.sb-item').forEach(el => el.classList.remove('active'));
+    const nav = document.getElementById('nav-functions');
+    if(nav) nav.classList.add('active');
+    
+    document.getElementById('sidebar').classList.add('-translate-x-full');
+
+    // CHECK IF USER IS STAFF
+    const isStaff = state.currentProfile && ['owner', 'admin', 'support', 'co-founder'].includes(state.currentProfile.role);
+
+    if (isStaff) {
+        // Show platform functions ONLY to staff
+        const functions = [
+            { name: 'ukmdata', desc: 'Handles database operations, schemas, and SQL execution.', color: '#8B5CF6' },
+            { name: 'ukmauth', desc: 'Handles end-user authentication, signup, login, and OTPs.', color: '#F59E0B' },
+            { name: 'ukmai', desc: 'Powers the AI Copilot, Forge, and SQL generation.', color: '#06B6D4' },
+            { name: 'ukmstore', desc: 'Manages file uploads and storage buckets.', color: '#10B981' },
+            { name: 'ukmnotify', desc: 'Sends emails and WhatsApp messages.', color: '#EF4444' }
+        ];
+
+        view.innerHTML = `
+        <div class="max-w-4xl mx-auto">
+            <div class="mb-6 p-4 rounded-xl text-xs" style="background: rgba(6,182,212,0.1); border: 1px solid rgba(6,182,212,0.3); color: var(--cyan);">
+                <b>Note:</b> These are the platform-level serverless functions powering all Ukmbase projects. You have full visibility because you are Staff.
+            </div>
+            <div class="mb-8">
+                <h1 class="text-2xl font-bold mb-1" style="color: var(--text);">Edge Functions</h1>
+                <p class="text-sm" style="color: var(--text-muted);">Serverless functions powering your project.</p>
+            </div>
+            <div class="grid gap-4">
+                ${functions.map(f => `
+                    <div class="rounded-xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4" style="background: var(--surface); border: 1px solid var(--border);">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <div class="w-2 h-2 rounded-full" style="background: ${f.color};"></div>
+                                <h3 class="font-bold mono text-sm" style="color: var(--text);">${f.name}</h3>
+                                <span class="text-[10px] uppercase font-bold px-2 py-0.5 rounded" style="background: rgba(16,185,129,0.1); color: var(--green);">Deployed</span>
+                            </div>
+                            <p class="text-xs" style="color: var(--text-muted);">${f.desc}</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="copyToClipboardText('${SUPABASE_URL}/functions/v1/${f.name}')" class="text-xs font-bold px-4 py-2 rounded-lg" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">Copy URL</button>
+                            <button onclick="showToast('Viewing logs for ${f.name}...')" class="text-xs font-bold px-4 py-2 rounded-lg text-white" style="background: var(--accent);">Logs</button>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        </div>`;
+    } else {
+        // Show empty state for regular users
+        view.innerHTML = `
+        <div class="max-w-4xl mx-auto">
+            <div class="mb-8">
+                <h1 class="text-2xl font-bold mb-1" style="color: var(--text);">Edge Functions</h1>
+                <p class="text-sm" style="color: var(--text-muted);">Deploy custom serverless functions for your project.</p>
+            </div>
+            <div class="rounded-xl p-12 text-center" style="background: var(--surface); border: 1px dashed var(--border);">
+                <svg class="w-12 h-12 mx-auto mb-4" style="color: var(--text-dim);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+                <h3 class="font-bold mb-1" style="color: var(--text);">No custom functions yet</h3>
+                <p class="text-sm mb-4" style="color: var(--text-muted);">You haven't deployed any custom edge functions for this project.</p>
+                <button onclick="showToast('Upgrade to Pro to deploy custom functions!', 'success')" class="text-xs font-bold py-2 px-4 rounded-lg text-white" style="background: var(--accent);">Deploy New Function</button>
+            </div>
+        </div>`;
+    }
+};
+
+// 2. Fix the Hamburger Menu (Force Event Listener)
+document.addEventListener('DOMContentLoaded', () => {
+    // Wait for DOM to be fully ready
+    setTimeout(() => {
+        // Find the hamburger button in the top nav
+        const navToggleBtn = document.querySelector('#dashboard-view nav button[onclick="toggleSidebar()"]');
+        
+        if (navToggleBtn) {
+            // Remove the inline onclick to prevent double firing
+            navToggleBtn.removeAttribute('onclick');
+            
+            // Add a robust event listener
+            navToggleBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const sidebar = document.getElementById('sidebar');
+                if (sidebar) {
+                    sidebar.classList.toggle('-translate-x-full');
+                }
+            });
+        }
+    }, 1000);
+});
