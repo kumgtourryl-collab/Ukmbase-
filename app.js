@@ -3393,3 +3393,110 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }, 1000);
 });
+// ============================================
+// PHASE 35: THE PERFORMANCE & FREEZE FIX
+// ============================================
+
+// 1. KILL THE INFINITE ICON LOOP
+// The previous code ran a setInterval every 1 second to resize icons. This is heavy.
+// We disable it entirely and rely on the CSS we already wrote.
+window.fixIconsInterval = null; 
+
+// 2. KILL THE MUTATION OBSERVER (The Freeze Culprit)
+// We override the function that was watching the whole body.
+window.setupSettingsObserver = function() { /* Disabled to save performance */ };
+
+// 3. CLEANLY RENDER SETTINGS (Password & Security)
+// Instead of watching the screen, we just inject the password box instantly when Settings opens.
+const originalRenderSettingsPhase35 = window.renderSettings;
+window.renderSettings = function() {
+    if (originalRenderSettingsPhase35) originalRenderSettingsPhase35();
+    
+    // Inject Security Card directly into the DOM
+    const settingsView = document.getElementById('view-settings');
+    if (settingsView && !document.getElementById('security-card')) {
+        const container = settingsView.querySelector('.max-w-2xl');
+        if (container) {
+            const secDiv = document.createElement('div');
+            secDiv.id = 'security-card';
+            secDiv.className = 'rounded-xl p-6 mb-6';
+            secDiv.style.cssText = 'background: var(--surface); border: 1px solid var(--border);';
+            secDiv.innerHTML = `
+                <h3 class="font-bold mb-4" style="color: var(--text);">Security</h3>
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">New Password</label>
+                        <input type="password" id="new-pass-input" placeholder="Enter new password" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Confirm New Password</label>
+                        <input type="password" id="confirm-pass-input" placeholder="Repeat new password" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
+                    </div>
+                    <button id="btn-quick-pass" onclick="changeQuickPassword()" class="w-full font-bold py-3 rounded-lg text-white" style="background: var(--accent);">Update Password</button>
+                </div>
+            `;
+            
+            // Insert it right before the Sign Out card
+            const signOutCard = container.querySelector('.border-red-500\\/30');
+            if (signOutCard) {
+                container.insertBefore(secDiv, signOutCard);
+            } else {
+                container.appendChild(secDiv);
+            }
+        }
+    }
+};
+
+// 4. FIX THE HAMBURGER MENU (Safely and Cleanly)
+// Instead of a global document listener, we target the specific button when the dashboard loads.
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        const hamburgerBtn = document.querySelector('#dashboard-view nav button');
+        if (hamburgerBtn) {
+            // Remove old onclick to prevent double-toggles
+            hamburgerBtn.removeAttribute('onclick');
+            
+            // Attach a clean, single listener
+            hamburgerBtn.onclick = function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const sidebar = document.getElementById('sidebar');
+                if (sidebar) sidebar.classList.toggle('-translate-x-full');
+            };
+        }
+    }, 500);
+});
+
+// 5. ENSURE ANALYTICS & MARKET LOAD CLEANLY
+// Sometimes multiple overrides of switchView cause a stack overflow. We cap it here.
+const switchViewPhase35 = window.switchView;
+window.switchView = function(view) {
+    // Handle Analytics
+    if (view === 'analytics') {
+        document.querySelectorAll('[id^="view-"]').forEach(el => el.classList.add('hidden'));
+        let el = document.getElementById('view-analytics') || document.createElement('div');
+        if (!el.id) { el.id = 'view-analytics'; document.querySelector('#dashboard-view main').appendChild(el); }
+        el.classList.remove('hidden');
+        document.querySelectorAll('.sb-item').forEach(v => v.classList.remove('active'));
+        if(document.getElementById('nav-analytics')) document.getElementById('nav-analytics').classList.add('active');
+        window.renderAnalyticsUI();
+        document.getElementById('sidebar').classList.add('-translate-x-full');
+        return;
+    }
+
+    // Handle Market
+    if (view === 'market') {
+        document.querySelectorAll('[id^="view-"]').forEach(el => el.classList.add('hidden'));
+        let el = document.getElementById('view-market') || document.createElement('div');
+        if (!el.id) { el.id = 'view-market'; document.querySelector('#dashboard-view main').appendChild(el); }
+        el.classList.remove('hidden');
+        document.querySelectorAll('.sb-item').forEach(v => v.classList.remove('active'));
+        if(document.getElementById('nav-market')) document.getElementById('nav-market').classList.add('active');
+        window.renderMarketUI();
+        document.getElementById('sidebar').classList.add('-translate-x-full');
+        return;
+    }
+
+    // Default
+    if (switchViewPhase35) switchViewPhase35(view);
+};
