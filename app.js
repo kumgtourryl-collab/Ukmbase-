@@ -3352,3 +3352,44 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }, 1000);
 });
+// ============================================
+// PHASE 34: BULLETPROOF HAMBURGER MENU FIX
+// ============================================
+
+// 1. Re-define the toggle function globally just in case
+window.toggleSidebar = function() {
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar) {
+        sidebar.classList.toggle('-translate-x-full');
+    }
+};
+
+// 2. Force the hamburger button to work using Event Delegation
+document.addEventListener('DOMContentLoaded', () => {
+    // We use a global click listener on the document
+    document.addEventListener('click', function(event) {
+        // Check if the clicked element (or its parent) is the hamburger button in the top nav
+        const isHamburger = event.target.closest('#dashboard-view nav button');
+        
+        if (isHamburger) {
+            event.preventDefault(); // Stop default button behavior
+            event.stopPropagation(); // Stop event bubbling
+            
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar) {
+                // Toggle the sidebar visibility
+                sidebar.classList.toggle('-translate-x-full');
+            }
+        }
+    });
+
+    // 3. Ensure the button has the right CSS to be clickable
+    setTimeout(() => {
+        const hamburger = document.querySelector('#dashboard-view nav button');
+        if (hamburger) {
+            hamburger.style.pointerEvents = 'auto';
+            hamburger.style.cursor = 'pointer';
+            hamburger.style.zIndex = '100'; // Force it above any invisible overlays
+        }
+    }, 1000);
+});
