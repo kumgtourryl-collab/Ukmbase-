@@ -2738,3 +2738,182 @@ window.switchView = function(view) {
         setTimeout(window.initSupabaseDataTabs, 300);
     }
 };
+// ============================================
+// PHASE 29: UKMFUNCTIONS & TABBED PROJECT SETTINGS
+// ============================================
+
+// ---------------------------------------------------
+// 1. TABBED PROJECT SETTINGS (Consistent UI)
+// ---------------------------------------------------
+window.openProjectSettings = function(projectId) {
+    const proj = state.projectsCache.find(p => p.id === projectId);
+    if (!proj) return showToast('Project not found', 'error');
+    
+    let modal = document.getElementById('project-settings-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'project-settings-modal';
+        modal.className = 'fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm';
+        document.body.appendChild(modal);
+    }
+    modal.classList.remove('hidden');
+
+    const schema = proj.slug.replace(/-/g, '_');
+    const docUrl = window.location.origin + window.location.pathname + '?docs=' + proj.slug;
+
+    modal.innerHTML = `
+    <div class="w-full max-w-2xl rounded-2xl p-6 glow max-h-[90vh] flex flex-col" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h2 class="text-lg font-bold" style="color: var(--text);">Project Settings</h2>
+                <p class="text-xs mono mt-1" style="color: var(--cyan);">${escapeHtml(proj.name)}</p>
+            </div>
+            <button onclick="document.getElementById('project-settings-modal').classList.add('hidden')" style="color: var(--text-muted);">✕</button>
+        </div>
+        
+        <!-- Settings Tabs -->
+        <div class="flex gap-4 mb-6 border-b overflow-x-auto no-scrollbar" style="border-color: var(--border);">
+            <button onclick="switchSettingsTab('general')" id="stab-general" class="px-1 py-2 text-sm font-medium whitespace-nowrap" style="color: var(--text); border-bottom: 2px solid var(--accent);">General</button>
+            <button onclick="switchSettingsTab('api')" id="stab-api" class="px-1 py-2 text-sm font-medium whitespace-nowrap" style="color: var(--text-muted); border-bottom: 2px solid transparent;">API Credentials</button>
+            <button onclick="switchSettingsTab('danger')" id="stab-danger" class="px-1 py-2 text-sm font-medium whitespace-nowrap" style="color: var(--red); border-bottom: 2px solid transparent;">Danger Zone</button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto pr-2">
+            
+            <!-- GENERAL TAB -->
+            <div id="settings-tab-general" class="space-y-4 block">
+                <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Project Name</label><input type="text" value="${escapeHtml(proj.name)}" class="w-full rounded-lg px-3 py-2 text-sm" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></div>
+                <div><label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Description</label><textarea rows="2" class="w-full rounded-lg px-3 py-2 text-sm" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">${escapeHtml(proj.description || '')}</textarea></div>
+                <div class="pt-2">
+                    <button onclick="window.open('${docUrl}', '_blank')" class="w-full text-xs font-bold py-3 rounded-lg flex items-center justify-center gap-2" style="background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); color: var(--green);">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                        Open Public Docs Page
+                    </button>
+                </div>
+            </div>
+
+            <!-- API TAB -->
+            <div id="settings-tab-api" class="space-y-4 hidden">
+                <div class="rounded-xl p-4" style="background: var(--bg); border: 1px solid var(--border);">
+                    <div class="space-y-3 text-xs">
+                        <div><label class="text-[10px] uppercase font-bold" style="color: var(--text-muted);">Project URL</label><div class="flex justify-between items-center mt-1"><span class="mono truncate" style="color: var(--text);">${SUPABASE_URL}</span><button onclick="copyToClipboardText('${SUPABASE_URL}')" class="text-[10px] text-cyan-400">Copy</button></div></div>
+                        <div><label class="text-[10px] uppercase font-bold" style="color: var(--text-muted);">Anon Key</label><div class="flex justify-between items-center mt-1"><span class="mono truncate" style="color: var(--text);">${SUPABASE_ANON_KEY}</span><button onclick="copyToClipboardText('${SUPABASE_ANON_KEY}')" class="text-[10px] text-cyan-400">Copy</button></div></div>
+                        <div><label class="text-[10px] uppercase font-bold" style="color: var(--text-muted);">Schema</label><div class="flex justify-between items-center mt-1"><span class="mono" style="color: var(--cyan);">${schema}</span><button onclick="copyToClipboardText('${schema}')" class="text-[10px] text-cyan-400">Copy</button></div></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DANGER TAB -->
+            <div id="settings-tab-danger" class="space-y-4 hidden">
+                <div class="rounded-xl p-4" style="background: rgba(239,68,68,0.05); border: 1px solid rgba(239,68,68,0.2);">
+                    <h3 class="text-sm font-bold mb-2 text-red-400">Delete Project</h3>
+                    <p class="text-xs mb-3" style="color: var(--text-muted);">This will permanently remove all tables, users, and data associated with this project. This cannot be undone.</p>
+                    <button onclick="deleteProject('${proj.id}'); document.getElementById('project-settings-modal').classList.add('hidden');" class="text-xs font-bold px-4 py-2 rounded-lg bg-red-500/20 text-red-400">Delete Project</button>
+                </div>
+            </div>
+
+        </div>
+    </div>`;
+};
+
+window.switchSettingsTab = function(tab) {
+    ['general', 'api', 'danger'].forEach(t => {
+        const btn = document.getElementById('stab-' + t);
+        const content = document.getElementById('settings-tab-' + t);
+        if (t === tab) {
+            btn.style.color = t === 'danger' ? 'var(--red)' : 'var(--text)';
+            btn.style.borderBottomColor = t === 'danger' ? 'var(--red)' : 'var(--accent)';
+            content.classList.remove('hidden');
+            content.classList.add('block');
+        } else {
+            btn.style.color = t === 'danger' ? 'rgba(239,68,68,0.5)' : 'var(--text-muted)';
+            btn.style.borderBottomColor = 'transparent';
+            content.classList.add('hidden');
+            content.classList.remove('block');
+        }
+    });
+};
+
+// ---------------------------------------------------
+// 2. UKMFUNCTIONS (Edge Functions Dashboard)
+// ---------------------------------------------------
+window.loadFunctionsView = function() {
+    const main = document.querySelector('#dashboard-view main');
+    
+    let view = document.getElementById('view-functions');
+    if (!view) {
+        view = document.createElement('div');
+        view.id = 'view-functions';
+        view.className = 'flex-1 overflow-y-auto p-4 md:p-8';
+        main.appendChild(view);
+    }
+    
+    document.querySelectorAll('[id^="view-"]').forEach(el => el.classList.add('hidden'));
+    view.classList.remove('hidden');
+    
+    // Update sidebar
+    document.querySelectorAll('.sb-item').forEach(el => el.classList.remove('active'));
+    const nav = document.getElementById('nav-functions');
+    if(nav) nav.classList.add('active');
+    
+    document.getElementById('sidebar').classList.add('-translate-x-full');
+
+    const functions = [
+        { name: 'ukmdata', desc: 'Handles database operations, schemas, and SQL execution.', color: '#8B5CF6' },
+        { name: 'ukmauth', desc: 'Handles end-user authentication, signup, login, and OTPs.', color: '#F59E0B' },
+        { name: 'ukmai', desc: 'Powers the AI Copilot, Forge, and SQL generation.', color: '#06B6D4' },
+        { name: 'ukmstore', desc: 'Manages file uploads and storage buckets.', color: '#10B981' },
+        { name: 'ukmnotify', desc: 'Sends emails and WhatsApp messages.', color: '#EF4444' }
+    ];
+
+    view.innerHTML = `
+    <div class="max-w-4xl mx-auto">
+        <div class="mb-8">
+            <h1 class="text-2xl font-bold mb-1" style="color: var(--text);">Edge Functions</h1>
+            <p class="text-sm" style="color: var(--text-muted);">Serverless functions powering your project.</p>
+        </div>
+
+        <div class="grid gap-4">
+            ${functions.map(f => `
+                <div class="rounded-xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4" style="background: var(--surface); border: 1px solid var(--border);">
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <div class="w-2 h-2 rounded-full" style="background: ${f.color};"></div>
+                            <h3 class="font-bold mono text-sm" style="color: var(--text);">${f.name}</h3>
+                            <span class="text-[10px] uppercase font-bold px-2 py-0.5 rounded" style="background: rgba(16,185,129,0.1); color: var(--green);">Deployed</span>
+                        </div>
+                        <p class="text-xs" style="color: var(--text-muted);">${f.desc}</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="copyToClipboardText('${SUPABASE_URL}/functions/v1/${f.name}')" class="text-xs font-bold px-4 py-2 rounded-lg" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">Copy URL</button>
+                        <button onclick="showToast('Viewing logs for ${f.name}...')" class="text-xs font-bold px-4 py-2 rounded-lg text-white" style="background: var(--accent);">Logs</button>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+    </div>`;
+};
+
+// ---------------------------------------------------
+// 3. Inject "Edge Functions" into the Sidebar
+// ---------------------------------------------------
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        const navGroup = document.querySelector('#sidebar .nav-group'); // Get the first group (Project)
+        if (!navGroup) return;
+        
+        const itemsDiv = navGroup.querySelector('.nav-group-items');
+        if (itemsDiv && !document.getElementById('nav-functions')) {
+            const funcLink = document.createElement('a');
+            funcLink.href = '#';
+            funcLink.id = 'nav-functions';
+            funcLink.className = 'sb-item';
+            funcLink.innerHTML = `
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+                <span>Edge Functions</span>
+            `;
+            funcLink.onclick = (e) => { e.preventDefault(); window.loadFunctionsView(); };
+            itemsDiv.appendChild(funcLink);
+        }
+    }, 1000);
+});
