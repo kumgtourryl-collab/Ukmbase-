@@ -3026,3 +3026,34 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(injectSidebarLink, 1000);
     setTimeout(injectSidebarLink, 2500);
 });
+// Add a quick password update function to the Settings view
+const originalRenderSettings = window.renderSettings;
+window.renderSettings = function() {
+    if (originalRenderSettings) originalRenderSettings();
+    
+    const settingsContainer = document.getElementById('view-settings');
+    if (settingsContainer && !document.getElementById('btn-quick-pass')) {
+        const passDiv = document.createElement('div');
+        passDiv.className = 'rounded-xl p-6 mb-6';
+        passDiv.style.cssText = 'background: var(--surface); border: 1px solid var(--border);';
+        passDiv.innerHTML = `
+            <h3 class="font-bold mb-4" style="color: var(--text);">Security</h3>
+            <div class="space-y-3">
+                <input type="password" id="new-pass-input" placeholder="New Password" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
+                <button id="btn-quick-pass" onclick="changeQuickPassword()" class="w-full font-bold py-3 rounded-lg text-white" style="background: var(--accent);">Update Password</button>
+            </div>
+        `;
+        settingsContainer.querySelector('.max-w-2xl').appendChild(passDiv);
+    }
+};
+
+window.changeQuickPassword = async function() {
+    const newPass = document.getElementById('new-pass-input').value;
+    if (!newPass || newPass.length < 6) return showToast('Password must be at least 6 characters.', 'error');
+    
+    const { error } = await supabaseClient.auth.updateUser({ password: newPass });
+    if (error) return showToast(error.message, 'error');
+    
+    showToast('Password updated successfully!');
+    document.getElementById('new-pass-input').value = '';
+};
