@@ -1494,3 +1494,191 @@ window.loadMarketplace = async function() {
             </div>
         </div>`).join('');
 };
+// ============================================
+// PHASE 23: THE ULTIMATE FIX
+// ============================================
+
+// 1. Global Search Function (Replaces the broken one)
+window.openGlobalSearch = function() {
+    let modal = document.getElementById('ukm-search-modal');
+    if (modal) modal.remove();
+    
+    modal = document.createElement('div');
+    modal.id = 'ukm-search-modal'; 
+    modal.className = 'fixed inset-0 z-[100] flex items-start justify-center pt-20 p-4 bg-black/60 backdrop-blur-sm';
+    document.body.appendChild(modal);
+    
+    modal.innerHTML = `
+    <div class="w-full max-w-xl rounded-xl shadow-2xl overflow-hidden" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex items-center px-4 py-3 border-b" style="border-color: var(--border);">
+            <svg class="w-5 h-5 mr-3" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            <input type="text" id="global-search-input" class="w-full bg-transparent focus:outline-none text-sm" style="color: var(--text);" placeholder="Search projects or tables..." oninput="window.runGlobalSearch(this.value)">
+            <button onclick="document.getElementById('ukm-search-modal').remove()" class="text-xs px-2 py-1 rounded" style="background: var(--bg); color: var(--text-dim);">ESC</button>
+        </div>
+        <div id="global-search-results" class="p-2 max-h-96 overflow-y-auto">
+            <p class="text-xs text-center py-4" style="color: var(--text-dim);">Type to search...</p>
+        </div>
+    </div>`;
+    
+    setTimeout(() => document.getElementById('global-search-input').focus(), 100);
+};
+
+window.runGlobalSearch = function(query) {
+    const resultsDiv = document.getElementById('global-search-results');
+    if (!query || query.length < 2) {
+        resultsDiv.innerHTML = '<p class="text-xs text-center py-4" style="color: var(--text-dim);">Type to search...</p>';
+        return;
+    }
+    const term = query.toLowerCase();
+    let html = '';
+
+    // Search Projects
+    if (state.projectsCache) {
+        const matchedProjects = state.projectsCache.filter(p => p.name.toLowerCase().includes(term) || p.slug.toLowerCase().includes(term));
+        if (matchedProjects.length > 0) {
+            html += `<p class="text-[10px] uppercase font-bold mt-2 mb-1 px-2" style="color: var(--text-dim);">Projects</p>`;
+            matchedProjects.forEach(p => {
+                html += `<div class="px-3 py-2 rounded-lg cursor-pointer hover:bg-[var(--bg)] text-sm" onclick="document.getElementById('ukm-search-modal').remove(); openProjectDetail('${p.id}')">📁 ${escapeHtml(p.name)}</div>`;
+            });
+        }
+    }
+
+    // Search Tables
+    if (state.ukmDataTables && state.ukmDataTables.length > 0) {
+        const matchedTables = state.ukmDataTables.filter(t => t.table_name.toLowerCase().includes(term));
+        if (matchedTables.length > 0) {
+            html += `<p class="text-[10px] uppercase font-bold mt-4 mb-1 px-2" style="color: var(--text-dim);">Tables (Current Project)</p>`;
+            matchedTables.forEach(t => {
+                html += `<div class="px-3 py-2 rounded-lg cursor-pointer hover:bg-[var(--bg)] text-sm" onclick="document.getElementById('ukm-search-modal').remove(); switchView('ukmdata'); viewTableData('${t.table_name}')">📊 ${escapeHtml(t.table_name)}</div>`;
+            });
+        }
+    }
+
+    if (!html) html = '<p class="text-xs text-center py-4" style="color: var(--text-dim);">No results found.</p>';
+    resultsDiv.innerHTML = html;
+};
+
+// 2. Force switchView to handle Analytics & Market
+const ultimateSwitchView = window.switchView;
+window.switchView = function(view) {
+    const mainContainer = document.querySelector('#dashboard-view main');
+    
+    if (view === 'analytics') {
+        let el = document.getElementById('view-analytics');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'view-analytics';
+            el.className = 'flex-1 overflow-y-auto p-4 md:p-8';
+            mainContainer.appendChild(el);
+        }
+        document.querySelectorAll('[id^="view-"]').forEach(v => v.classList.add('hidden'));
+        el.classList.remove('hidden');
+        
+        document.querySelectorAll('.sb-item').forEach(v => v.classList.remove('active'));
+        const nav = document.getElementById('nav-analytics');
+        if (nav) nav.classList.add('active');
+        
+        window.renderAnalyticsUI();
+        document.getElementById('sidebar').classList.add('-translate-x-full');
+        return;
+    }
+
+    if (view === 'market') {
+        let el = document.getElementById('view-market');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'view-market';
+            el.className = 'flex-1 overflow-y-auto p-4 md:p-8';
+            mainContainer.appendChild(el);
+        }
+        document.querySelectorAll('[id^="view-"]').forEach(v => v.classList.add('hidden'));
+        el.classList.remove('hidden');
+        
+        document.querySelectorAll('.sb-item').forEach(v => v.classList.remove('active'));
+        const nav = document.getElementById('nav-market');
+        if (nav) nav.classList.add('active');
+        
+        window.renderMarketUI();
+        document.getElementById('sidebar').classList.add('-translate-x-full');
+        return;
+    }
+
+    if (ultimateSwitchView) ultimateSwitchView(view);
+};
+
+// 3. Render Analytics UI
+window.renderAnalyticsUI = async function() {
+    const view = document.getElementById('view-analytics');
+    view.innerHTML = `
+        <div class="max-w-6xl mx-auto">
+            <div class="mb-8"><h1 class="text-2xl font-bold mb-1" style="color: var(--text);">Analytics</h1><p class="text-sm" style="color: var(--text-muted);">Platform overview and growth metrics.</p></div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div class="p-5 rounded-xl" style="background: var(--surface); border: 1px solid var(--border);"><p class="text-xs font-medium mb-2" style="color: var(--text-muted);">Total Users</p><div id="an-users" class="text-2xl font-bold mono" style="color: var(--text);">—</div></div>
+                <div class="p-5 rounded-xl" style="background: var(--surface); border: 1px solid var(--border);"><p class="text-xs font-medium mb-2" style="color: var(--text-muted);">Total Projects</p><div id="an-projects" class="text-2xl font-bold mono" style="color: var(--text);">—</div></div>
+                <div class="p-5 rounded-xl" style="background: var(--surface); border: 1px solid var(--border);"><p class="text-xs font-medium mb-2" style="color: var(--text-muted);">AI Tokens</p><div id="an-tokens" class="text-2xl font-bold mono" style="color: var(--amber);">—</div></div>
+                <div class="p-5 rounded-xl" style="background: var(--surface); border: 1px solid var(--border);"><p class="text-xs font-medium mb-2" style="color: var(--text-muted);">Revenue</p><div id="an-rev" class="text-2xl font-bold mono" style="color: var(--green);">—</div></div>
+            </div>
+            <div class="rounded-xl p-6 mb-8" style="background: var(--surface); border: 1px solid var(--border);">
+                <h2 class="text-lg font-bold mb-6" style="color: var(--text);">Revenue & Signups (Last 30 Days)</h2>
+                <div class="relative min-h-[300px]"><canvas id="an-chart"></canvas></div>
+            </div>
+        </div>`;
+
+    try {
+        const [u, p, pay] = await Promise.all([
+            supabaseClient.from('profiles').select('created_at'),
+            supabaseClient.from('projects').select('ai_tokens_used'),
+            supabaseClient.from('payments').select('amount, paid_at').eq('status', 'paid')
+        ]);
+        const users = u.data || []; const projects = p.data || []; const payments = pay.data || [];
+
+        document.getElementById('an-users').textContent = users.length;
+        document.getElementById('an-projects').textContent = projects.length;
+        document.getElementById('an-tokens').textContent = projects.reduce((s, x) => s + (Number(x.ai_tokens_used) || 0), 0).toLocaleString();
+        document.getElementById('an-rev').textContent = '$' + payments.reduce((s, x) => s + Number(x.amount), 0).toFixed(2);
+
+        const labels = []; const revData = []; const signupData = [];
+        for (let i = 29; i >= 0; i--) {
+            const d = new Date(); d.setDate(d.getDate() - i);
+            labels.push(d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+            revData.push(payments.filter(x => new Date(x.paid_at).getDate() === d.getDate()).reduce((s, x) => s + Number(x.amount), 0));
+            signupData.push(users.filter(x => new Date(x.created_at).getDate() === d.getDate()).length);
+        }
+        
+        if (window.anChart) window.anChart.destroy();
+        window.anChart = new Chart(document.getElementById('an-chart').getContext('2d'), {
+            type: 'line', data: { labels, datasets: [{ label: 'Revenue', data: revData, borderColor: '#10B981', tension: 0.4, yAxisID: 'y' }, { label: 'Signups', data: signupData, borderColor: '#4F46E5', tension: 0.4, yAxisID: 'y1' }] },
+            options: { responsive: true, maintainAspectRatio: false, scales: { y: { position: 'left', ticks: { color: '#10B981' } }, y1: { position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#4F46E5' } }, x: { ticks: { color: '#64748B' } } } }
+        });
+    } catch(e) { console.error(e); }
+};
+
+// 4. Render Market UI
+window.renderMarketUI = async function() {
+    const view = document.getElementById('view-market');
+    view.innerHTML = `
+        <div class="max-w-6xl mx-auto">
+            <div class="mb-8"><h1 class="text-2xl font-bold mb-1" style="color: var(--text);">UkmMarket</h1><p class="text-sm" style="color: var(--text-muted);">Buy and sell production-ready database schemas.</p></div>
+            <div id="market-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"><div class="text-center py-12 col-span-full"><div class="inline-block w-8 h-8 border-4 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent);"></div></div></div>
+        </div>`;
+
+    const { data: templates } = await supabaseClient.from('project_templates').select('*').order('price_usd', { ascending: false });
+    const grid = document.getElementById('market-grid');
+    
+    if (!templates || templates.length === 0) {
+        grid.innerHTML = '<p class="text-center text-sm col-span-full" style="color: var(--text-muted);">No templates available yet.</p>'; return;
+    }
+
+    grid.innerHTML = templates.map(t => `
+        <div class="feature-card rounded-xl p-5 flex flex-col" style="background: var(--surface); border: 1px solid var(--border);">
+            <div class="flex items-start justify-between mb-4"><div class="text-4xl">${t.icon || '📦'}</div><span class="font-bold text-lg mono" style="color: ${t.price_usd > 0 ? 'var(--green)' : 'var(--cyan)'}">${t.price_usd > 0 ? '$'+t.price_usd : 'FREE'}</span></div>
+            <h3 class="text-lg font-bold mb-1" style="color: var(--text);">${escapeHtml(t.name)}</h3>
+            <p class="text-xs mb-3" style="color: var(--text-muted);">${escapeHtml(t.tagline)}</p>
+            <p class="text-sm flex-1 mb-4" style="color: var(--text-dim);">${escapeHtml(t.description || '')}</p>
+            <div class="flex gap-2 mt-auto">
+                ${t.price_usd > 0 
+                    ? `<button onclick="showToast('Redirecting to checkout...')" class="w-full font-bold py-2 rounded-lg text-white text-sm" style="background: var(--accent);">Buy & Clone</button>`
+                    : `<button onclick="showToast('Cloning...'); setTimeout(()=>{loadProjects(); switchView('overview');}, 1500)" class="w-full font-bold py-2 rounded-lg text-white text-sm" style="background: var(--green);">Clone Free</button>`}
+            </div>
+        </div>`).join('');
+};
