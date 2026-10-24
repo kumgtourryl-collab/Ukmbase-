@@ -3057,3 +3057,62 @@ window.changeQuickPassword = async function() {
     showToast('Password updated successfully!');
     document.getElementById('new-pass-input').value = '';
 };
+// ============================================
+// PHASE 31: SECURITY SETTINGS & PASSWORD UPDATE
+// ============================================
+
+window.changeQuickPassword = async function() {
+    const newPass = document.getElementById('new-pass-input').value;
+    if (!newPass || newPass.length < 6) return showToast('Password must be at least 6 characters.', 'error');
+    
+    const btn = document.getElementById('btn-quick-pass');
+    btn.textContent = 'Updating...'; btn.disabled = true;
+    
+    const { error } = await supabaseClient.auth.updateUser({ password: newPass });
+    
+    btn.textContent = 'Update Password'; btn.disabled = false;
+    
+    if (error) {
+        showToast(error.message, 'error');
+    } else {
+        showToast('Password updated successfully!');
+        document.getElementById('new-pass-input').value = '';
+    }
+};
+
+// Watch for the Settings view to open and inject the Password box
+document.addEventListener('DOMContentLoaded', () => {
+    const observer = new MutationObserver(() => {
+        const settingsView = document.getElementById('view-settings');
+        
+        // If the settings view is visible and we haven't added the box yet
+        if (settingsView && !settingsView.classList.contains('hidden') && !document.getElementById('btn-quick-pass')) {
+            const container = settingsView.querySelector('.max-w-2xl');
+            if (container) {
+                const passDiv = document.createElement('div');
+                passDiv.className = 'rounded-xl p-6 mb-6';
+                passDiv.style.cssText = 'background: var(--surface); border: 1px solid var(--border);';
+                passDiv.innerHTML = `
+                    <h3 class="font-bold mb-4" style="color: var(--text);">Security</h3>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">New Password</label>
+                            <input type="password" id="new-pass-input" placeholder="%ss19ss@1994E" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
+                        </div>
+                        <button id="btn-quick-pass" onclick="changeQuickPassword()" class="w-full font-bold py-3 rounded-lg text-white" style="background: var(--accent);">Update Password</button>
+                    </div>
+                `;
+                
+                // Insert it right before the "Sign Out" danger zone card
+                const signOutCard = container.querySelector('.border-red-500\\/30');
+                if (signOutCard) {
+                    container.insertBefore(passDiv, signOutCard);
+                } else {
+                    container.appendChild(passDiv);
+                }
+            }
+        }
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+});
