@@ -3116,3 +3116,132 @@ document.addEventListener('DOMContentLoaded', () => {
 
     observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
 });
+// ============================================
+// PHASE 32: SECURITY, ROLES & EDGE FUNCTIONS
+// ============================================
+
+// 1. Update the Password Change Function with Confirmation
+window.changeQuickPassword = async function() {
+    const newPass = document.getElementById('new-pass-input').value;
+    const confirmPass = document.getElementById('confirm-pass-input').value;
+    
+    if (!newPass || newPass.length < 6) return showToast('Password must be at least 6 characters.', 'error');
+    if (newPass !== confirmPass) return showToast('Passwords do not match.', 'error');
+    
+    const btn = document.getElementById('btn-quick-pass');
+    btn.textContent = 'Updating...'; btn.disabled = true;
+    
+    const { error } = await supabaseClient.auth.updateUser({ password: newPass });
+    
+    btn.textContent = 'Update Password'; btn.disabled = false;
+    
+    if (error) {
+        showToast(error.message, 'error');
+    } else {
+        showToast('Password updated successfully!');
+        document.getElementById('new-pass-input').value = '';
+        document.getElementById('confirm-pass-input').value = '';
+    }
+};
+
+// 2. Inject the Confirm Password field into the Settings view
+document.addEventListener('DOMContentLoaded', () => {
+    const observer = new MutationObserver(() => {
+        const settingsView = document.getElementById('view-settings');
+        
+        if (settingsView && !settingsView.classList.contains('hidden') && !document.getElementById('confirm-pass-input')) {
+            const passDiv = document.querySelector('#new-pass-input')?.parentElement?.parentElement?.parentElement;
+            if (passDiv && !passDiv.querySelector('#confirm-pass-input')) {
+                const confirmDiv = document.createElement('div');
+                confirmDiv.className = 'space-y-3 mt-3';
+                confirmDiv.innerHTML = `
+                    <div>
+                        <label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Confirm New Password</label>
+                        <input type="password" id="confirm-pass-input" placeholder="Repeat new password" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
+                    </div>
+                `;
+                // Insert right before the update button
+                const updateBtn = passDiv.querySelector('#btn-quick-pass');
+                if (updateBtn) passDiv.insertBefore(confirmDiv, updateBtn);
+            }
+        }
+    });
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+});
+
+// 3. Protect the Owner Role in the Owner Console
+window.setUserRole = async function(uid, role) {
+    const targetUser = state.allUsersCache.find(u => u.id === uid);
+    if (!targetUser) return;
+
+    // SAFETY CHECK: Prevent changing the owner's role
+    if (targetUser.role === 'owner' || targetUser.email === 'kumgtourryl@gmail.com') {
+        showToast('Security: You cannot change the Owner role.', 'error');
+        // Reset the dropdown back to owner
+        document.querySelector(`select[onchange="setUserRole('${uid}', this.value)"]`).value = 'owner';
+        return;
+    }
+
+    if (!confirm(`Change ${targetUser.email} to ${role.toUpperCase()}?`)) {
+        document.querySelector(`select[onchange="setUserRole('${uid}', this.value)"]`).value = targetUser.role || 'user';
+        return;
+    }
+
+    const { error } = await supabaseClient.from('profiles').update({ role }).eq('id', uid);
+    if (error) {
+        return showToast(error.message, 'error');
+    } 
+    
+    showToast('Role updated successfully!');
+    loadOwnerConsole(); // Refresh the list
+};
+
+// 4. Update the Owner Console UI to include "Co-founder" and lock the Owner's dropdown
+const originalLoadOwnerConsolePhase32 = window.loadOwnerConsole;
+window.loadOwnerConsole = async function() {
+    await originalLoadOwnerConsolePhase32();
+    
+    // After the original console loads, we tweak the dropdowns
+    setTimeout(() => {
+        const userRows = document.querySelectorAll('#owner-users-list > div');
+        userRows.forEach(row => {
+            const select = row.querySelector('select');
+            if (!select) return;
+            
+            const email = row.querySelector('.mono').textContent;
+            
+            // Add Co-founder option if not there
+            if (!select.querySelector('option[value="co-founder"]')) {
+                const opt = document.createElement('option');
+                opt.value = 'co-founder';
+                opt.textContent = 'co-founder';
+                select.appendChild(opt);
+            }
+            
+            // Lock the Owner's dropdown
+            if (email === 'kumgtourryl@gmail.com') {
+                select.innerHTML = '<option value="owner">owner (You)</option>';
+                select.disabled = true;
+                select.style.opacity = '0.5';
+                select.style.cursor = 'not-allowed';
+            }
+        });
+    }, 500);
+};
+
+// 5. Add a helpful note to Edge Functions
+const originalLoadFunctionsView = window.loadFunctionsView;
+window.loadFunctionsView = function() {
+    originalLoadFunctionsView();
+    setTimeout(() => {
+        const view = document.getElementById('view-functions');
+        if (view && !document.getElementById('fn-note')) {
+            const note = document.createElement('div');
+            note.id = 'fn-note';
+            note.className = 'mb-6 p-4 rounded-xl text-xs';
+            note.style.cssText = 'background: rgba(6,182,212,0.1); border: 1px solid rgba(6,182,212,0.3); color: var(--cyan);';
+            note.innerHTML = '<b>Note:</b> These are the platform-level serverless functions powering all Ukmbase projects. You have full visibility because you are the Owner. Regular users only see their own project data.';
+            view.querySelector('.max-w-4xl').prepend(note);
+        }
+    }, 100);
+};
