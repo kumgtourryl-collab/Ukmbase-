@@ -2113,3 +2113,227 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }, 1000);
 });
+// ============================================
+// PHASE 26: COMMAND PALETTE & PUBLIC DOCS
+// ============================================
+
+// ---------------------------------------------------
+// 1. UPGRADED COMMAND PALETTE (Cmd+K)
+// ---------------------------------------------------
+window.openGlobalSearch = function() {
+    let modal = document.getElementById('ukm-command-palette');
+    if (modal) modal.remove();
+    
+    modal = document.createElement('div');
+    modal.id = 'ukm-command-palette'; 
+    modal.className = 'fixed inset-0 z-[100] flex items-start justify-center pt-20 p-4 bg-black/60 backdrop-blur-sm';
+    document.body.appendChild(modal);
+    
+    modal.innerHTML = `
+    <div class="w-full max-w-xl rounded-xl shadow-2xl overflow-hidden" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex items-center px-4 py-3 border-b" style="border-color: var(--border);">
+            <svg class="w-5 h-5 mr-3" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            <input type="text" id="command-palette-input" class="w-full bg-transparent focus:outline-none text-sm" style="color: var(--text);" placeholder="Search projects, tables, or type a command..." oninput="window.runCommandSearch(this.value)">
+            <button onclick="document.getElementById('ukm-command-palette').remove()" class="text-[10px] px-2 py-1 rounded mono" style="background: var(--bg); color: var(--text-dim); border: 1px solid var(--border);">ESC</button>
+        </div>
+        <div id="command-palette-results" class="p-2 max-h-[60vh] overflow-y-auto">
+            <p class="text-[10px] uppercase font-bold px-2 py-2" style="color: var(--text-dim);">Quick Actions</p>
+            <div class="px-3 py-2 rounded-lg cursor-pointer hover:bg-[var(--bg)] text-sm flex items-center gap-3" onclick="document.getElementById('ukm-command-palette').remove(); openProjectModal()">
+                <span class="text-lg">✨</span> Create New Project
+            </div>
+            <div class="px-3 py-2 rounded-lg cursor-pointer hover:bg-[var(--bg)] text-sm flex items-center gap-3" onclick="document.getElementById('ukm-command-palette').remove(); openForgeModal()">
+                <span class="text-lg">🤖</span> Forge App with AI
+            </div>
+            <div class="px-3 py-2 rounded-lg cursor-pointer hover:bg-[var(--bg)] text-sm flex items-center gap-3" onclick="document.getElementById('ukm-command-palette').remove(); switchView('settings')">
+                <span class="text-lg">⚙️</span> Account Settings
+            </div>
+        </div>
+    </div>`;
+    
+    setTimeout(() => document.getElementById('command-palette-input').focus(), 100);
+};
+
+window.runCommandSearch = function(query) {
+    const resultsDiv = document.getElementById('command-palette-results');
+    const term = query.toLowerCase();
+    
+    // If empty, show quick actions
+    if (!query || query.length < 2) {
+        resultsDiv.innerHTML = `
+            <p class="text-[10px] uppercase font-bold px-2 py-2" style="color: var(--text-dim);">Quick Actions</p>
+            <div class="px-3 py-2 rounded-lg cursor-pointer hover:bg-[var(--bg)] text-sm flex items-center gap-3" onclick="document.getElementById('ukm-command-palette').remove(); openProjectModal()"><span class="text-lg">✨</span> Create New Project</div>
+            <div class="px-3 py-2 rounded-lg cursor-pointer hover:bg-[var(--bg)] text-sm flex items-center gap-3" onclick="document.getElementById('ukm-command-palette').remove(); openForgeModal()"><span class="text-lg">🤖</span> Forge App with AI</div>`;
+        return;
+    }
+
+    let html = '';
+
+    // 1. Projects
+    const matchedProjects = state.projectsCache.filter(p => p.name.toLowerCase().includes(term) || p.slug.toLowerCase().includes(term));
+    if (matchedProjects.length > 0) {
+        html += `<p class="text-[10px] uppercase font-bold px-2 py-2 mt-2" style="color: var(--text-dim);">Projects</p>`;
+        matchedProjects.forEach(p => {
+            html += `<div class="px-3 py-2 rounded-lg cursor-pointer hover:bg-[var(--bg)] text-sm flex items-center gap-3" onclick="document.getElementById('ukm-command-palette').remove(); openProjectDetail('${p.id}')">
+                <span class="text-lg">📁</span> ${escapeHtml(p.name)}
+            </div>`;
+        });
+    }
+
+    // 2. Tables (If in a project)
+    if (state.ukmDataTables && state.ukmDataTables.length > 0) {
+        const matchedTables = state.ukmDataTables.filter(t => t.table_name.toLowerCase().includes(term));
+        if (matchedTables.length > 0) {
+            html += `<p class="text-[10px] uppercase font-bold px-2 py-2 mt-2" style="color: var(--text-dim);">Tables (Current Project)</p>`;
+            matchedTables.forEach(t => {
+                html += `<div class="px-3 py-2 rounded-lg cursor-pointer hover:bg-[var(--bg)] text-sm flex items-center gap-3" onclick="document.getElementById('ukm-command-palette').remove(); switchView('ukmdata'); viewTableData('${t.table_name}')">
+                    <span class="text-lg">📊</span> ${escapeHtml(t.table_name)}
+                </div>`;
+            });
+        }
+    }
+
+    if (!html) html = '<p class="text-xs text-center py-8" style="color: var(--text-dim);">No results found for "' + escapeHtml(query) + '"</p>';
+    resultsDiv.innerHTML = html;
+};
+
+// ---------------------------------------------------
+// 2. PUBLIC DOCS HUB (?docs=slug)
+// ---------------------------------------------------
+window.loadPublicDocs = async function(projectSlug) {
+    document.getElementById('landing-view').classList.add('hidden');
+    document.getElementById('auth-view').classList.add('hidden');
+    document.getElementById('dashboard-view').classList.add('hidden');
+    
+    let view = document.getElementById('ukm-docs-view');
+    if (!view) {
+        view = document.createElement('div');
+        view.id = 'ukm-docs-view';
+        view.className = 'min-h-screen bg-[#0B1020] p-6';
+        document.body.appendChild(view);
+    }
+    view.classList.remove('hidden');
+    view.innerHTML = `<div class="max-w-4xl mx-auto py-20 text-center"><div class="inline-block w-8 h-8 border-4 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent);"></div></div>`;
+
+    try {
+        const { data: proj, error } = await supabaseClient.from('projects').select('*').eq('slug', projectSlug).single();
+        if (error || !proj) throw new Error('Project not found');
+
+        const schema = proj.slug.replace(/-/g, '_');
+
+        view.innerHTML = `
+        <div class="max-w-4xl mx-auto">
+            <header class="mb-10 text-center border-b pb-8" style="border-color: var(--border);">
+                <div class="inline-flex items-center justify-center w-12 h-12 rounded-xl mb-4" style="background: rgba(79,70,229,0.1); border: 1px solid rgba(79,70,229,0.3);">
+                    <span class="text-2xl">📚</span>
+                </div>
+                <h1 class="text-3xl font-extrabold mb-2" style="color: var(--text);">${escapeHtml(proj.name)} API</h1>
+                <p class="text-sm" style="color: var(--text-muted);">Auto-generated developer documentation.</p>
+            </header>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="md:col-span-1 space-y-2">
+                    <p class="text-[10px] uppercase font-bold px-3 py-2" style="color: var(--text-dim);">On this page</p>
+                    <a href="#credentials" class="block px-3 py-2 text-sm rounded-lg hover:bg-[var(--surface)]" style="color: var(--text-muted);">1. Credentials</a>
+                    <a href="#javascript" class="block px-3 py-2 text-sm rounded-lg hover:bg-[var(--surface)]" style="color: var(--text-muted);">2. JavaScript SDK</a>
+                    <a href="#curl" class="block px-3 py-2 text-sm rounded-lg hover:bg-[var(--surface)]" style="color: var(--text-muted);">3. cURL / REST</a>
+                </div>
+
+                <div class="md:col-span-2 space-y-8">
+                    <!-- Credentials -->
+                    <section id="credentials">
+                        <h2 class="text-xl font-bold mb-4" style="color: var(--text);">1. Project Credentials</h2>
+                        <div class="rounded-xl p-4 space-y-3" style="background: var(--surface); border: 1px solid var(--border);">
+                            <div><label class="block text-xs mb-1" style="color: var(--text-muted);">Project URL</label><input type="text" readonly value="${SUPABASE_URL}" class="w-full rounded px-3 py-2 text-xs mono" style="background: var(--bg); border: 1px solid var(--border); color: var(--cyan);"></div>
+                            <div><label class="block text-xs mb-1" style="color: var(--text-muted);">Anon Key</label><input type="text" readonly value="${SUPABASE_ANON_KEY}" class="w-full rounded px-3 py-2 text-xs mono" style="background: var(--bg); border: 1px solid var(--border); color: var(--cyan);"></div>
+                            <div><label class="block text-xs mb-1" style="color: var(--text-muted);">Database Schema</label><input type="text" readonly value="${schema}" class="w-full rounded px-3 py-2 text-xs mono" style="background: var(--bg); border: 1px solid var(--border); color: var(--green);"></div>
+                        </div>
+                    </section>
+
+                    <!-- JS SDK -->
+                    <section id="javascript">
+                        <h2 class="text-xl font-bold mb-4" style="color: var(--text);">2. JavaScript SDK</h2>
+                        <div class="rounded-xl overflow-hidden" style="background: var(--surface); border: 1px solid var(--border);">
+                            <div class="px-4 py-2 text-xs font-bold border-b" style="background: var(--surface-2); border-color: var(--border); color: var(--text);">npm install @supabase/supabase-js</div>
+                            <pre class="p-4 text-[11px] mono overflow-x-auto" style="color: var(--text);">import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  '${SUPABASE_URL}',
+  '${SUPABASE_ANON_KEY}'
+)
+
+// Fetch data from your table
+const { data, error } = await supabase
+  .schema('${schema}')
+  .from('your_table_name')
+  .select('*')</pre>
+                        </div>
+                    </section>
+
+                    <!-- cURL -->
+                    <section id="curl">
+                        <h2 class="text-xl font-bold mb-4" style="color: var(--text);">3. cURL / REST API</h2>
+                        <div class="rounded-xl overflow-hidden" style="background: var(--surface); border: 1px solid var(--border);">
+                            <div class="px-4 py-2 text-xs font-bold border-b" style="background: var(--surface-2); border-color: var(--border); color: var(--text);">Terminal</div>
+                            <pre class="p-4 text-[11px] mono overflow-x-auto" style="color: var(--text);">curl '${SUPABASE_URL}/rest/v1/your_table_name?select=*' \\
+-H "apikey: ${SUPABASE_ANON_KEY}" \\
+-H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \\
+-H "Accept-Profile: ${schema}"</pre>
+                        </div>
+                    </section>
+                </div>
+            </div>
+            
+            <footer class="mt-20 py-8 text-center border-t text-xs" style="border-color: var(--border); color: var(--text-dim);">
+                Documentation generated by <a href="/" class="font-bold text-[var(--accent)] hover:underline">Ukmbase</a>
+            </footer>
+        </div>`;
+    } catch (e) {
+        view.innerHTML = `<div class="max-w-md mx-auto mt-20 text-center rounded-xl p-8" style="background: var(--surface); border: 1px solid var(--border);">
+            <h2 class="text-xl font-bold mb-2" style="color: var(--red);">404 Not Found</h2>
+            <p class="text-sm" style="color: var(--text-muted);">${e.message}</p>
+            <a href="/" class="inline-block mt-6 px-6 py-2 rounded-lg text-white font-bold" style="background: var(--accent);">Go Home</a>
+        </div>`;
+    }
+};
+
+// ---------------------------------------------------
+// 3. ROUTING: Handle ?docs= URL parameter
+// ---------------------------------------------------
+const originalInitForDocs = window.init;
+window.init = async function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    // If ?docs=slug is present, load the public docs page
+    if (urlParams.has('docs')) {
+        return window.loadPublicDocs(urlParams.get('docs'));
+    }
+    
+    if (originalInitForDocs) await originalInitForDocs();
+};
+
+// ---------------------------------------------------
+// 4. ADD DOCS BUTTON TO PROJECT SETTINGS
+// ---------------------------------------------------
+const originalOpenProjectSettings = window.openProjectSettings;
+window.openProjectSettings = function(projectId) {
+    if (originalOpenProjectSettings) originalOpenProjectSettings(projectId);
+    
+    setTimeout(() => {
+        const proj = state.projectsCache.find(p => p.id === projectId);
+        if (!proj) return;
+        
+        const docUrl = window.location.origin + window.location.pathname + '?docs=' + proj.slug;
+        const modalBody = document.querySelector('#project-settings-modal .flex-1.overflow-y-auto');
+        
+        if (modalBody && !document.getElementById('btn-public-docs')) {
+            const docBtnWrap = document.createElement('div');
+            docBtnWrap.innerHTML = `
+                <button id="btn-public-docs" onclick="copyToClipboardText('${docUrl}')" class="w-full mt-4 text-xs font-bold py-3 rounded-lg flex items-center justify-center gap-2" style="background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); color: var(--green);">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                    Copy Public Docs Link
+                </button>
+            `;
+            modalBody.appendChild(docBtnWrap);
+        }
+    }, 500);
+};
