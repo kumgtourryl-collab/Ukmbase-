@@ -5483,3 +5483,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const container = document.getElementById('ukmdata-panel');
     if (container) observer.observe(container, { childList: true, subtree: true });
 });
+// ============================================
+// PHASE 19: ICON RESCUE & END-USER AUTH (FIREBASE KILLER)
+// ============================================
+
+// 1. Fix the giant icons immediately
+setInterval(() => {
+    document.querySelectorAll('#sidebar svg').forEach(svg => {
+        if (!svg.classList.contains('w-4')) {
+            svg.classList.add('w-4', 'h-4', 'min-w-[16px]', 'min-h-[16px]', 'flex-shrink-0');
+            svg.style.width = '16px';
+            svg.style.height = '16px';
+            svg.style.maxWidth = '16px';
+            svg.style.maxHeight = '16px';
+        }
+    });
+}, 1000); // Run every second to catch dynamically loaded views
