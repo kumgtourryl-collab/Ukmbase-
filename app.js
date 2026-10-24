@@ -1370,3 +1370,127 @@ document.addEventListener('DOMContentLoaded', () => {
     const searchBtn = document.getElementById('btn-global-search');
     if (searchBtn) searchBtn.setAttribute('onclick', 'openGlobalSearch()');
 });
+// ============================================
+// PHASE 22: THE FINAL FIX (SEARCH, ANALYTICS, MARKET)
+// ============================================
+
+// 1. Fix the naming mismatch
+window.openSearchModal = function() {
+    window.openGlobalSearch();
+};
+
+// 2. Override switchView to dynamically create Analytics and Market pages
+const finalSwitchView = window.switchView;
+window.switchView = function(view) {
+    const mainContainer = document.querySelector('#dashboard-view main');
+    
+    // Handle Analytics
+    if (view === 'analytics') {
+        let el = document.getElementById('view-analytics');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'view-analytics';
+            el.className = 'flex-1 overflow-y-auto p-4 md:p-8';
+            mainContainer.appendChild(el);
+        }
+        if (finalSwitchView) finalSwitchView(view);
+        return;
+    }
+
+    // Handle Market
+    if (view === 'market') {
+        let el = document.getElementById('view-market');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'view-market';
+            el.className = 'flex-1 overflow-y-auto p-4 md:p-8';
+            mainContainer.appendChild(el);
+        }
+        if (finalSwitchView) finalSwitchView(view);
+        return;
+    }
+
+    // Default
+    if (finalSwitchView) finalSwitchView(view);
+};
+
+// 3. Build the Analytics Dashboard
+window.loadAnalyticsDashboard = async function() {
+    const view = document.getElementById('view-analytics');
+    if (!view) return;
+    
+    view.innerHTML = `
+        <div class="max-w-6xl mx-auto">
+            <div class="mb-8"><h1 class="text-2xl font-bold mb-1" style="color: var(--text);">Analytics</h1><p class="text-sm" style="color: var(--text-muted);">Platform overview and growth metrics.</p></div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div class="p-5 rounded-xl" style="background: var(--surface); border: 1px solid var(--border);"><p class="text-xs font-medium mb-2" style="color: var(--text-muted);">Total Users</p><div id="analytics-users" class="text-2xl font-bold mono" style="color: var(--text);">—</div></div>
+                <div class="p-5 rounded-xl" style="background: var(--surface); border: 1px solid var(--border);"><p class="text-xs font-medium mb-2" style="color: var(--text-muted);">Total Projects</p><div id="analytics-projects" class="text-2xl font-bold mono" style="color: var(--text);">—</div></div>
+                <div class="p-5 rounded-xl" style="background: var(--surface); border: 1px solid var(--border);"><p class="text-xs font-medium mb-2" style="color: var(--text-muted);">AI Tokens</p><div id="analytics-tokens" class="text-2xl font-bold mono" style="color: var(--amber);">—</div></div>
+                <div class="p-5 rounded-xl" style="background: var(--surface); border: 1px solid var(--border);"><p class="text-xs font-medium mb-2" style="color: var(--text-muted);">Revenue</p><div id="analytics-revenue" class="text-2xl font-bold mono" style="color: var(--green);">—</div></div>
+            </div>
+            <div class="rounded-xl p-6 mb-8" style="background: var(--surface); border: 1px solid var(--border);">
+                <h2 class="text-lg font-bold mb-6" style="color: var(--text);">Revenue & Signups (Last 30 Days)</h2>
+                <div class="relative min-h-[300px]"><canvas id="global-analytics-chart"></canvas></div>
+            </div>
+        </div>`;
+
+    try {
+        const [usersRes, projectsRes, paymentsRes] = await Promise.all([
+            supabaseClient.from('profiles').select('created_at'),
+            supabaseClient.from('projects').select('ai_tokens_used'),
+            supabaseClient.from('payments').select('amount, paid_at').eq('status', 'paid')
+        ]);
+        const users = usersRes.data || []; const projects = projectsRes.data || []; const payments = paymentsRes.data || [];
+
+        document.getElementById('analytics-users').textContent = users.length;
+        document.getElementById('analytics-projects').textContent = projects.length;
+        document.getElementById('analytics-tokens').textContent = projects.reduce((s, p) => s + (Number(p.ai_tokens_used) || 0), 0).toLocaleString();
+        document.getElementById('analytics-revenue').textContent = '$' + payments.reduce((s, p) => s + Number(p.amount), 0).toFixed(2);
+
+        const labels = []; const revData = []; const signupData = [];
+        for (let i = 29; i >= 0; i--) {
+            const d = new Date(); d.setDate(d.getDate() - i);
+            labels.push(d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+            revData.push(payments.filter(p => new Date(p.paid_at).getDate() === d.getDate()).reduce((s, p) => s + Number(p.amount), 0));
+            signupData.push(users.filter(u => new Date(u.created_at).getDate() === d.getDate()).length);
+        }
+        
+        if (window.globalAnalyticsChart) window.globalAnalyticsChart.destroy();
+        window.globalAnalyticsChart = new Chart(document.getElementById('global-analytics-chart').getContext('2d'), {
+            type: 'line', data: { labels, datasets: [{ label: 'Revenue', data: revData, borderColor: '#10B981', tension: 0.4, yAxisID: 'y' }, { label: 'Signups', data: signupData, borderColor: '#4F46E5', tension: 0.4, yAxisID: 'y1' }] },
+            options: { responsive: true, maintainAspectRatio: false, scales: { y: { position: 'left', ticks: { color: '#10B981' } }, y1: { position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#4F46E5' } }, x: { ticks: { color: '#64748B' } } } }
+        });
+    } catch(e) { console.error(e); }
+};
+
+// 4. Build the Marketplace
+window.loadMarketplace = async function() {
+    const view = document.getElementById('view-market');
+    if (!view) return;
+    
+    view.innerHTML = `
+        <div class="max-w-6xl mx-auto">
+            <div class="mb-8"><h1 class="text-2xl font-bold mb-1" style="color: var(--text);">UkmMarket</h1><p class="text-sm" style="color: var(--text-muted);">Buy and sell production-ready database schemas.</p></div>
+            <div id="market-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"><div class="text-center py-12 col-span-full"><div class="inline-block w-8 h-8 border-4 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent);"></div></div></div>
+        </div>`;
+
+    const { data: templates } = await supabaseClient.from('project_templates').select('*').order('price_usd', { ascending: false });
+    const grid = document.getElementById('market-grid');
+    
+    if (!templates || templates.length === 0) {
+        grid.innerHTML = '<p class="text-center text-sm col-span-full" style="color: var(--text-muted);">No templates available yet.</p>'; return;
+    }
+
+    grid.innerHTML = templates.map(t => `
+        <div class="feature-card rounded-xl p-5 flex flex-col" style="background: var(--surface); border: 1px solid var(--border);">
+            <div class="flex items-start justify-between mb-4"><div class="text-4xl">${t.icon || '📦'}</div><span class="font-bold text-lg mono" style="color: ${t.price_usd > 0 ? 'var(--green)' : 'var(--cyan)'}">${t.price_usd > 0 ? '$'+t.price_usd : 'FREE'}</span></div>
+            <h3 class="text-lg font-bold mb-1" style="color: var(--text);">${escapeHtml(t.name)}</h3>
+            <p class="text-xs mb-3" style="color: var(--text-muted);">${escapeHtml(t.tagline)}</p>
+            <p class="text-sm flex-1 mb-4" style="color: var(--text-dim);">${escapeHtml(t.description || '')}</p>
+            <div class="flex gap-2 mt-auto">
+                ${t.price_usd > 0 
+                    ? `<button onclick="showToast('Redirecting to checkout...')" class="w-full font-bold py-2 rounded-lg text-white text-sm" style="background: var(--accent);">Buy & Clone</button>`
+                    : `<button onclick="showToast('Cloning...'); setTimeout(()=>{loadProjects(); switchView('overview');}, 1500)" class="w-full font-bold py-2 rounded-lg text-white text-sm" style="background: var(--green);">Clone Free</button>`}
+            </div>
+        </div>`).join('');
+};
