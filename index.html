@@ -82,47 +82,94 @@
     input:checked + .slider { background: var(--accent); }
     input:checked + .slider:before { transform: translateX(20px); }
 
-    /* Perfect Supabase-Style Sidebar */
-    #sidebar { display: flex; flex-direction: column; height: calc(100vh - 60px); }
-    .sb-scroll { flex: 1; overflow-y: auto; padding: 12px; -webkit-overflow-scrolling: touch; }
+    /* ============================================
+       UKMBASE PREMIUM SIDEBAR (10x Supabase)
+       ============================================ */
+    #sidebar {
+        background: linear-gradient(180deg, var(--surface) 0%, var(--bg) 100%);
+        border-right: 1px solid rgba(255, 255, 255, 0.05);
+        box-shadow: 4px 0 24px rgba(0, 0, 0, 0.2);
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - 60px);
+    }
+
+    .sb-scroll {
+        flex: 1;
+        overflow-y: auto;
+        padding: 16px 12px;
+        -webkit-overflow-scrolling: touch;
+    }
+
     .sb-scroll::-webkit-scrollbar { width: 4px; }
     .sb-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-    
-    .sb-group { margin-bottom: 4px; }
+
+    .sb-group { margin-bottom: 12px; }
+
     .sb-group-header {
-        display: flex; align-items: center; justify-content: space-between;
-        padding: 6px 8px; font-size: 11px; font-weight: 700; text-transform: uppercase;
-        letter-spacing: 0.05em; color: var(--text-dim); cursor: pointer; border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 12px;
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--text-dim);
+        cursor: pointer;
+        border-radius: 8px;
+        transition: all 0.2s ease;
     }
-    .sb-group-header:hover { color: var(--text-muted); background: rgba(255,255,255,0.03); }
-    .sb-group-header svg { width: 12px; height: 12px; transition: transform 0.2s; }
+    .sb-group-header:hover { color: var(--text-muted); background: rgba(255, 255, 255, 0.03); }
+    .sb-group-header svg { width: 14px !important; height: 14px !important; transition: transform 0.3s ease; }
     .sb-group.open .sb-group-header svg { transform: rotate(90deg); }
-    
-    .sb-items { display: none; flex-direction: column; gap: 2px; padding-left: 8px; margin-top: 2px; }
-    .sb-group.open .sb-items { display: flex; }
-    
+
+    .sb-items { display: none; flex-direction: column; gap: 4px; margin-top: 4px; }
+    .sb-group.open .sb-items { display: flex; animation: fadeIn 0.3s ease; }
+
     .sb-item {
-        display: flex; align-items: center; gap: 10px; padding: 6px 10px;
-        font-size: 13px; font-weight: 500; color: var(--text-muted);
-        border-radius: 6px; text-decoration: none; cursor: pointer; transition: all 0.15s;
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        gap: 12px;
+        padding: 10px 12px;
+        font-size: 13.5px;
+        font-weight: 500;
+        color: var(--text-muted);
+        border-radius: 8px;
+        text-decoration: none;
+        cursor: pointer;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        border-left: 3px solid transparent;
     }
-    .sb-item:hover { background: rgba(255,255,255,0.05); color: var(--text); }
-    .sb-item.active { background: rgba(79, 70, 229, 0.15); color: var(--accent); border-left: 2px solid var(--accent); }
-    .sb-item svg { width: 16px; height: 16px; opacity: 0.7; }
-    .sb-item:hover svg, .sb-item.active svg { opacity: 1; }
-    /* Force sidebar icons to stay small and neat */
-#sidebar .sb-item svg {
-    width: 18px !important;
-    height: 18px !important;
-    min-width: 18px !important;
-    flex-shrink: 0 !important;
-}
-#sidebar .sb-group-header svg {
-    width: 14px !important;
-    height: 14px !important;
-    flex-shrink: 0 !important;
-}
-</style> 
+
+    .sb-item svg {
+        width: 18px !important;
+        height: 18px !important;
+        min-width: 18px !important;
+        min-height: 18px !important;
+        flex-shrink: 0 !important;
+        opacity: 0.6;
+        transition: all 0.2s ease;
+    }
+
+    .sb-item:hover {
+        background: rgba(255, 255, 255, 0.04);
+        color: var(--text);
+        transform: translateX(2px);
+    }
+    .sb-item:hover svg { opacity: 1; color: var(--accent); }
+
+    .sb-item.active {
+        background: linear-gradient(90deg, rgba(79, 70, 229, 0.15) 0%, transparent 100%);
+        color: #A78BFA;
+        border-left: 3px solid var(--accent);
+        font-weight: 600;
+    }
+    .sb-item.active svg { opacity: 1; color: var(--accent); filter: drop-shadow(0 0 8px rgba(79, 70, 229, 0.5)); }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+</style>
 </head>
 <body class="min-h-screen">
 
@@ -235,7 +282,7 @@
         </h1>
         <p class="text-[#94A3B8] text-lg md:text-xl mb-8 max-w-xl mx-auto">The AI-native backend platform for modern founders. Offline-first sync, full-stack AI generation, and built-in mobile money.</p>
         
-        <!-- NEW: INTERACTIVE AI DEMO -->
+        <!-- INTERACTIVE AI DEMO -->
         <div class="w-full max-w-2xl mx-auto mb-16 text-left">
             <div class="rounded-xl p-5" style="background: var(--surface); border: 1px solid var(--border); box-shadow: 0 10px 40px -10px rgba(0,0,0,0.5);">
                 <div class="flex items-center justify-between mb-3">
@@ -443,13 +490,14 @@
 
     <div class="flex flex-1 overflow-hidden">
         <!-- SUPABASE-STYLE SIDEBAR -->
-        <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-64 transform -translate-x-full transition-transform duration-200 ease-in-out md:relative md:translate-x-0 mt-14 md:mt-0" style="background: var(--surface); border-right: 1px solid var(--border);">
+        <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-64 transform -translate-x-full transition-transform duration-300 ease-in-out md:relative md:translate-x-0 mt-14 md:mt-0">
             <div class="sb-scroll">
-                <!-- PROJECT -->
+                
+                <!-- PROJECT GROUP -->
                 <div class="sb-group open">
                     <div class="sb-group-header" onclick="this.parentElement.classList.toggle('open')">
                         <span>Project</span>
-                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"></path></svg>
                     </div>
                     <div class="sb-items">
                         <a href="#" id="nav-overview" class="sb-item" onclick="event.preventDefault(); switchView('overview')">
@@ -467,11 +515,11 @@
                     </div>
                 </div>
 
-                <!-- DATABASE -->
+                <!-- DATABASE GROUP -->
                 <div class="sb-group open">
                     <div class="sb-group-header" onclick="this.parentElement.classList.toggle('open')">
                         <span>Database</span>
-                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"></path></svg>
                     </div>
                     <div class="sb-items">
                         <a href="#" id="nav-ukmdata" class="sb-item" onclick="event.preventDefault(); switchView('ukmdata')">
@@ -505,11 +553,11 @@
                     </div>
                 </div>
 
-                <!-- AI & AUTOMATION -->
-                <div class="sb-group">
+                <!-- AI GROUP -->
+                <div class="sb-group open">
                     <div class="sb-group-header" onclick="this.parentElement.classList.toggle('open')">
                         <span>AI & Automation</span>
-                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"></path></svg>
                     </div>
                     <div class="sb-items">
                         <a href="#" id="nav-ukmai" class="sb-item" onclick="event.preventDefault(); switchView('ukmai')">
@@ -523,11 +571,11 @@
                     </div>
                 </div>
 
-                <!-- PRODUCTS -->
-                <div class="sb-group">
+                <!-- PRODUCTS GROUP -->
+                <div class="sb-group open">
                     <div class="sb-group-header" onclick="this.parentElement.classList.toggle('open')">
                         <span>Products</span>
-                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"></path></svg>
                     </div>
                     <div class="sb-items">
                         <a href="#" id="nav-ukmpay" class="sb-item" onclick="event.preventDefault(); switchView('ukmpay')">
@@ -542,18 +590,18 @@
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                             <span>Connect App</span>
                         </a>
-                        <a href="#" class="sb-item" onclick="event.preventDefault(); loadMarketplace()">
+                        <a href="#" id="nav-market" class="sb-item" onclick="event.preventDefault(); switchView('market')">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
                             <span>UkmMarket</span>
                         </a>
                     </div>
                 </div>
 
-                <!-- WORKSPACE -->
-                <div class="sb-group">
+                <!-- WORKSPACE GROUP -->
+                <div class="sb-group open">
                     <div class="sb-group-header" onclick="this.parentElement.classList.toggle('open')">
                         <span>Workspace</span>
-                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"></path></svg>
                     </div>
                     <div class="sb-items">
                         <a href="#" id="nav-team" class="sb-item" onclick="event.preventDefault(); switchView('team')">
@@ -567,11 +615,11 @@
                     </div>
                 </div>
 
-                <!-- OWNER -->
-                <div id="nav-owner-wrap" class="sb-group hidden">
+                <!-- OWNER GROUP (Hidden by default) -->
+                <div id="nav-owner-wrap" class="sb-group hidden open">
                     <div class="sb-group-header" onclick="this.parentElement.classList.toggle('open')">
                         <span style="color: var(--amber);">Staff Only</span>
-                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"></path></svg>
                     </div>
                     <div class="sb-items">
                         <a href="#" id="nav-owner" class="sb-item" onclick="event.preventDefault(); switchView('owner')">
@@ -580,6 +628,7 @@
                         </a>
                     </div>
                 </div>
+
             </div>
         </aside>
 
