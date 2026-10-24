@@ -3500,3 +3500,162 @@ window.switchView = function(view) {
     // Default
     if (switchViewPhase35) switchViewPhase35(view);
 };
+// ============================================
+// PHASE 36: FINAL PERFORMANCE & SECURITY PATCH
+// ============================================
+
+// 1. STOP THE ICON LOOP (If it exists)
+if (window.fixIconsInterval) {
+    clearInterval(window.fixIconsInterval);
+    window.fixIconsInterval = null;
+}
+
+// 2. DISABLE OLD MUTATION OBSERVERS
+// We override the setup function so it can't start a new observer loop
+window.setupSettingsObserver = function() { /* Disabled to prevent freezing */ };
+
+// 3. RENDER SETTINGS (With Real Supabase Password Update)
+const originalRenderSettingsPhase36 = window.renderSettings;
+window.renderSettings = function() {
+    if (originalRenderSettingsPhase36) originalRenderSettingsPhase36();
+
+    const settingsView = document.getElementById('view-settings');
+    if (!settingsView || document.getElementById('security-card')) return;
+
+    const container = settingsView.querySelector('.max-w-2xl');
+    if (!container) return;
+
+    const secDiv = document.createElement('div');
+    secDiv.id = 'security-card';
+    secDiv.className = 'rounded-xl p-6 mb-6';
+    secDiv.style.cssText = 'background: var(--surface); border: 1px solid var(--border);';
+    secDiv.innerHTML = `
+        <h3 class="font-bold mb-4" style="color: var(--text);">Security</h3>
+        <div class="space-y-3">
+            <div>
+                <label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">New Password</label>
+                <input type="password" id="new-pass-input" placeholder="Enter new password"
+                       class="w-full rounded-lg px-4 py-3 focus:outline-none"
+                       style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
+            </div>
+            <div>
+                <label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Confirm New Password</label>
+                <input type="password" id="confirm-pass-input" placeholder="Repeat new password"
+                       class="w-full rounded-lg px-4 py-3 focus:outline-none"
+                       style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
+            </div>
+            <button id="btn-quick-pass" class="w-full font-bold py-3 rounded-lg text-white"
+                    style="background: var(--accent);">Update Password</button>
+        </div>
+    `;
+
+    const signOutCard = container.querySelector('.border-red-500\\/30');
+    signOutCard ? container.insertBefore(secDiv, signOutCard) : container.appendChild(secDiv);
+
+    // REAL PASSWORD UPDATE LOGIC
+    document.getElementById('btn-quick-pass').onclick = async function () {
+        const pw = document.getElementById('new-pass-input').value;
+        const cpw = document.getElementById('confirm-pass-input').value;
+        
+        if (!pw || pw !== cpw) {
+            return showToast('Passwords must match and cannot be empty.', 'error');
+        }
+        if (pw.length < 6) {
+            return showToast('Password must be at least 6 characters.', 'error');
+        }
+
+        const btn = document.getElementById('btn-quick-pass');
+        btn.textContent = 'Updating...';
+        btn.disabled = true;
+
+        // Call Supabase
+        const { error } = await supabaseClient.auth.updateUser({ password: pw });
+        
+        btn.textContent = 'Update Password';
+        btn.disabled = false;
+
+        if (error) {
+            showToast(error.message, 'error');
+        } else {
+            showToast('Password updated successfully!', 'success');
+            document.getElementById('new-pass-input').value = '';
+            document.getElementById('confirm-pass-input').value = '';
+        }
+    };
+};
+
+// 4. CLEAN HAMBURGER MENU (Your Debounce Logic is Perfect)
+let hamburgerInitializedPhase36 = false;
+document.addEventListener('DOMContentLoaded', () => {
+    if (hamburgerInitializedPhase36) return;
+    setTimeout(() => {
+        // Find the FIRST button in the nav (which is the hamburger)
+        const btn = document.querySelector('#dashboard-view nav button');
+        if (!btn) return;
+        
+        btn.removeAttribute('onclick'); // Remove old onclick
+
+        let lock = false;
+        btn.onclick = function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (lock) return;
+            lock = true;
+            
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar) sidebar.classList.toggle('-translate-x-full');
+            
+            setTimeout(() => { lock = false; }, 300);
+        };
+        hamburgerInitializedPhase36 = true;
+    }, 500);
+});
+
+// 5. SAFE switchView (Fix for Analytics & Market)
+const originalSwitchViewPhase36 = window.switchView;
+window.switchView = function (view) {
+    // Analytics
+    if (view === 'analytics') {
+        document.querySelectorAll('[id^="view-"]').forEach(el => el.classList.add('hidden'));
+        let el = document.getElementById('view-analytics');
+        if (!el) { 
+            el = document.createElement('div'); 
+            el.id = 'view-analytics'; 
+            el.className = 'flex-1 overflow-y-auto p-4 md:p-8';
+            document.querySelector('#dashboard-view main').appendChild(el); 
+        }
+        el.classList.remove('hidden');
+        
+        document.querySelectorAll('.sb-item').forEach(v => v.classList.remove('active'));
+        if (document.getElementById('nav-analytics')) document.getElementById('nav-analytics').classList.add('active');
+        
+        if (window.renderAnalyticsUI) window.renderAnalyticsUI();
+        const sidebar = document.getElementById('sidebar');
+        if (sidebar) sidebar.classList.add('-translate-x-full');
+        return;
+    }
+
+    // Market
+    if (view === 'market') {
+        document.querySelectorAll('[id^="view-"]').forEach(el => el.classList.add('hidden'));
+        let el = document.getElementById('view-market');
+        if (!el) { 
+            el = document.createElement('div'); 
+            el.id = 'view-market'; 
+            el.className = 'flex-1 overflow-y-auto p-4 md:p-8';
+            document.querySelector('#dashboard-view main').appendChild(el); 
+        }
+        el.classList.remove('hidden');
+        
+        document.querySelectorAll('.sb-item').forEach(v => v.classList.remove('active'));
+        if (document.getElementById('nav-market')) document.getElementById('nav-market').classList.add('active');
+        
+        if (window.renderMarketUI) window.renderMarketUI();
+        const sidebar = document.getElementById('sidebar');
+        if (sidebar) sidebar.classList.add('-translate-x-full');
+        return;
+    }
+
+    // Fallback to original for standard views
+    if (originalSwitchViewPhase36) originalSwitchViewPhase36(view);
+};
