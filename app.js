@@ -1682,3 +1682,195 @@ window.renderMarketUI = async function() {
             </div>
         </div>`).join('');
 };
+// ============================================
+// PHASE 24: TEMPLATES, FLOWS & AUDIT LOGS
+// ============================================
+
+// 1. UKMTEMPLATES MODAL
+window.openTemplatesModal = async function() {
+    let modal = document.getElementById('ukmtemplates-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'ukmtemplates-modal';
+        modal.className = 'fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm';
+        document.body.appendChild(modal);
+    }
+    modal.classList.remove('hidden');
+    modal.innerHTML = `
+    <div class="w-full max-w-2xl rounded-2xl p-6 glow max-h-[90vh] flex flex-col" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex items-center justify-between mb-4">
+            <div><h2 class="text-lg font-bold" style="color: var(--text);">UkmTemplates</h2><p class="text-xs mt-1" style="color: var(--text-muted);">Start with a pre-built schema.</p></div>
+            <button onclick="document.getElementById('ukmtemplates-modal').classList.add('hidden')" style="color: var(--text-muted);">✕</button>
+        </div>
+        <div id="templates-list" class="flex-1 overflow-y-auto space-y-3">
+            <div class="text-center py-8"><div class="inline-block w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent);"></div></div>
+        </div>
+    </div>`;
+
+    try {
+        const { data: templates, error } = await supabaseClient.from('project_templates').select('*').order('created_at', { ascending: false });
+        const list = document.getElementById('templates-list');
+        
+        if (error) throw error;
+        if (!templates || templates.length === 0) {
+            list.innerHTML = '<p class="text-sm text-center" style="color: var(--text-muted);">No templates found.</p>';
+            return;
+        }
+
+        list.innerHTML = templates.map(t => `
+            <div class="rounded-xl p-4 flex items-center justify-between" style="background: var(--bg); border: 1px solid var(--border);">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg flex items-center justify-center text-xl bg-[rgba(79,70,229,0.1)]">${t.icon || '📦'}</div>
+                    <div>
+                        <p class="text-sm font-bold" style="color: var(--text);">${escapeHtml(t.name)}</p>
+                        <p class="text-xs" style="color: var(--text-muted);">${escapeHtml(t.tagline || '')}</p>
+                    </div>
+                </div>
+                <button onclick="cloneTemplate('${t.id}')" class="text-xs font-bold px-4 py-2 rounded-lg text-white" style="background: var(--accent);">Clone</button>
+            </div>
+        `).join('');
+    } catch (e) {
+        document.getElementById('templates-list').innerHTML = `<p class="text-sm text-center text-red-400">${e.message}</p>`;
+    }
+};
+
+// 2. UKMFLOW MODAL
+window.openFlowModal = async function() {
+    if (!state.currentUkmDataProjectId) return showToast('Select a project in Data & Tables first.', 'error');
+    
+    let modal = document.getElementById('ukmflow-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'ukmflow-modal';
+        modal.className = 'fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm';
+        document.body.appendChild(modal);
+    }
+    modal.classList.remove('hidden');
+    
+    modal.innerHTML = `
+    <div class="w-full max-w-lg rounded-2xl p-6 glow" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex items-center justify-between mb-4">
+            <div><h2 class="text-lg font-bold" style="color: var(--text);">UkmFlow</h2><p class="text-xs mt-1" style="color: var(--text-muted);">Trigger actions when data changes.</p></div>
+            <button onclick="document.getElementById('ukmflow-modal').classList.add('hidden')" style="color: var(--text-muted);">✕</button>
+        </div>
+        <div class="space-y-4">
+            <div><label class="block text-xs mb-1" style="color: var(--text-muted);">When a row is added to...</label>
+                <select id="flow-table" class="w-full rounded-lg px-3 py-2 text-sm mono" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
+                    ${state.ukmDataTables.map(t => `<option value="${t.table_name}">${t.table_name}</option>`).join('')}
+                </select>
+            </div>
+            <div><label class="block text-xs mb-1" style="color: var(--text-muted);">Send an Email to...</label><input type="email" id="flow-email" placeholder="admin@myapp.com" class="w-full rounded-lg px-3 py-2 text-sm" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></div>
+            <button onclick="saveFlow()" class="w-full font-bold py-3 rounded-lg text-white" style="background: var(--accent);">Create Flow</button>
+        </div>
+        <div id="flows-list" class="mt-6 space-y-2 max-h-48 overflow-y-auto"></div>
+    </div>`;
+    
+    loadFlows();
+};
+
+window.saveFlow = async function() {
+    const table = document.getElementById('flow-table').value;
+    const email = document.getElementById('flow-email').value;
+    if (!table || !email) return showToast('Select a table and enter an email', 'error');
+
+    try {
+        await supabaseClient.from('project_flows').insert({
+            project_id: state.currentUkmDataProjectId,
+            name: `Email on new ${table}`,
+            trigger_type: 'insert',
+            trigger_table: table,
+            actions: [{ type: 'email', to: email, subject: 'New record in ' + table }]
+        });
+        showToast('Flow created!');
+        document.getElementById('flow-email').value = '';
+        loadFlows();
+    } catch (e) {
+        showToast(e.message, 'error');
+    }
+};
+
+window.loadFlows = async function() {
+    const { data } = await supabaseClient.from('project_flows').select('*').eq('project_id', state.currentUkmDataProjectId);
+    const list = document.getElementById('flows-list');
+    if (!list) return;
+    if (!data || data.length === 0) {
+        list.innerHTML = '<p class="text-xs text-center" style="color: var(--text-muted);">No flows yet.</p>';
+        return;
+    }
+    list.innerHTML = data.map(f => `
+        <div class="p-3 rounded-lg flex items-center justify-between" style="background: var(--bg); border: 1px solid var(--border);">
+            <div>
+                <p class="text-xs font-bold" style="color: var(--text);">${escapeHtml(f.name)}</p>
+                <p class="text-[10px] mono" style="color: var(--cyan);">→ ${escapeHtml(f.actions[0]?.to || 'Unknown')}</p>
+            </div>
+            <button onclick="deleteFlow('${f.id}')" class="text-red-400 text-xs">Delete</button>
+        </div>
+    `).join('');
+};
+
+window.deleteFlow = async function(id) {
+    await supabaseClient.from('project_flows').delete().eq('id', id);
+    loadFlows();
+};
+
+// 3. UKMAUDIT MODAL
+window.openAuditModal = async function() {
+    if (!state.currentUkmDataProjectId) return showToast('Select a project in Data & Tables first.', 'error');
+    
+    let modal = document.getElementById('ukmaudit-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'ukmaudit-modal';
+        modal.className = 'fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm';
+        document.body.appendChild(modal);
+    }
+    modal.classList.remove('hidden');
+    
+    modal.innerHTML = `
+    <div class="w-full max-w-2xl rounded-2xl p-6 glow max-h-[90vh] flex flex-col" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-bold" style="color: var(--text);">Audit Logs</h2>
+            <button onclick="document.getElementById('ukmaudit-modal').classList.add('hidden')" style="color: var(--text-muted);">✕</button>
+        </div>
+        <div id="audit-list" class="flex-1 overflow-y-auto space-y-2">
+            <div class="text-center py-8"><div class="inline-block w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent);"></div></div>
+        </div>
+    </div>`;
+
+    try {
+        const { data, error } = await supabaseClient.from('audit_logs').select('*').eq('project_id', state.currentUkmDataProjectId).order('created_at', { ascending: false }).limit(50);
+        const list = document.getElementById('audit-list');
+        
+        if (error) throw error;
+        if (!data || data.length === 0) {
+            list.innerHTML = '<p class="text-sm text-center" style="color: var(--text-muted);">No audit logs found. Try editing a project or a payment to trigger a log!</p>';
+            return;
+        }
+
+        list.innerHTML = data.map(l => `
+            <div class="p-3 rounded-lg" style="background: var(--bg); border: 1px solid var(--border);">
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded ${l.operation === 'INSERT' ? 'bg-green-500/20 text-green-400' : l.operation === 'UPDATE' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-red-500/20 text-red-400'}">${l.operation}</span>
+                    <span class="text-xs font-bold mono" style="color: var(--text);">${l.table_name}</span>
+                    <span class="text-[10px] ml-auto" style="color: var(--text-dim);">${new Date(l.created_at).toLocaleTimeString()}</span>
+                </div>
+                <p class="text-[10px] mono truncate" style="color: var(--text-muted);">${JSON.stringify(l.new_row).substring(0, 100)}...</p>
+            </div>
+        `).join('');
+    } catch (e) {
+        document.getElementById('audit-list').innerHTML = `<p class="text-sm text-center text-red-400">${e.message}</p>`;
+    }
+};
+
+// ---------------------------------------------------
+// Fix the sidebar HTML triggers for these three
+// ---------------------------------------------------
+document.addEventListener('DOMContentLoaded', () => {
+    // We update the sidebar onclick handlers to ensure they call the right things
+    const sidebars = document.querySelectorAll('#sidebar a');
+    sidebars.forEach(a => {
+        if (a.innerHTML.includes('Templates')) a.setAttribute('onclick', 'event.preventDefault(); openTemplatesModal()');
+        if (a.innerHTML.includes('UkmFlow')) a.setAttribute('onclick', 'event.preventDefault(); openFlowModal()');
+        if (a.innerHTML.includes('Audit Logs')) a.setAttribute('onclick', 'event.preventDefault(); openAuditModal()');
+    });
+});
