@@ -2628,3 +2628,113 @@ document.addEventListener('DOMContentLoaded', () => {
     const container = document.getElementById('ukmdata-panel');
     if (container) observer.observe(container, { childList: true, subtree: true });
 });
+// ============================================
+// PHASE 28: SUPABASE-STYLE DATA TABS OVERHAUL
+// ============================================
+
+window.initSupabaseDataTabs = function() {
+    const panel = document.getElementById('ukmdata-panel');
+    if (!panel || document.getElementById('supabase-tabs-container')) return;
+
+    // 1. Create the Tab Navigation Bar
+    const tabsContainer = document.createElement('div');
+    tabsContainer.id = 'supabase-tabs-container';
+    tabsContainer.className = 'flex gap-6 mb-6 border-b overflow-x-auto no-scrollbar';
+    tabsContainer.style.borderColor = 'var(--border)';
+    
+    tabsContainer.innerHTML = `
+        <button onclick="switchDataTab('database')" class="data-tab-btn px-1 py-3 text-sm font-medium transition-colors whitespace-nowrap" style="color: var(--text); border-bottom: 2px solid var(--accent);">Database</button>
+        <button onclick="switchDataTab('auth')" class="data-tab-btn px-1 py-3 text-sm font-medium transition-colors whitespace-nowrap" style="color: var(--text-muted); border-bottom: 2px solid transparent;">Authentication</button>
+        <button onclick="switchDataTab('storage')" class="data-tab-btn px-1 py-3 text-sm font-medium transition-colors whitespace-nowrap" style="color: var(--text-muted); border-bottom: 2px solid transparent;">Storage</button>
+        <button onclick="switchDataTab('integrations')" class="data-tab-btn px-1 py-3 text-sm font-medium transition-colors whitespace-nowrap" style="color: var(--text-muted); border-bottom: 2px solid transparent;">Integrations</button>
+        <button onclick="switchDataTab('devtools')" class="data-tab-btn px-1 py-3 text-sm font-medium transition-colors whitespace-nowrap" style="color: var(--text-muted); border-bottom: 2px solid transparent;">Developer</button>
+    `;
+
+    // Insert the tabs right after the "Select Project" dropdown
+    const projectSelector = panel.querySelector('.rounded-xl.p-4.mb-6');
+    if (projectSelector) {
+        projectSelector.parentNode.insertBefore(tabsContainer, projectSelector.nextSibling);
+    } else {
+        panel.insertBefore(tabsContainer, panel.firstChild);
+    }
+
+    // 2. Define which cards belong to which tab
+    const tabGroups = {
+        database: ['ukmdata-tables-card', 'ukmdata-sql-card'],
+        auth: ['ukmdata-auth-card'],
+        storage: ['ukmdata-storage-card'],
+        integrations: ['ukmdata-webhooks-card', 'ukmdata-crons-card', 'ukmdata-mail-card'],
+        devtools: ['ukmdata-apikeys-card', 'ukmdata-pages-card', 'ukmdata-logs-card']
+    };
+
+    // 3. Create wrappers for each tab and move the cards inside
+    Object.keys(tabGroups).forEach(tabName => {
+        let wrapper = document.getElementById('data-tab-content-' + tabName);
+        if (!wrapper) {
+            wrapper = document.createElement('div');
+            wrapper.id = 'data-tab-content-' + tabName;
+            wrapper.className = 'data-tab-content space-y-6 ' + (tabName === 'database' ? 'block' : 'hidden');
+            panel.appendChild(wrapper);
+        }
+
+        // Move the cards from the main panel into this wrapper
+        tabGroups[tabName].forEach(cardId => {
+            const card = document.getElementById(cardId);
+            if (card) {
+                // Remove margins so spacing is handled by the wrapper
+                card.classList.remove('mb-6'); 
+                wrapper.appendChild(card);
+            }
+        });
+    });
+    
+    // Make sure the "Enable Data" card stays above the tabs
+    const enableCard = document.getElementById('ukmdata-enable-card');
+    if (enableCard && projectSelector) {
+        panel.insertBefore(enableCard, tabsContainer);
+    }
+};
+
+window.switchDataTab = function(tabName) {
+    // 1. Update tab button styles
+    document.querySelectorAll('.data-tab-btn').forEach(btn => {
+        const isTarget = btn.innerText.toLowerCase().includes(tabName);
+        if (isTarget) {
+            btn.style.color = 'var(--text)';
+            btn.style.borderBottomColor = 'var(--accent)';
+        } else {
+            btn.style.color = 'var(--text-muted)';
+            btn.style.borderBottomColor = 'transparent';
+        }
+    });
+
+    // 2. Hide all tab contents
+    document.querySelectorAll('.data-tab-content').forEach(content => {
+        content.classList.add('hidden');
+    });
+
+    // 3. Show the target tab content
+    const targetContent = document.getElementById('data-tab-content-' + tabName);
+    if (targetContent) {
+        targetContent.classList.remove('hidden');
+        targetContent.classList.add('block');
+    }
+};
+
+// ---------------------------------------------------
+// 4. Ensure Tabs Load Every Time You Open Data & Tables
+// ---------------------------------------------------
+const originalOnUkmDataProjectChange = window.onUkmDataProjectChange;
+window.onUkmDataProjectChange = async function() {
+    if (originalOnUkmDataProjectChange) await originalOnUkmDataProjectChange();
+    // Small delay to let the cards render, then build the tabs
+    setTimeout(window.initSupabaseDataTabs, 300);
+};
+
+const originalSwitchViewForTabs = window.switchView;
+window.switchView = function(view) {
+    if (originalSwitchViewForTabs) originalSwitchViewForTabs(view);
+    if (view === 'ukmdata') {
+        setTimeout(window.initSupabaseDataTabs, 300);
+    }
+};
