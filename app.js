@@ -2917,3 +2917,112 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }, 1000);
 });
+// ============================================
+// PHASE 30: EDGE FUNCTIONS (FIXED INJECTION)
+// ============================================
+
+// 1. The View Renderer
+window.loadFunctionsView = function() {
+    const main = document.querySelector('#dashboard-view main');
+    
+    let view = document.getElementById('view-functions');
+    if (!view) {
+        view = document.createElement('div');
+        view.id = 'view-functions';
+        view.className = 'flex-1 overflow-y-auto p-4 md:p-8';
+        main.appendChild(view);
+    }
+    
+    document.querySelectorAll('[id^="view-"]').forEach(el => el.classList.add('hidden'));
+    view.classList.remove('hidden');
+    
+    // Update active sidebar state
+    document.querySelectorAll('.sb-item').forEach(el => el.classList.remove('active'));
+    const nav = document.getElementById('nav-functions');
+    if(nav) nav.classList.add('active');
+    
+    document.getElementById('sidebar').classList.add('-translate-x-full');
+
+    const functions = [
+        { name: 'ukmdata', desc: 'Handles database operations, schemas, and SQL execution.', color: '#8B5CF6' },
+        { name: 'ukmauth', desc: 'Handles end-user authentication, signup, login, and OTPs.', color: '#F59E0B' },
+        { name: 'ukmai', desc: 'Powers the AI Copilot, Forge, and SQL generation.', color: '#06B6D4' },
+        { name: 'ukmstore', desc: 'Manages file uploads and storage buckets.', color: '#10B981' },
+        { name: 'ukmnotify', desc: 'Sends emails and WhatsApp messages.', color: '#EF4444' }
+    ];
+
+    view.innerHTML = `
+    <div class="max-w-4xl mx-auto">
+        <div class="mb-8">
+            <h1 class="text-2xl font-bold mb-1" style="color: var(--text);">Edge Functions</h1>
+            <p class="text-sm" style="color: var(--text-muted);">Serverless functions powering your project.</p>
+        </div>
+
+        <div class="grid gap-4">
+            ${functions.map(f => `
+                <div class="rounded-xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4" style="background: var(--surface); border: 1px solid var(--border);">
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <div class="w-2 h-2 rounded-full" style="background: ${f.color};"></div>
+                            <h3 class="font-bold mono text-sm" style="color: var(--text);">${f.name}</h3>
+                            <span class="text-[10px] uppercase font-bold px-2 py-0.5 rounded" style="background: rgba(16,185,129,0.1); color: var(--green);">Deployed</span>
+                        </div>
+                        <p class="text-xs" style="color: var(--text-muted);">${f.desc}</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="copyToClipboardText('${SUPABASE_URL}/functions/v1/${f.name}')" class="text-xs font-bold px-4 py-2 rounded-lg" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">Copy URL</button>
+                        <button onclick="showToast('Viewing logs for ${f.name}...')" class="text-xs font-bold px-4 py-2 rounded-lg text-white" style="background: var(--accent);">Logs</button>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+    </div>`;
+};
+
+// 2. The SwitchView Router Update
+const originalSwitchViewPhase30 = window.switchView;
+window.switchView = function(view) {
+    if (view === 'functions') {
+        window.loadFunctionsView();
+        return;
+    }
+    if (originalSwitchViewPhase30) originalSwitchViewPhase30(view);
+};
+
+// 3. The Correct Sidebar Injection
+document.addEventListener('DOMContentLoaded', () => {
+    const injectSidebarLink = () => {
+        // Find the "Project" group specifically (first .sb-group)
+        const projectGroup = document.querySelector('#sidebar .sb-group');
+        if (!projectGroup) return;
+
+        const itemsDiv = projectGroup.querySelector('.sb-items');
+        if (itemsDiv && !document.getElementById('nav-functions')) {
+            const funcLink = document.createElement('a');
+            funcLink.href = '#';
+            funcLink.id = 'nav-functions';
+            funcLink.className = 'sb-item';
+            funcLink.innerHTML = `
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+                <span>Edge Functions</span>
+            `;
+            funcLink.onclick = (e) => { 
+                e.preventDefault(); 
+                window.switchView('functions'); 
+            };
+            
+            // Insert right after "Overview"
+            const overviewBtn = document.getElementById('nav-overview');
+            if (overviewBtn) {
+                itemsDiv.insertBefore(funcLink, overviewBtn.nextSibling);
+            } else {
+                itemsDiv.appendChild(funcLink);
+            }
+        }
+    };
+
+    // Run immediately and also check after a delay in case the sidebar renders late
+    injectSidebarLink();
+    setTimeout(injectSidebarLink, 1000);
+    setTimeout(injectSidebarLink, 2500);
+});
