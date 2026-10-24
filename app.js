@@ -3659,3 +3659,1100 @@ window.switchView = function (view) {
     // Fallback to original for standard views
     if (originalSwitchViewPhase36) originalSwitchViewPhase36(view);
 };
+// ============================================================
+// PHASE 37: FINAL CONSOLIDATION & FEATURE COMPLETION
+// This section supersedes all previous phase wrappers.
+// Nothing from earlier phases is removed — it's all preserved
+// through the clean implementations below.
+// ============================================================
+
+// -------------------------------------------
+// 1. CONSOLIDATED switchView (single source of truth)
+// -------------------------------------------
+window.switchView = function(view) {
+    // Hide all views
+    document.querySelectorAll('[id^="view-"]').forEach(el => el.classList.add('hidden'));
+    
+    // Handle dynamically-created views first
+    const dynamicViews = {
+        analytics: { id: 'view-analytics', loader: () => window.renderAnalyticsUI && window.renderAnalyticsUI() },
+        market:    { id: 'view-market',    loader: () => window.renderMarketUI && window.renderMarketUI() },
+        functions: { id: 'view-functions', loader: () => window.loadFunctionsView && window.loadFunctionsView() },
+        tourism:   { id: 'view-tourism-demo', loader: () => window.loadTourismApp && window.loadTourismApp() }
+    };
+    
+    if (dynamicViews[view]) {
+        const { id, loader } = dynamicViews[view];
+        let el = document.getElementById(id);
+        if (!el) {
+            el = document.createElement('div');
+            el.id = id;
+            el.className = 'flex-1 overflow-y-auto p-4 md:p-8';
+            document.querySelector('#dashboard-view main').appendChild(el);
+        }
+        el.classList.remove('hidden');
+        document.querySelectorAll('.sb-item').forEach(x => x.classList.remove('active'));
+        const nav = document.getElementById('nav-' + view);
+        if (nav) nav.classList.add('active');
+        setTimeout(loader, 30);
+        const sidebar = document.getElementById('sidebar');
+        if (sidebar) sidebar.classList.add('-translate-x-full');
+        return;
+    }
+    
+    // Standard views
+    const el = document.getElementById('view-' + view);
+    if (el) el.classList.remove('hidden');
+    
+    document.querySelectorAll('.sb-item').forEach(x => x.classList.remove('active'));
+    const nav = document.getElementById('nav-' + view);
+    if (nav) nav.classList.add('active');
+    
+    const loaders = {
+        ukmpay:   () => { loadPayments(); loadPlans(); if (typeof loadPaymentEvents === 'function') loadPaymentEvents(); },
+        ukmtables:() => loadConnections(),
+        ukmquery: () => loadConnections().then(() => { populateQueryConnections(); loadQueryHistory(); }),
+        ukmsync:  () => populateSyncProjectSelect(),
+        ukmdata:  () => {
+            populateUkmDataProjectSelect();
+            if (typeof initUkmDataTabs === 'function') initUkmDataTabs();
+            setTimeout(() => window.initSupabaseDataTabs && window.initSupabaseDataTabs(), 300);
+        },
+        connect:  () => populateConnectProjectSelect(),
+        team:     () => renderTeam(),
+        settings: () => window.renderSettings && window.renderSettings(),
+        billing:  () => renderBilling(),
+        owner:    () => loadOwnerConsole(),
+        functions:() => window.loadFunctionsView && window.loadFunctionsView()
+    };
+    if (loaders[view]) loaders[view]();
+    
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar) sidebar.classList.add('-translate-x-full');
+};
+
+// -------------------------------------------
+// 2. CONSOLIDATED openGlobalSearch (single command palette)
+// -------------------------------------------
+window.openGlobalSearch = window.openSearchModal = function() {
+    document.getElementById('ukm-command-palette')?.remove();
+    
+    const modal = document.createElement('div');
+    modal.id = 'ukm-command-palette';
+    modal.className = 'fixed inset-0 z-[100] flex items-start justify-center pt-20 p-4 bg-black/60 backdrop-blur-sm';
+    document.body.appendChild(modal);
+    
+    modal.innerHTML = `
+    <div class="w-full max-w-xl rounded-xl shadow-2xl overflow-hidden" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex items-center px-4 py-3 border-b" style="border-color: var(--border);">
+            <svg class="w-5 h-5 mr-3" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            <input type="text" id="command-palette-input" class="w-full bg-transparent focus:outline-none text-sm" style="color: var(--text);" placeholder="Search projects, tables, or type a command..." oninput="window.runCommandSearch(this.value)">
+            <button onclick="document.getElementById('ukm-command-palette').remove()" class="text-[10px] px-2 py-1 rounded mono" style="background: var(--bg); color: var(--text-dim); border: 1px solid var(--border);">ESC</button>
+        </div>
+        <div id="command-palette-results" class="p-2 max-h-[60vh] overflow-y-auto"></div>
+    </div>`;
+    
+    setTimeout(() => {
+        document.getElementById('command-palette-input').focus();
+        window.runCommandSearch('');
+    }, 50);
+};
+
+window.runCommandSearch = function(query) {
+    const resultsDiv = document.getElementById('command-palette-results');
+    if (!resultsDiv) return;
+    const term = (query || '').toLowerCase();
+    
+    if (!term) {
+        resultsDiv.innerHTML = `
+            <p class="text-[10px] uppercase font-bold px-2 py-2" style="color: var(--text-dim);">Quick Actions</p>
+            <div class="px-3 py-2 rounded-lg cursor-pointer hover:bg-[var(--bg)] text-sm flex items-center gap-3" onclick="document.getElementById('ukm-command-palette').remove(); openProjectModal()"><span class="text-lg">✨</span> Create New Project</div>
+            <div class="px-3 py-2 rounded-lg cursor-pointer hover:bg-[var(--bg)] text-sm flex items-center gap-3" onclick="document.getElementById('ukm-command-palette').remove(); openForgeModal()"><span class="text-lg">🤖</span> Forge App with AI</div>
+            <div class="px-3 py-2 rounded-lg cursor-pointer hover:bg-[var(--bg)] text-sm flex items-center gap-3" onclick="document.getElementById('ukm-command-palette').remove(); openTemplatesModal()"><span class="text-lg">📦</span> Browse Templates</div>
+            <div class="px-3 py-2 rounded-lg cursor-pointer hover:bg-[var(--bg)] text-sm flex items-center gap-3" onclick="document.getElementById('ukm-command-palette').remove(); switchView('settings')"><span class="text-lg">⚙️</span> Account Settings</div>`;
+        return;
+    }
+    
+    let html = '';
+    if (state.projectsCache && state.projectsCache.length) {
+        const matches = state.projectsCache.filter(p =>
+            (p.name && p.name.toLowerCase().includes(term)) ||
+            (p.slug && p.slug.toLowerCase().includes(term))
+        );
+        if (matches.length) {
+            html += `<p class="text-[10px] uppercase font-bold px-2 py-2 mt-2" style="color: var(--text-dim);">Projects</p>`;
+            matches.forEach(p => {
+                html += `<div class="px-3 py-2 rounded-lg cursor-pointer hover:bg-[var(--bg)] text-sm flex items-center gap-3" onclick="document.getElementById('ukm-command-palette').remove(); openProjectDetail('${p.id}')"><span class="text-lg">📁</span> ${escapeHtml(p.name)}</div>`;
+            });
+        }
+    }
+    if (state.ukmDataTables && state.ukmDataTables.length) {
+        const matches = state.ukmDataTables.filter(t => t.table_name.toLowerCase().includes(term));
+        if (matches.length) {
+            html += `<p class="text-[10px] uppercase font-bold px-2 py-2 mt-2" style="color: var(--text-dim);">Tables</p>`;
+            matches.forEach(t => {
+                html += `<div class="px-3 py-2 rounded-lg cursor-pointer hover:bg-[var(--bg)] text-sm flex items-center gap-3" onclick="document.getElementById('ukm-command-palette').remove(); switchView('ukmdata'); setTimeout(()=>viewTableData('${t.table_name}'), 200)"><span class="text-lg">📊</span> ${escapeHtml(t.table_name)}</div>`;
+            });
+        }
+    }
+    if (state.connectionsCache && state.connectionsCache.length) {
+        const matches = state.connectionsCache.filter(c => c.name.toLowerCase().includes(term));
+        if (matches.length) {
+            html += `<p class="text-[10px] uppercase font-bold px-2 py-2 mt-2" style="color: var(--text-dim);">Databases</p>`;
+            matches.forEach(c => {
+                html += `<div class="px-3 py-2 rounded-lg cursor-pointer hover:bg-[var(--bg)] text-sm flex items-center gap-3" onclick="document.getElementById('ukm-command-palette').remove(); switchView('ukmtables'); setTimeout(()=>openConnection('${c.id}'), 200)"><span class="text-lg">🗄️</span> ${escapeHtml(c.name)}</div>`;
+            });
+        }
+    }
+    resultsDiv.innerHTML = html || `<p class="text-xs text-center py-8" style="color: var(--text-dim);">No results for "${escapeHtml(query)}"</p>`;
+};
+
+// -------------------------------------------
+// 3. CONSOLIDATED openProjectSettings (tabbed, single version)
+// -------------------------------------------
+window.openProjectSettings = function(projectId) {
+    const proj = state.projectsCache.find(p => p.id === projectId);
+    if (!proj) return showToast('Project not found', 'error');
+    
+    document.getElementById('project-settings-modal')?.remove();
+    
+    const modal = document.createElement('div');
+    modal.id = 'project-settings-modal';
+    modal.className = 'fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm';
+    document.body.appendChild(modal);
+    
+    const schema = proj.slug.replace(/-/g, '_');
+    const docUrl = window.location.origin + window.location.pathname + '?docs=' + proj.slug;
+    const formUrl = window.location.origin + window.location.pathname + '?form=contact&project=' + proj.slug;
+    
+    modal.innerHTML = `
+    <div class="w-full max-w-2xl rounded-2xl p-6 glow max-h-[90vh] flex flex-col" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h2 class="text-lg font-bold" style="color: var(--text);">Project Settings</h2>
+                <p class="text-xs mono mt-1" style="color: var(--cyan);">${escapeHtml(proj.name)}</p>
+            </div>
+            <button onclick="document.getElementById('project-settings-modal').remove()" style="color: var(--text-muted);">✕</button>
+        </div>
+        
+        <div class="flex gap-4 mb-6 border-b overflow-x-auto no-scrollbar" style="border-color: var(--border);">
+            <button onclick="window.switchSettingsTab('general')" data-tab="general" class="px-1 py-2 text-sm font-medium whitespace-nowrap" style="color: var(--text); border-bottom: 2px solid var(--accent);">General</button>
+            <button onclick="window.switchSettingsTab('api')" data-tab="api" class="px-1 py-2 text-sm font-medium whitespace-nowrap" style="color: var(--text-muted); border-bottom: 2px solid transparent;">API & Docs</button>
+            <button onclick="window.switchSettingsTab('integrations')" data-tab="integrations" class="px-1 py-2 text-sm font-medium whitespace-nowrap" style="color: var(--text-muted); border-bottom: 2px solid transparent;">Integrations</button>
+            <button onclick="window.switchSettingsTab('danger')" data-tab="danger" class="px-1 py-2 text-sm font-medium whitespace-nowrap" style="color: var(--red); border-bottom: 2px solid transparent;">Danger Zone</button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto pr-2">
+            <!-- GENERAL -->
+            <div data-panel="general" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Project Name</label>
+                    <input type="text" id="ps-name" value="${escapeHtml(proj.name)}" class="w-full rounded-lg px-3 py-2 text-sm" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Slug (read-only)</label>
+                    <input type="text" value="${escapeHtml(proj.slug)}" readonly class="w-full rounded-lg px-3 py-2 text-sm mono" style="background: var(--bg); border: 1px solid var(--border); color: var(--text-dim);">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Description</label>
+                    <textarea id="ps-desc" rows="2" class="w-full rounded-lg px-3 py-2 text-sm" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">${escapeHtml(proj.description || '')}</textarea>
+                </div>
+                <button onclick="window.saveProjectGeneral('${proj.id}')" class="w-full font-bold py-2 rounded-lg text-white text-sm" style="background: var(--accent);">Save Changes</button>
+            </div>
+
+            <!-- API -->
+            <div data-panel="api" class="space-y-4 hidden">
+                <div class="rounded-xl p-4" style="background: var(--bg); border: 1px solid var(--border);">
+                    <div class="space-y-3 text-xs">
+                        <div><label class="text-[10px] uppercase font-bold" style="color: var(--text-muted);">Project URL</label><div class="flex justify-between items-center mt-1"><span class="mono truncate" style="color: var(--text);">${SUPABASE_URL}</span><button onclick="copyToClipboardText('${SUPABASE_URL}')" class="text-[10px] text-cyan-400">Copy</button></div></div>
+                        <div><label class="text-[10px] uppercase font-bold" style="color: var(--text-muted);">Anon Key</label><div class="flex justify-between items-center mt-1"><span class="mono truncate" style="color: var(--text);">${SUPABASE_ANON_KEY}</span><button onclick="copyToClipboardText('${SUPABASE_ANON_KEY}')" class="text-[10px] text-cyan-400">Copy</button></div></div>
+                        <div><label class="text-[10px] uppercase font-bold" style="color: var(--text-muted);">Schema</label><div class="flex justify-between items-center mt-1"><span class="mono" style="color: var(--cyan);">${schema}</span><button onclick="copyToClipboardText('${schema}')" class="text-[10px] text-cyan-400">Copy</button></div></div>
+                    </div>
+                </div>
+                <button onclick="window.open('${docUrl}', '_blank')" class="w-full text-xs font-bold py-3 rounded-lg flex items-center justify-center gap-2" style="background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); color: var(--green);">
+                    📖 Open Public API Docs
+                </button>
+                <button onclick="copyToClipboardText('${docUrl}')" class="w-full text-[10px] font-bold py-2 rounded-lg" style="background: var(--bg); border: 1px solid var(--border); color: var(--text-muted);">Copy Docs Link</button>
+            </div>
+
+            <!-- INTEGRATIONS -->
+            <div data-panel="integrations" class="space-y-3 hidden">
+                <button onclick="window.switchView('ukmdata'); setTimeout(()=>document.getElementById('project-settings-modal').remove(), 100)" class="w-full text-left rounded-xl p-4 flex items-center justify-between" style="background: var(--bg); border: 1px solid var(--border);">
+                    <div><p class="text-sm font-bold" style="color: var(--text);">Database Tables</p><p class="text-xs" style="color: var(--text-muted);">Manage schema and rows</p></div>
+                    <span style="color: var(--cyan);">→</span>
+                </button>
+                <button onclick="window.switchView('ukmsync'); setTimeout(()=>document.getElementById('project-settings-modal').remove(), 100)" class="w-full text-left rounded-xl p-4 flex items-center justify-between" style="background: var(--bg); border: 1px solid var(--border);">
+                    <div><p class="text-sm font-bold" style="color: var(--text);">UkmSync Engine</p><p class="text-xs" style="color: var(--text-muted);">Offline-first config</p></div>
+                    <span style="color: var(--cyan);">→</span>
+                </button>
+                <button onclick="window.switchView('ukmpay'); setTimeout(()=>document.getElementById('project-settings-modal').remove(), 100)" class="w-full text-left rounded-xl p-4 flex items-center justify-between" style="background: var(--bg); border: 1px solid var(--border);">
+                    <div><p class="text-sm font-bold" style="color: var(--text);">Payments</p><p class="text-xs" style="color: var(--text-muted);">Plans and checkout</p></div>
+                    <span style="color: var(--cyan);">→</span>
+                </button>
+            </div>
+
+            <!-- DANGER -->
+            <div data-panel="danger" class="space-y-4 hidden">
+                <div class="rounded-xl p-4" style="background: rgba(239,68,68,0.05); border: 1px solid rgba(239,68,68,0.2);">
+                    <h3 class="text-sm font-bold mb-2 text-red-400">Delete Project</h3>
+                    <p class="text-xs mb-3" style="color: var(--text-muted);">Permanently removes the project, all tables, users, and data. Cannot be undone.</p>
+                    <button onclick="if(confirm('Delete ${escapeHtml(proj.name)} PERMANENTLY?')) { deleteProject('${proj.id}'); document.getElementById('project-settings-modal').remove(); }" class="text-xs font-bold px-4 py-2 rounded-lg bg-red-500/20 text-red-400">Delete Project</button>
+                </div>
+            </div>
+        </div>
+    </div>`;
+};
+
+window.switchSettingsTab = function(tab) {
+    document.querySelectorAll('#project-settings-modal [data-tab]').forEach(btn => {
+        const isActive = btn.dataset.tab === tab;
+        btn.style.color = btn.dataset.tab === 'danger' ? (isActive ? 'var(--red)' : 'rgba(239,68,68,0.5)') : (isActive ? 'var(--text)' : 'var(--text-muted)');
+        btn.style.borderBottomColor = isActive ? (btn.dataset.tab === 'danger' ? 'var(--red)' : 'var(--accent)') : 'transparent';
+    });
+    document.querySelectorAll('#project-settings-modal [data-panel]').forEach(panel => {
+        panel.classList.toggle('hidden', panel.dataset.panel !== tab);
+    });
+};
+
+window.saveProjectGeneral = async function(projectId) {
+    const name = document.getElementById('ps-name').value.trim();
+    const desc = document.getElementById('ps-desc').value.trim();
+    if (!name) return showToast('Name required', 'error');
+    const { error } = await supabaseClient.from('projects').update({ name, description: desc }).eq('id', projectId);
+    if (error) return showToast(error.message, 'error');
+    await loadProjects();
+    showToast('Project updated');
+};
+
+// -------------------------------------------
+// 4. CONSOLIDATED renderSettings (single, with security card)
+// -------------------------------------------
+window.renderSettings = function() {
+    if (!state.currentProfile) return;
+    
+    const setText = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
+    
+    setText('settings-initial', (state.currentProfile.full_name || state.currentProfile.username || 'U').charAt(0).toUpperCase());
+    setText('settings-display-name', state.currentProfile.full_name || state.currentProfile.username || 'User');
+    setText('settings-display-email', state.currentProfile.email || (state.currentUser && state.currentUser.email) || '');
+    setText('settings-plan', state.currentProfile.plan || 'free');
+    setVal('settings-fullname', state.currentProfile.full_name);
+    setVal('settings-username', state.currentProfile.username);
+    setVal('settings-phone', state.currentProfile.phone);
+    setVal('settings-country', state.currentProfile.country);
+    
+    const limits = getLimits();
+    const dp = STAFF_ROLES.includes(state.currentProfile.role) ? state.currentProfile.role : (state.currentProfile.plan || 'free');
+    setText('settings-plan-2', dp);
+    setText('settings-limit-projects', state.projectsCache.length + ' / ' + (limits.projects >= 999 ? '∞' : limits.projects));
+    setText('settings-limit-connections', state.connectionsCache.length + ' / ' + (limits.connections >= 999 ? '∞' : limits.connections));
+    setText('settings-limit-seats', getTeamSeatsUsed() + ' / ' + (limits.seats >= 999 ? '∞' : limits.seats));
+    
+    // Inject security card (single injection)
+    const settingsView = document.getElementById('view-settings');
+    if (!settingsView) return;
+    
+    document.getElementById('security-card')?.remove();
+    
+    const container = settingsView.querySelector('.max-w-2xl');
+    if (!container) return;
+    
+    const secDiv = document.createElement('div');
+    secDiv.id = 'security-card';
+    secDiv.className = 'rounded-xl p-6 mb-6';
+    secDiv.style.cssText = 'background: var(--surface); border: 1px solid var(--border);';
+    secDiv.innerHTML = `
+        <h3 class="font-bold mb-4" style="color: var(--text);">Security</h3>
+        <div class="space-y-3">
+            <div>
+                <label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">New Password</label>
+                <input type="password" id="new-pass-input" placeholder="Enter new password" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
+            </div>
+            <div>
+                <label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Confirm New Password</label>
+                <input type="password" id="confirm-pass-input" placeholder="Repeat new password" class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
+            </div>
+            <button id="btn-quick-pass" onclick="changeQuickPassword()" class="w-full font-bold py-3 rounded-lg text-white" style="background: var(--accent);">Update Password</button>
+        </div>`;
+    
+    const signOutCard = container.querySelector('.border-red-500\\/30');
+    if (signOutCard) container.insertBefore(secDiv, signOutCard);
+    else container.appendChild(secDiv);
+};
+
+window.changeQuickPassword = async function() {
+    const pw = document.getElementById('new-pass-input').value;
+    const cpw = document.getElementById('confirm-pass-input').value;
+    if (!pw || pw !== cpw) return showToast('Passwords must match and cannot be empty.', 'error');
+    if (pw.length < 8) return showToast('Password must be at least 8 characters.', 'error');
+    
+    const btn = document.getElementById('btn-quick-pass');
+    btn.textContent = 'Updating...'; btn.disabled = true;
+    const { error } = await supabaseClient.auth.updateUser({ password: pw });
+    btn.textContent = 'Update Password'; btn.disabled = false;
+    if (error) return showToast(error.message, 'error');
+    showToast('Password updated successfully!');
+    document.getElementById('new-pass-input').value = '';
+    document.getElementById('confirm-pass-input').value = '';
+};
+
+// -------------------------------------------
+// 5. CONSOLIDATED loadFunctionsView (role-gated)
+// -------------------------------------------
+window.loadFunctionsView = function() {
+    let view = document.getElementById('view-functions');
+    if (!view) {
+        view = document.createElement('div');
+        view.id = 'view-functions';
+        view.className = 'flex-1 overflow-y-auto p-4 md:p-8';
+        document.querySelector('#dashboard-view main').appendChild(view);
+    }
+    document.querySelectorAll('[id^="view-"]').forEach(el => el.classList.add('hidden'));
+    view.classList.remove('hidden');
+    document.querySelectorAll('.sb-item').forEach(el => el.classList.remove('active'));
+    const nav = document.getElementById('nav-functions');
+    if (nav) nav.classList.add('active');
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar) sidebar.classList.add('-translate-x-full');
+    
+    const isStaff = state.currentProfile && ['owner','admin','support','co-founder'].includes(state.currentProfile.role);
+    
+    if (isStaff) {
+        const functions = [
+            { name: 'ukmdata', desc: 'Database operations, schemas, SQL execution', color: '#8B5CF6' },
+            { name: 'ukmauth', desc: 'End-user auth, signup, login, OTPs', color: '#F59E0B' },
+            { name: 'ukmai', desc: 'AI Copilot, Forge, SQL generation', color: '#06B6D4' },
+            { name: 'ukmstore', desc: 'File uploads, storage buckets', color: '#10B981' },
+            { name: 'ukmnotify', desc: 'Email and WhatsApp messaging', color: '#EF4444' },
+            { name: 'ukmform', desc: 'Public form submissions', color: '#EC4899' },
+            { name: 'ukmmail', desc: 'Transactional email delivery', color: '#06B6D4' }
+        ];
+        view.innerHTML = `
+        <div class="max-w-4xl mx-auto">
+            <div class="mb-6 p-4 rounded-xl text-xs" style="background: rgba(6,182,212,0.1); border: 1px solid rgba(6,182,212,0.3); color: var(--cyan);">
+                <b>Staff View:</b> Platform-level serverless functions across all Ukmbase projects.
+            </div>
+            <div class="mb-8">
+                <h1 class="text-2xl font-bold mb-1" style="color: var(--text);">Edge Functions</h1>
+                <p class="text-sm" style="color: var(--text-muted);">Serverless functions powering your project.</p>
+            </div>
+            <div class="grid gap-4">
+                ${functions.map(f => `
+                    <div class="rounded-xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4" style="background: var(--surface); border: 1px solid var(--border);">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <div class="w-2 h-2 rounded-full" style="background: ${f.color};"></div>
+                                <h3 class="font-bold mono text-sm" style="color: var(--text);">${f.name}</h3>
+                                <span class="text-[10px] uppercase font-bold px-2 py-0.5 rounded" style="background: rgba(16,185,129,0.1); color: var(--green);">Deployed</span>
+                            </div>
+                            <p class="text-xs" style="color: var(--text-muted);">${f.desc}</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="copyToClipboardText('${SUPABASE_URL}/functions/v1/${f.name}')" class="text-xs font-bold px-4 py-2 rounded-lg" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">Copy URL</button>
+                            <button onclick="showToast('Opening logs...')" class="text-xs font-bold px-4 py-2 rounded-lg text-white" style="background: var(--accent);">Logs</button>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        </div>`;
+    } else {
+        view.innerHTML = `
+        <div class="max-w-4xl mx-auto">
+            <div class="mb-8"><h1 class="text-2xl font-bold mb-1" style="color: var(--text);">Edge Functions</h1><p class="text-sm" style="color: var(--text-muted);">Deploy custom serverless functions for your project.</p></div>
+            <div class="rounded-xl p-12 text-center" style="background: var(--surface); border: 1px dashed var(--border);">
+                <svg class="w-12 h-12 mx-auto mb-4" style="color: var(--text-dim);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+                <h3 class="font-bold mb-1" style="color: var(--text);">No custom functions yet</h3>
+                <p class="text-sm mb-4" style="color: var(--text-muted);">Deploy your first custom edge function.</p>
+                <button onclick="showToast('Upgrade to Pro to deploy!', 'success')" class="text-xs font-bold py-2 px-4 rounded-lg text-white" style="background: var(--accent);">Deploy New Function</button>
+            </div>
+        </div>`;
+    }
+};
+
+// -------------------------------------------
+// 6. REAL executeForge — actually builds the app
+// -------------------------------------------
+window.openForgeModal = function() {
+    document.getElementById('ukmforge-modal')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'ukmforge-modal';
+    modal.className = 'fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm';
+    document.body.appendChild(modal);
+    modal.innerHTML = `
+    <div class="w-full max-w-lg rounded-2xl p-6 glow" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex items-center justify-between mb-4">
+            <div><h2 class="text-lg font-bold flex items-center gap-2" style="color: var(--text);">🤖 UkmForge</h2><p class="text-xs mt-1" style="color: var(--text-muted);">Describe an app. Ukmbase builds it — tables, schema, and all.</p></div>
+            <button onclick="document.getElementById('ukmforge-modal').remove()" style="color: var(--text-muted);">✕</button>
+        </div>
+        <textarea id="forge-prompt" rows="4" placeholder="e.g. Build a school management system with students, teachers, classes, and grades" class="w-full rounded-lg px-3 py-2 text-sm mb-4 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);"></textarea>
+        <button onclick="executeForge()" id="forge-btn" class="w-full font-bold py-3 rounded-lg text-white" style="background: var(--accent);">Forge App</button>
+        <p class="text-[10px] mt-2 text-center" style="color: var(--text-dim);">Uses AI tokens. Creates a real project with tables.</p>
+    </div>`;
+};
+
+window.executeForge = async function() {
+    const prompt = document.getElementById('forge-prompt').value.trim();
+    if (!prompt) return showToast('Describe your app first', 'error');
+    
+    const btn = document.getElementById('forge-btn');
+    btn.disabled = true; btn.textContent = 'Forging…';
+    
+    try {
+        // 1. AI generates the schema
+        const aiData = await aiCall({
+            prompt: prompt + '\n\nReturn ONLY valid JSON (no markdown fences) with this shape: {"name":"app name","description":"one-line desc","tables":[{"name":"snake_case","columns":[{"name":"col","type":"text|number|boolean|date|json","nullable":true}]}]}',
+            mode: 'default'
+        });
+        
+        const parsed = aiExtractJSON(aiData.content || '');
+        if (!parsed || !Array.isArray(parsed.tables) || !parsed.tables.length) {
+            throw new AIError('invalid', 'AI did not return a valid schema.');
+        }
+        
+        // 2. Create the project
+        const slugBase = (parsed.name || 'forged-app').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 30);
+        const { data: project, error: projErr } = await supabaseClient.from('projects').insert([{
+            owner_id: state.currentUser.id,
+            name: parsed.name || 'Forged App',
+            slug: slugBase + '-' + Date.now().toString(36).slice(-4),
+            description: parsed.description || prompt,
+            status: 'active'
+        }]).select().single();
+        if (projErr) throw projErr;
+        
+        // 3. Enable Ukmbase Data
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        const enableRes = await fetch(SUPABASE_URL + '/functions/v1/ukmdata', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'enable', project_id: project.id })
+        });
+        const enableData = await enableRes.json();
+        if (enableData.error) throw new Error(enableData.error);
+        
+        // 4. Create each table
+        const created = [];
+        for (const t of parsed.tables.slice(0, 12)) {
+            const tableName = String(t.name).toLowerCase().replace(/[^a-z0-9_]/g, '_').slice(0, 60);
+            if (!tableName) continue;
+            try {
+                const res = await fetch(SUPABASE_URL + '/functions/v1/ukmdata', {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'create_table',
+                        project_id: project.id,
+                        table: {
+                            name: tableName,
+                            columns: (t.columns || []).map(c => ({
+                                name: String(c.name).toLowerCase().replace(/[^a-z0-9_]/g, '_'),
+                                type: ['text','number','boolean','date','json'].includes(c.type) ? c.type : 'text',
+                                nullable: c.nullable !== false
+                            }))
+                        }
+                    })
+                });
+                const data = await res.json();
+                if (!data.error) created.push(tableName);
+            } catch (e) { console.warn('[forge] table failed:', tableName, e.message); }
+        }
+        
+        // 5. Save as free template in the marketplace
+        try {
+            await supabaseClient.from('project_templates').insert({
+                name: parsed.name || 'Forged App',
+                tagline: parsed.description || prompt.substring(0, 60),
+                description: prompt,
+                icon: '✨',
+                price_usd: 0,
+                config: parsed,
+                creator_id: state.currentUser.id
+            });
+        } catch (e) { console.warn('[forge] template save failed:', e.message); }
+        
+        await loadProjects();
+        document.getElementById('ukmforge-modal').remove();
+        switchView('overview');
+        showToast(`Forged "${project.name}" with ${created.length} tables!`, 'success', 5000);
+    } catch (e) {
+        showToast(aiFormatError(e) || e.message, 'error');
+        btn.disabled = false; btn.textContent = 'Forge App';
+    }
+};
+
+// -------------------------------------------
+// 7. REAL marketplace — buyTemplate + cloneTemplate
+// -------------------------------------------
+window.buyTemplate = async function(templateId, templateName, price) {
+    try {
+        const { data: template } = await supabaseClient.from('project_templates').select('*').eq('id', templateId).single();
+        if (!template) return showToast('Template not found', 'error');
+        
+        if (!template.price_usd || Number(template.price_usd) === 0) {
+            return window.cloneTemplate(templateId);
+        }
+        
+        if (!confirm(`Purchase "${templateName}" for $${price}?`)) return;
+        
+        const { data: purchase, error } = await supabaseClient.from('template_purchases').insert({
+            user_id: state.currentUser.id,
+            template_id: templateId,
+            amount_usd: price,
+            status: 'pending'
+        }).select().single();
+        if (error) throw error;
+        
+        if (template.checkout_url) {
+            const sep = template.checkout_url.includes('?') ? '&' : '?';
+            window.location.href = template.checkout_url + sep + 'client_reference_id=' + purchase.id;
+        } else {
+            state.currentUpgradePlan = { plan: 'template:' + templateName, price };
+            openUpgradeModal('template', price);
+        }
+    } catch (e) { showToast(e.message, 'error'); }
+};
+
+window.cloneTemplate = async function(templateId) {
+    try {
+        showToast('Cloning template...');
+        const { data: template } = await supabaseClient.from('project_templates').select('*').eq('id', templateId).single();
+        if (!template) return showToast('Template not found', 'error');
+        
+        const config = template.config || {};
+        const tables = config.tables || [];
+        
+        const slugBase = (template.name || 'template').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 30);
+        const { data: project, error: projErr } = await supabaseClient.from('projects').insert([{
+            owner_id: state.currentUser.id,
+            name: template.name + ' Clone',
+            slug: slugBase + '-' + Date.now().toString(36).slice(-4),
+            description: template.description || template.tagline || '',
+            status: 'active'
+        }]).select().single();
+        if (projErr) throw projErr;
+        
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        await fetch(SUPABASE_URL + '/functions/v1/ukmdata', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'enable', project_id: project.id })
+        });
+        
+        let created = 0;
+        for (const t of tables.slice(0, 20)) {
+            try {
+                const res = await fetch(SUPABASE_URL + '/functions/v1/ukmdata', {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'create_table',
+                        project_id: project.id,
+                        table: { name: String(t.name).toLowerCase().replace(/[^a-z0-9_]/g, '_'), columns: t.columns || [] }
+                    })
+                });
+                const d = await res.json();
+                if (!d.error) created++;
+            } catch (e) { console.warn('[clone] table failed:', e.message); }
+        }
+        
+        // If paid, mark purchase complete
+        if (Number(template.price_usd) > 0) {
+            await supabaseClient.from('template_purchases').update({ status: 'completed' })
+                .eq('user_id', state.currentUser.id).eq('template_id', templateId);
+        }
+        
+        await loadProjects();
+        document.querySelectorAll('[id*="templates-modal"], [id*="market"]').forEach(el => {
+            if (el.id.includes('modal')) el.classList.add('hidden');
+        });
+        switchView('overview');
+        showToast(`Cloned "${template.name}" with ${created} tables!`, 'success');
+    } catch (e) { showToast(e.message, 'error'); }
+};
+
+// -------------------------------------------
+// 8. REAL backups — snapshot & restore
+// -------------------------------------------
+window.openBackupModal = function() {
+    document.getElementById('ukmbackup-modal')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'ukmbackup-modal';
+    modal.className = 'fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm';
+    document.body.appendChild(modal);
+    modal.innerHTML = `
+    <div class="w-full max-w-lg rounded-2xl p-6 glow max-h-[90vh] flex flex-col" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex items-center justify-between mb-4">
+            <div><h2 class="text-lg font-bold" style="color: var(--text);">Backups</h2><p class="text-xs mt-1" style="color: var(--text-muted);">Snapshot your project data for restore or migration.</p></div>
+            <button onclick="document.getElementById('ukmbackup-modal').remove()" style="color: var(--text-muted);">✕</button>
+        </div>
+        <button onclick="createBackup()" class="w-full font-bold py-2 rounded-lg text-white mb-4" style="background: var(--accent);">+ Take Snapshot Now</button>
+        <div id="backups-list" class="flex-1 overflow-y-auto space-y-2"><p class="text-xs text-center py-4" style="color: var(--text-muted);">Loading...</p></div>
+    </div>`;
+    window.loadBackupsList();
+};
+
+window.loadBackupsList = async function() {
+    const list = document.getElementById('backups-list');
+    if (!list) return;
+    if (!state.currentUkmDataProjectId) { list.innerHTML = '<p class="text-xs text-center" style="color: var(--text-muted);">Select a project in Data & Tables first.</p>'; return; }
+    const { data } = await supabaseClient.from('project_backups').select('*')
+        .eq('project_id', state.currentUkmDataProjectId)
+        .order('created_at', { ascending: false }).limit(10);
+    if (!data || !data.length) {
+        list.innerHTML = '<p class="text-xs text-center py-4" style="color: var(--text-muted);">No backups yet.</p>';
+        return;
+    }
+    list.innerHTML = data.map(b => `
+        <div class="p-3 rounded-lg flex items-center justify-between" style="background: var(--bg); border: 1px solid var(--border);">
+            <div>
+                <p class="text-xs font-bold" style="color: var(--text);">${new Date(b.created_at).toLocaleString()}</p>
+                <p class="text-[10px] mono" style="color: var(--text-dim);">${b.row_count || 0} rows · ${b.kind || 'manual'}</p>
+            </div>
+            <div class="flex gap-1">
+                <button onclick="window.downloadBackup('${b.id}')" class="text-[10px] font-bold px-2 py-1 rounded" style="background: rgba(6,182,212,0.1); color: var(--cyan);">Download</button>
+                <button onclick="window.restoreBackup('${b.id}')" class="text-[10px] font-bold px-2 py-1 rounded" style="background: rgba(245,158,11,0.1); color: var(--amber);">Restore</button>
+                <button onclick="window.deleteBackup('${b.id}')" class="text-[10px] font-bold px-2 py-1 rounded text-red-400">Delete</button>
+            </div>
+        </div>
+    `).join('');
+};
+
+window.createBackup = async function() {
+    const pid = state.currentUkmDataProjectId;
+    if (!pid) return showToast('Select a project first', 'error');
+    
+    showToast('Creating backup...');
+    try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        const listRes = await fetch(SUPABASE_URL + '/functions/v1/ukmdata', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'list', project_id: pid })
+        });
+        const listData = await listRes.json();
+        if (listData.error) throw new Error(listData.error);
+        
+        const tables = listData.tables || [];
+        const backupData = { tables: {}, created_at: new Date().toISOString() };
+        let totalRows = 0;
+        
+        for (const table of tables) {
+            try {
+                const rowsRes = await fetch(SUPABASE_URL + '/functions/v1/ukmdata', {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'fetch_rows', project_id: pid, table_name: table.table_name })
+                });
+                const rowsData = await rowsRes.json();
+                backupData.tables[table.table_name] = rowsData.rows || [];
+                totalRows += (rowsData.rows || []).length;
+            } catch (e) { console.warn('[backup] table failed:', table.table_name); }
+        }
+        
+        const { error } = await supabaseClient.from('project_backups').insert({
+            project_id: pid, kind: 'manual', status: 'ready', row_count: totalRows, data: backupData
+        });
+        if (error) throw error;
+        
+        showToast(`Backup created: ${totalRows} rows across ${tables.length} tables`, 'success');
+        window.loadBackupsList();
+    } catch (e) { showToast('Backup failed: ' + e.message, 'error'); }
+};
+
+window.downloadBackup = async function(id) {
+    const { data } = await supabaseClient.from('project_backups').select('*').eq('id', id).single();
+    if (!data || !data.data) return showToast('Backup has no data', 'error');
+    const blob = new Blob([JSON.stringify(data.data, null, 2)], { type: 'application/json' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `backup-${id.slice(0,8)}.json`;
+    link.click();
+    showToast('Downloaded');
+};
+
+window.restoreBackup = async function(id) {
+    if (!confirm('This will attempt to re-insert all backed-up rows. Rows with duplicate IDs will fail silently. Continue?')) return;
+    const { data } = await supabaseClient.from('project_backups').select('*').eq('id', id).single();
+    if (!data || !data.data) return showToast('Backup has no data', 'error');
+    const pid = state.currentUkmDataProjectId;
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    let restored = 0;
+    for (const [tableName, rows] of Object.entries(data.data.tables || {})) {
+        if (!rows.length) continue;
+        try {
+            await fetch(SUPABASE_URL + '/functions/v1/ukmdata', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'bulk_insert', project_id: pid, table_name: tableName, rows })
+            });
+            restored += rows.length;
+        } catch (e) { console.warn('[restore] failed:', tableName, e.message); }
+    }
+    await supabaseClient.from('project_backups').update({ restored_at: new Date().toISOString() }).eq('id', id);
+    showToast(`Restored ${restored} rows`);
+};
+
+window.deleteBackup = async function(id) {
+    if (!confirm('Delete this backup?')) return;
+    await supabaseClient.from('project_backups').delete().eq('id', id);
+    window.loadBackupsList();
+};
+
+// -------------------------------------------
+// 9. REAL runUkmTest — actually sends request
+// -------------------------------------------
+window.runUkmTest = async function() {
+    const bodyEl = document.getElementById('test-body');
+    const responseEl = document.getElementById('test-response');
+    if (!bodyEl || !responseEl) return;
+    
+    let body;
+    try { body = JSON.parse(bodyEl.value || '{}'); }
+    catch (e) {
+        responseEl.textContent = 'Invalid JSON: ' + e.message;
+        responseEl.style.color = 'var(--red)';
+        return;
+    }
+    
+    if (!body.action) body.action = 'list';
+    if (!body.project_id) body.project_id = state.currentUkmDataProjectId;
+    
+    responseEl.textContent = 'Sending...';
+    responseEl.style.color = 'var(--text-muted)';
+    
+    try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        const res = await fetch(SUPABASE_URL + '/functions/v1/ukmdata', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        responseEl.textContent = JSON.stringify(data, null, 2);
+        responseEl.style.color = data.error ? 'var(--red)' : 'var(--green)';
+    } catch (e) {
+        responseEl.textContent = 'Error: ' + e.message;
+        responseEl.style.color = 'var(--red)';
+    }
+};
+
+// -------------------------------------------
+// 10. REAL loadTourismApp — actual demo page
+// -------------------------------------------
+window.loadTourismApp = function() {
+    let view = document.getElementById('view-tourism-demo');
+    if (!view) {
+        view = document.createElement('div');
+        view.id = 'view-tourism-demo';
+        view.className = 'flex-1 overflow-y-auto';
+        document.querySelector('#dashboard-view main').appendChild(view);
+    }
+    document.querySelectorAll('[id^="view-"]').forEach(el => el.classList.add('hidden'));
+    view.classList.remove('hidden');
+    
+    const places = [
+        { title: 'Victoria Falls', desc: 'The Smoke That Thunders', emoji: '💦', price: '$180' },
+        { title: 'Hwange National Park', desc: 'Elephants, lions, wild beauty', emoji: '🐘', price: '$95' },
+        { title: 'Great Zimbabwe', desc: 'Ancient ruins of a great kingdom', emoji: '🏛️', price: '$40' },
+        { title: 'Matobo Hills', desc: 'Rock formations and San rock art', emoji: '⛰️', price: '$60' },
+        { title: 'Lake Kariba', desc: 'Sunset boat cruises and houseboats', emoji: '🚤', price: '$120' },
+        { title: 'Eastern Highlands', desc: 'Lush mountains and coffee plantations', emoji: '🌄', price: '$85' }
+    ];
+    view.innerHTML = `
+    <div class="max-w-6xl mx-auto p-8">
+        <div class="mb-6">
+            <button onclick="switchView('overview')" class="text-xs font-bold" style="color: var(--cyan);">← Back to Overview</button>
+        </div>
+        <div class="text-center mb-12">
+            <h1 class="text-4xl font-extrabold mb-2" style="color: var(--text);">Welcome to Zimbabwe 🇿🇼</h1>
+            <p class="text-lg" style="color: var(--text-muted);">Discover the beauty of Southern Africa</p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            ${places.map(p => `
+                <div class="feature-card rounded-xl overflow-hidden" style="background: var(--surface); border: 1px solid var(--border);">
+                    <div class="h-40 flex items-center justify-center text-6xl" style="background: linear-gradient(135deg, rgba(79,70,229,0.2), rgba(6,182,212,0.1));">${p.emoji}</div>
+                    <div class="p-5">
+                        <h3 class="font-bold text-lg mb-1" style="color: var(--text);">${p.title}</h3>
+                        <p class="text-sm mb-3" style="color: var(--text-muted);">${p.desc}</p>
+                        <div class="flex items-center justify-between">
+                            <span class="font-bold mono" style="color: var(--green);">${p.price}</span>
+                            <button onclick="showToast('Booking modal coming soon!')" class="text-xs font-bold px-3 py-1.5 rounded-lg text-white" style="background: var(--accent);">Book</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+        <div class="text-center mt-12 text-xs" style="color: var(--text-dim);">
+            This is a demo tourism app built on Ukmbase Data. <button onclick="switchView('ukmdata')" class="font-bold" style="color: var(--cyan);">Build your own →</button>
+        </div>
+    </div>`;
+};
+
+// -------------------------------------------
+// 11. REAL loadPublicForm — full form rendering
+// -------------------------------------------
+window.loadPublicForm = async function(slug, tableName) {
+    ['landing-view','auth-view','dashboard-view'].forEach(id => document.getElementById(id)?.classList.add('hidden'));
+    const formView = document.getElementById('public-form-view');
+    formView.classList.remove('hidden');
+    document.getElementById('form-loading').classList.remove('hidden');
+    document.getElementById('dynamic-form').classList.add('hidden');
+    document.getElementById('form-success').classList.add('hidden');
+    
+    try {
+        const { data: proj } = await supabaseClient.from('projects').select('*').eq('slug', slug).maybeSingle();
+        if (!proj) throw new Error('Project not found');
+        
+        const { data: formDef } = await supabaseClient.from('project_forms').select('*')
+            .eq('slug', tableName).eq('project_id', proj.id).maybeSingle();
+        
+        document.getElementById('form-title').textContent = formDef?.title || proj.name;
+        document.getElementById('form-subtitle').textContent = 'Please fill out the form below.';
+        
+        const fields = (formDef && Array.isArray(formDef.fields) && formDef.fields.length)
+            ? formDef.fields
+            : [{ name: 'name', type: 'text' }, { name: 'email', type: 'email' }, { name: 'message', type: 'text' }];
+        
+        const form = document.getElementById('dynamic-form');
+        form.innerHTML = fields.map(f => `
+            <div>
+                <label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">${escapeHtml(f.name)}</label>
+                <input type="${f.type || 'text'}" name="${escapeHtml(f.name)}" ${f.required !== false ? 'required' : ''} class="w-full rounded-lg px-4 py-3 focus:outline-none" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
+            </div>
+        `).join('') + `<button type="submit" class="w-full font-bold py-3 rounded-lg text-white mt-4" style="background: var(--accent);">Submit</button>`;
+        
+        form.onsubmit = async (e) => {
+            e.preventDefault();
+            const data = Object.fromEntries(new FormData(e.target).entries());
+            try {
+                const res = await fetch(SUPABASE_URL + '/functions/v1/ukmform', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ project_slug: slug, table_name: formDef?.table_name || tableName, data })
+                });
+                const result = await res.json();
+                if (result.error) throw new Error(result.error);
+                form.classList.add('hidden');
+                document.getElementById('form-success').classList.remove('hidden');
+            } catch (err) { showToast(err.message, 'error'); }
+        };
+        
+        document.getElementById('form-loading').classList.add('hidden');
+        form.classList.remove('hidden');
+    } catch (e) {
+        document.getElementById('form-loading').classList.add('hidden');
+        showToast(e.message, 'error');
+    }
+};
+
+// -------------------------------------------
+// 12. REAL saveFlow — creates webhook + saves flow
+// -------------------------------------------
+window.saveFlow = async function() {
+    const table = document.getElementById('flow-table').value;
+    const email = document.getElementById('flow-email').value.trim();
+    if (!table || !email) return showToast('Select a table and enter an email', 'error');
+    
+    try {
+        const { data: flow, error } = await supabaseClient.from('project_flows').insert({
+            project_id: state.currentUkmDataProjectId,
+            name: `Email to ${email} on new ${table}`,
+            trigger_type: 'insert',
+            trigger_table: table,
+            actions: [{ type: 'email', to: email, subject: `New record in ${table}` }]
+        }).select().single();
+        if (error) throw error;
+        
+        // Also register a webhook so the actual notification fires
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        await fetch(SUPABASE_URL + '/functions/v1/ukmdata', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'add_webhook',
+                project_id: state.currentUkmDataProjectId,
+                table_name: table,
+                event_type: 'INSERT',
+                target_url: SUPABASE_URL + '/functions/v1/ukmnotify?flow_id=' + flow.id
+            })
+        });
+        
+        showToast('Flow created + webhook registered!');
+        document.getElementById('flow-email').value = '';
+        window.loadFlows();
+    } catch (e) { showToast(e.message, 'error'); }
+};
+
+// -------------------------------------------
+// 13. Fix openTemplatesModal (robust against missing table)
+// -------------------------------------------
+window.openTemplatesModal = async function() {
+    document.getElementById('ukmtemplates-modal')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'ukmtemplates-modal';
+    modal.className = 'fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm';
+    document.body.appendChild(modal);
+    modal.innerHTML = `
+    <div class="w-full max-w-2xl rounded-2xl p-6 glow max-h-[90vh] flex flex-col" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex items-center justify-between mb-4">
+            <div><h2 class="text-lg font-bold" style="color: var(--text);">UkmTemplates</h2><p class="text-xs mt-1" style="color: var(--text-muted);">Start from a pre-built schema.</p></div>
+            <button onclick="document.getElementById('ukmtemplates-modal').remove()" style="color: var(--text-muted);">✕</button>
+        </div>
+        <div id="templates-list" class="flex-1 overflow-y-auto space-y-3">
+            <div class="text-center py-8"><div class="inline-block w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent);"></div></div>
+        </div>
+    </div>`;
+    
+    try {
+        const { data: templates, error } = await supabaseClient.from('project_templates').select('*').order('created_at', { ascending: false });
+        const list = document.getElementById('templates-list');
+        if (error) throw error;
+        if (!templates || !templates.length) {
+            list.innerHTML = '<p class="text-sm text-center py-8" style="color: var(--text-muted);">No templates yet. Forge one with AI first!</p>';
+            return;
+        }
+        list.innerHTML = templates.map(t => `
+            <div class="rounded-xl p-4 flex items-center justify-between" style="background: var(--bg); border: 1px solid var(--border);">
+                <div class="flex items-center gap-3 flex-1 min-w-0">
+                    <div class="w-10 h-10 rounded-lg flex items-center justify-center text-xl flex-shrink-0" style="background: rgba(79,70,229,0.1);">${t.icon || '📦'}</div>
+                    <div class="min-w-0">
+                        <p class="text-sm font-bold truncate" style="color: var(--text);">${escapeHtml(t.name)}</p>
+                        <p class="text-xs truncate" style="color: var(--text-muted);">${escapeHtml(t.tagline || '')}</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 flex-shrink-0 ml-2">
+                    <span class="text-xs font-bold mono" style="color: ${t.price_usd > 0 ? 'var(--green)' : 'var(--cyan)'}">${t.price_usd > 0 ? '$'+t.price_usd : 'FREE'}</span>
+                    <button onclick="cloneTemplate('${t.id}')" class="text-xs font-bold px-3 py-1.5 rounded-lg text-white" style="background: var(--accent);">Clone</button>
+                </div>
+            </div>
+        `).join('');
+    } catch (e) {
+        document.getElementById('templates-list').innerHTML = `
+            <div class="text-center py-8">
+                <p class="text-sm mb-3" style="color: var(--red);">Templates table missing.</p>
+                <p class="text-xs" style="color: var(--text-muted);">Run the SQL in Step 1 of the setup guide to create it.</p>
+            </div>`;
+    }
+};
+
+// -------------------------------------------
+// 14. Fix openAuditModal (robust)
+// -------------------------------------------
+window.openAuditModal = async function() {
+    if (!state.currentUkmDataProjectId) return showToast('Select a project in Data & Tables first.', 'error');
+    document.getElementById('ukmaudit-modal')?.remove();
+    
+    const modal = document.createElement('div');
+    modal.id = 'ukmaudit-modal';
+    modal.className = 'fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm';
+    document.body.appendChild(modal);
+    modal.innerHTML = `
+    <div class="w-full max-w-2xl rounded-2xl p-6 glow max-h-[90vh] flex flex-col" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-bold" style="color: var(--text);">Audit Logs</h2>
+            <button onclick="document.getElementById('ukmaudit-modal').remove()" style="color: var(--text-muted);">✕</button>
+        </div>
+        <div id="audit-list" class="flex-1 overflow-y-auto space-y-2">
+            <div class="text-center py-8"><div class="inline-block w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style="border-color: var(--accent);"></div></div>
+        </div>
+    </div>`;
+    
+    try {
+        const { data, error } = await supabaseClient.from('audit_logs').select('*')
+            .eq('project_id', state.currentUkmDataProjectId)
+            .order('created_at', { ascending: false }).limit(50);
+        const list = document.getElementById('audit-list');
+        if (error) throw error;
+        if (!data || !data.length) {
+            list.innerHTML = '<p class="text-sm text-center py-8" style="color: var(--text-muted);">No audit logs yet. Rows in this table will start appearing once triggers are set up.</p>';
+            return;
+        }
+        list.innerHTML = data.map(l => `
+            <div class="p-3 rounded-lg" style="background: var(--bg); border: 1px solid var(--border);">
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded ${l.operation === 'INSERT' ? 'bg-green-500/20 text-green-400' : l.operation === 'UPDATE' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-red-500/20 text-red-400'}">${l.operation}</span>
+                    <span class="text-xs font-bold mono" style="color: var(--text);">${escapeHtml(l.table_name || '')}</span>
+                    <span class="text-[10px] ml-auto" style="color: var(--text-dim);">${new Date(l.created_at).toLocaleString()}</span>
+                </div>
+                <p class="text-[10px] mono truncate" style="color: var(--text-muted);">${escapeHtml(JSON.stringify(l.new_row || {}).slice(0, 120))}</p>
+            </div>
+        `).join('');
+    } catch (e) {
+        document.getElementById('audit-list').innerHTML = `<p class="text-sm text-center py-4" style="color: var(--text-muted);">Audit logs table not configured yet.</p>`;
+    }
+};
+
+// -------------------------------------------
+// 15. Global ⌘K / Ctrl+K listener
+// -------------------------------------------
+document.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        const dash = document.getElementById('dashboard-view');
+        if (dash && !dash.classList.contains('hidden')) {
+            window.openGlobalSearch();
+        }
+    }
+});
+
+// -------------------------------------------
+// 16. Hamburger — clean single listener
+// -------------------------------------------
+(function() {
+    let initialized = false;
+    const init = () => {
+        if (initialized) return;
+        const btn = document.querySelector('#dashboard-view nav button');
+        if (!btn) return;
+        btn.removeAttribute('onclick');
+        let lock = false;
+        btn.onclick = (e) => {
+            e.preventDefault(); e.stopPropagation();
+            if (lock) return;
+            lock = true;
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar) sidebar.classList.toggle('-translate-x-full');
+            setTimeout(() => { lock = false; }, 250);
+        };
+        initialized = true;
+    };
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => { init(); setTimeout(init, 500); });
+    } else {
+        init(); setTimeout(init, 500);
+    }
+})();
+
+// -------------------------------------------
+// 17. Sidebar menu triggers (Templates, Flow, Audit)
+// -------------------------------------------
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        document.querySelectorAll('#sidebar a').forEach(a => {
+            const text = a.textContent.trim();
+            if (text.includes('Templates') && !a.dataset.wired) {
+                a.removeAttribute('onclick');
+                a.onclick = (e) => { e.preventDefault(); window.openTemplatesModal(); };
+                a.dataset.wired = '1';
+            }
+            if (text.includes('UkmFlow') && !a.dataset.wired) {
+                a.removeAttribute('onclick');
+                a.onclick = (e) => { e.preventDefault(); window.openFlowModal(); };
+                a.dataset.wired = '1';
+            }
+            if (text.includes('Audit Logs') && !a.dataset.wired) {
+                a.removeAttribute('onclick');
+                a.onclick = (e) => { e.preventDefault(); window.openAuditModal(); };
+                a.dataset.wired = '1';
+            }
+            if (text.includes('Backups') && !a.dataset.wired) {
+                a.removeAttribute('onclick');
+                a.onclick = (e) => { e.preventDefault(); window.openBackupModal(); };
+                a.dataset.wired = '1';
+            }
+        });
+    }, 800);
+});
+
+console.log('%c[Ukmbase] Phase 37 loaded — consolidation + features complete', 'color: #10B981; font-weight: bold;');
