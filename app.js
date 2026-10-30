@@ -3455,3 +3455,128 @@ Object.assign(window, {
 });
 
 init();
+// ============================================
+// THE PROJECT SETTINGS BUG FIX (Paste at bottom)
+// ============================================
+
+window.openProjectSettings = function (projectId) {
+    const proj = state.projectsCache.find(p => p.id === projectId);
+    if (!proj) return showToast('Project not found', 'error');
+    
+    // Remove modal if it already exists
+    document.getElementById('project-settings-modal')?.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'project-settings-modal';
+    modal.className = 'fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm';
+    document.body.appendChild(modal);
+
+    // ✅ BUG FIX: Safe slug fallback
+    const safeSlug = proj.slug || 'unknown-project';
+    const schema = safeSlug.replace(/-/g, '_');
+    const docUrl = window.location.origin + window.location.pathname + '?docs=' + safeSlug;
+
+    modal.innerHTML = `
+    <div class="w-full max-w-2xl rounded-2xl p-6 glow max-h-[90vh] flex flex-col" style="background: var(--surface); border: 1px solid var(--border);">
+        <div class="flex items-center justify-between mb-4">
+            <div><h2 class="text-lg font-bold" style="color: var(--text);">Project Settings</h2><p class="text-xs mono mt-1" style="color: var(--cyan);">${escapeHtml(proj.name || 'Unnamed Project')}</p></div>
+            <button onclick="document.getElementById('project-settings-modal').remove()" style="color: var(--text-muted);">✕</button>
+        </div>
+        
+        <div class="flex gap-4 mb-6 border-b overflow-x-auto no-scrollbar" style="border-color: var(--border);">
+            <button onclick="switchSettingsTab('general')" data-tab="general" class="px-1 py-2 text-sm font-medium whitespace-nowrap" style="color: var(--text); border-bottom: 2px solid var(--accent);">General</button>
+            <button onclick="switchSettingsTab('api')" data-tab="api" class="px-1 py-2 text-sm font-medium whitespace-nowrap" style="color: var(--text-muted); border-bottom: 2px solid transparent;">API & Docs</button>
+            <button onclick="switchSettingsTab('integrations')" data-tab="integrations" class="px-1 py-2 text-sm font-medium whitespace-nowrap" style="color: var(--text-muted); border-bottom: 2px solid transparent;">Integrations</button>
+            <button onclick="switchSettingsTab('danger')" data-tab="danger" class="px-1 py-2 text-sm font-medium whitespace-nowrap" style="color: var(--red); border-bottom: 2px solid transparent;">Danger Zone</button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto pr-2">
+            <!-- GENERAL -->
+            <div data-panel="general" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Project Name</label>
+                    <input type="text" id="ps-name" value="${escapeHtml(proj.name || '')}" class="w-full rounded-lg px-3 py-2 text-sm" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Slug (read-only)</label>
+                    <input type="text" value="${escapeHtml(proj.slug || '')}" readonly class="w-full rounded-lg px-3 py-2 text-sm mono" style="background: var(--bg); border: 1px solid var(--border); color: var(--text-dim);">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium mb-1" style="color: var(--text-muted);">Description</label>
+                    <textarea id="ps-desc" rows="2" class="w-full rounded-lg px-3 py-2 text-sm" style="background: var(--bg); border: 1px solid var(--border); color: var(--text);">${escapeHtml(proj.description || '')}</textarea>
+                </div>
+                <button onclick="saveProjectGeneral('${proj.id}')" class="w-full font-bold py-2 rounded-lg text-white text-sm" style="background: var(--accent);">Save Changes</button>
+            </div>
+
+            <!-- API -->
+            <div data-panel="api" class="space-y-4 hidden">
+                <div class="rounded-xl p-4" style="background: var(--bg); border: 1px solid var(--border);">
+                    <div class="space-y-3 text-xs">
+                        <div><label class="text-[10px] uppercase font-bold" style="color: var(--text-muted);">Project URL</label><div class="flex justify-between items-center mt-1"><span class="mono truncate" style="color: var(--text);">${SUPABASE_URL}</span><button onclick="copyToClipboardText('${SUPABASE_URL}')" class="text-[10px] text-cyan-400">Copy</button></div></div>
+                        <div><label class="text-[10px] uppercase font-bold" style="color: var(--text-muted);">Anon Key</label><div class="flex justify-between items-center mt-1"><span class="mono truncate" style="color: var(--text);">${SUPABASE_ANON_KEY}</span><button onclick="copyToClipboardText('${SUPABASE_ANON_KEY}')" class="text-[10px] text-cyan-400">Copy</button></div></div>
+                        <div><label class="text-[10px] uppercase font-bold" style="color: var(--text-muted);">Schema</label><div class="flex justify-between items-center mt-1"><span class="mono" style="color: var(--cyan);">${schema}</span><button onclick="copyToClipboardText('${schema}')" class="text-[10px] text-cyan-400">Copy</button></div></div>
+                    </div>
+                </div>
+                <button onclick="window.open('${docUrl}', '_blank')" class="w-full text-xs font-bold py-3 rounded-lg flex items-center justify-center gap-2" style="background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); color: var(--green);">📖 Open Public API Docs</button>
+                <button onclick="copyToClipboardText('${docUrl}')" class="w-full text-[10px] font-bold py-2 rounded-lg" style="background: var(--bg); border: 1px solid var(--border); color: var(--text-muted);">Copy Docs Link</button>
+            </div>
+
+            <!-- INTEGRATIONS -->
+            <div data-panel="integrations" class="space-y-3 hidden">
+                <button onclick="switchView('ukmdata'); setTimeout(function(){ var el = document.getElementById('project-settings-modal'); if(el) el.remove(); }, 100)" class="w-full text-left rounded-xl p-4 flex items-center justify-between" style="background: var(--bg); border: 1px solid var(--border);">
+                    <div><p class="text-sm font-bold" style="color: var(--text);">Database Tables</p><p class="text-xs" style="color: var(--text-muted);">Manage schema and rows</p></div>
+                    <span style="color: var(--cyan);">→</span>
+                </button>
+                <button onclick="switchView('ukmsync'); setTimeout(function(){ var el = document.getElementById('project-settings-modal'); if(el) el.remove(); }, 100)" class="w-full text-left rounded-xl p-4 flex items-center justify-between" style="background: var(--bg); border: 1px solid var(--border);">
+                    <div><p class="text-sm font-bold" style="color: var(--text);">UkmSync Engine</p><p class="text-xs" style="color: var(--text-muted);">Offline-first config</p></div>
+                    <span style="color: var(--cyan);">→</span>
+                </button>
+                <button onclick="switchView('ukmpay'); setTimeout(function(){ var el = document.getElementById('project-settings-modal'); if(el) el.remove(); }, 100)" class="w-full text-left rounded-xl p-4 flex items-center justify-between" style="background: var(--bg); border: 1px solid var(--border);">
+                    <div><p class="text-sm font-bold" style="color: var(--text);">Payments</p><p class="text-xs" style="color: var(--text-muted);">Plans and checkout</p></div>
+                    <span style="color: var(--cyan);">→</span>
+                </button>
+            </div>
+
+            <!-- DANGER -->
+            <div data-panel="danger" class="space-y-4 hidden">
+                <div class="rounded-xl p-4" style="background: rgba(239,68,68,0.05); border: 1px solid rgba(239,68,68,0.2);">
+                    <h3 class="text-sm font-bold mb-2 text-red-400">Delete Project</h3>
+                    <p class="text-xs mb-3" style="color: var(--text-muted);">Permanently removes the project, all tables, users, and data. Cannot be undone.</p>
+                    <button onclick="confirmDeleteProject('${proj.id}')" class="text-xs font-bold px-4 py-2 rounded-lg bg-red-500/20 text-red-400">Delete Project</button>
+                </div>
+            </div>
+        </div>
+    </div>`;
+};
+
+// Ensure the tab switcher and other buttons work properly
+window.switchSettingsTab = function (tab) {
+    document.querySelectorAll('#project-settings-modal [data-tab]').forEach(btn => {
+        const isActive = btn.dataset.tab === tab;
+        btn.style.color = btn.dataset.tab === 'danger' ? (isActive ? 'var(--red)' : 'rgba(239,68,68,0.5)') : (isActive ? 'var(--text)' : 'var(--text-muted)');
+        btn.style.borderBottomColor = isActive ? (btn.dataset.tab === 'danger' ? 'var(--red)' : 'var(--accent)') : 'transparent';
+    });
+    document.querySelectorAll('#project-settings-modal [data-panel]').forEach(panel => {
+        panel.classList.toggle('hidden', panel.dataset.panel !== tab);
+    });
+};
+
+window.saveProjectGeneral = async function (projectId) {
+    const name = document.getElementById('ps-name').value.trim();
+    const desc = document.getElementById('ps-desc').value.trim();
+    if (!name) return showToast('Name required', 'error');
+    const { error } = await supabaseClient.from('projects').update({ name, description: desc }).eq('id', projectId);
+    if (error) return showToast(error.message, 'error');
+    await loadProjects();
+    showToast('Project updated');
+    document.getElementById('project-settings-modal')?.remove();
+};
+
+window.confirmDeleteProject = function (id) {
+    const p = state.projectsCache.find(x => x.id === id);
+    if (!p) return showToast('Project not found', 'error');
+    if (!confirm(`Permanently delete "${p.name}"?\nThis removes all tables, users, and data.`)) return;
+    deleteProject(id);
+};
+
+console.log('[Ukmbase] Project settings patch applied.');
